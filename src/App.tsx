@@ -1,230 +1,255 @@
-import { useState, useEffect, Suspense } from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-  useRoutes,
-} from "react-router-dom";
-import { useUser } from "./context/UserContext";
+import { Suspense } from "react";
+import { useRoutes, Routes, Route, Link, Navigate } from "react-router-dom";
 import LoginPage from "./components/LoginPage";
-import UserDashboard from "./components/UserDashboard";
-import ClientManagementDashboard from "./components/ClientManagementDashboard";
-import AssessmentDashboard from "./components/AssessmentDashboard";
-import EventsDashboard from "./components/EventsDashboard";
+import Home from "./components/home";
+import ClientsPage from "./components/ClientsPage";
+import AssessmentsPage from "./components/AssessmentsPage";
+import EventsPage from "./components/EventsPage";
 import ClientProfile from "./components/ClientProfile";
-import LandingPage from "./components/LandingPage";
-import NotificationDemo from "./components/NotificationDemo";
-import JourneyStageManager from "./components/JourneyStageManager";
-import QRCodeGenerator from "./components/QRCodeGenerator";
-import AddInteractionForm from "./components/AddInteractionForm";
-import JourneyTimeline from "./components/JourneyTimeline";
-import AssessmentForm from "./components/AssessmentForm";
-import ImpactReport from "./components/ImpactReport";
 import EventAttendanceRegister from "./components/EventAttendanceRegister";
 import NewClientForm from "./components/NewClientForm";
+import NewEventForm from "./components/NewEventForm";
 import SelfRegistrationPage from "./components/SelfRegistrationPage";
 import AdminDashboard from "./components/AdminDashboard";
 import NewUserForm from "./components/NewUserForm";
-import SuperAdminDashboard from "./components/SuperAdminDashboard";
-import NewEventForm from "./components/NewEventForm";
-import NewOrganizationForm from "./components/NewOrganizationForm";
-import UserSettings from "./components/UserSettings";
+import routes from "tempo-routes";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useUser } from "./context/UserContext";
+import Logo from "./components/Logo";
 import { NotificationProvider } from "./context/NotificationContext";
 import { TenantProvider } from "./context/TenantContext";
-import { UserProvider } from "./context/UserContext";
+import UserHeader from "./components/UserHeader";
+import NotificationCenter from "./components/NotificationCenter";
+import { useState } from "react";
+import UserSettings from "./components/UserSettings";
+import OrganizationSwitcher from "./components/OrganizationSwitcher";
+import SuperAdminDashboard from "./components/SuperAdminDashboard";
+import {
+  NavigationMenu,
+  NavigationMenuList,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  navigationMenuTriggerStyle,
+} from "@/components/ui/navigation-menu";
 
 function App() {
-  const { user } = useUser();
+  const [showUserSettings, setShowUserSettings] = useState(false);
+  const { user, isLoggedIn } = useUser();
+
+  // Protected route component
+  const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+    if (!isLoggedIn) {
+      return <Navigate to="/login" replace />;
+    }
+    return <>{children}</>;
+  };
 
   return (
-    <Router>
+    <TenantProvider>
       <NotificationProvider>
-        <TenantProvider>
-          <UserProvider>
-            <Suspense fallback={<p>Loading...</p>}>
-              <div className="flex flex-col min-h-screen">
-                {/* For the tempo routes */}
-                {import.meta.env.VITE_TEMPO && useRoutes([])}
+        <Suspense fallback={<p>Loading...</p>}>
+          <div className="flex flex-col min-h-screen">
+            {isLoggedIn && (
+              <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+                <div className="container flex h-14 items-center justify-between">
+                  <div className="flex items-center gap-6">
+                    <Logo size="md" variant="default" />
+                    <NavigationMenu>
+                      <NavigationMenuList>
+                        <NavigationMenuItem>
+                          <Link
+                            to="/dashboard"
+                            className={navigationMenuTriggerStyle()}
+                          >
+                            Dashboard
+                          </Link>
+                        </NavigationMenuItem>
+                        <NavigationMenuItem>
+                          <Link
+                            to="/clients"
+                            className={navigationMenuTriggerStyle()}
+                          >
+                            Clients
+                          </Link>
+                        </NavigationMenuItem>
+                        <NavigationMenuItem>
+                          <Link
+                            to="/events"
+                            className={navigationMenuTriggerStyle()}
+                          >
+                            Events
+                          </Link>
+                        </NavigationMenuItem>
+                        <NavigationMenuItem>
+                          <Link
+                            to="/assessments"
+                            className={navigationMenuTriggerStyle()}
+                          >
+                            Assessments
+                          </Link>
+                        </NavigationMenuItem>
+                      </NavigationMenuList>
+                    </NavigationMenu>
+                  </div>
+                  {/* Right side header */}
+                  <div className="flex items-center gap-4">
+                    <UserHeader
+                      onSettingsClick={() => setShowUserSettings(true)}
+                    />
+                  </div>
+                </div>
+              </header>
+            )}
 
-                <Routes>
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/landing" element={<LandingPage />} />
-                  <Route path="/register" element={<SelfRegistrationPage />} />
-                  <Route
-                    path="/"
-                    element={
-                      user ? <UserDashboard /> : <Navigate to="/login" />
-                    }
-                  />
-                  <Route
-                    path="/dashboard"
-                    element={
-                      user ? <UserDashboard /> : <Navigate to="/login" />
-                    }
-                  />
-                  <Route
-                    path="/clients"
-                    element={
-                      user ? (
-                        <ClientManagementDashboard />
-                      ) : (
-                        <Navigate to="/login" />
-                      )
-                    }
-                  />
-                  <Route
-                    path="/assessments"
-                    element={
-                      user ? <AssessmentDashboard /> : <Navigate to="/login" />
-                    }
-                  />
-                  <Route
-                    path="/assessment/:id"
-                    element={
-                      user ? <AssessmentForm /> : <Navigate to="/login" />
-                    }
-                  />
-                  <Route
-                    path="/assessment/new"
-                    element={
-                      user ? <AssessmentForm /> : <Navigate to="/login" />
-                    }
-                  />
-                  <Route
-                    path="/events"
-                    element={
-                      user ? <EventsDashboard /> : <Navigate to="/login" />
-                    }
-                  />
-                  <Route
-                    path="/client/:id"
-                    element={
-                      user ? <ClientProfile /> : <Navigate to="/login" />
-                    }
-                  />
-                  <Route
-                    path="/notifications"
-                    element={
-                      user ? <NotificationDemo /> : <Navigate to="/login" />
-                    }
-                  />
-                  <Route
-                    path="/journey-stages"
-                    element={
-                      user ? <JourneyStageManager /> : <Navigate to="/login" />
-                    }
-                  />
-                  <Route
-                    path="/qr-generator"
-                    element={
-                      user ? <QRCodeGenerator /> : <Navigate to="/login" />
-                    }
-                  />
-                  <Route
-                    path="/client/:id/add-interaction"
-                    element={
-                      user ? <AddInteractionForm /> : <Navigate to="/login" />
-                    }
-                  />
-                  <Route
-                    path="/client/:id/journey"
-                    element={
-                      user ? <JourneyTimeline /> : <Navigate to="/login" />
-                    }
-                  />
-                  <Route
-                    path="/client/:id/assessment"
-                    element={
-                      user ? <AssessmentForm /> : <Navigate to="/login" />
-                    }
-                  />
-                  <Route
-                    path="/client/:id/report"
-                    element={user ? <ImpactReport /> : <Navigate to="/login" />}
-                  />
-                  <Route
-                    path="/events/attendance/:id"
-                    element={
-                      user ? (
-                        <EventAttendanceRegister />
-                      ) : (
-                        <Navigate to="/login" />
-                      )
-                    }
-                  />
-                  <Route
-                    path="/clients/new"
-                    element={
-                      user ? <NewClientForm /> : <Navigate to="/login" />
-                    }
-                  />
-                  <Route
-                    path="/admin"
-                    element={
-                      user &&
-                      (user.role === "admin" ||
-                        user.role === "super_admin" ||
-                        user.isOrgAdmin) ? (
-                        <AdminDashboard />
-                      ) : (
-                        <Navigate to="/login" />
-                      )
-                    }
-                  />
-                  <Route
-                    path="/admin/users/new"
-                    element={
-                      user &&
-                      (user.role === "admin" ||
-                        user.role === "super_admin" ||
-                        user.isOrgAdmin) ? (
-                        <NewUserForm />
-                      ) : (
-                        <Navigate to="/login" />
-                      )
-                    }
-                  />
-                  <Route
-                    path="/super-admin"
-                    element={
-                      user && user.role === "super_admin" ? (
-                        <SuperAdminDashboard />
-                      ) : (
-                        <Navigate to="/login" />
-                      )
-                    }
-                  />
-                  <Route
-                    path="/events/new"
-                    element={user ? <NewEventForm /> : <Navigate to="/login" />}
-                  />
-                  <Route
-                    path="/super-admin/organizations/new"
-                    element={
-                      user && user.role === "super_admin" ? (
-                        <NewOrganizationForm />
-                      ) : (
-                        <Navigate to="/login" />
-                      )
-                    }
-                  />
-                  <Route
-                    path="/settings"
-                    element={user ? <UserSettings /> : <Navigate to="/login" />}
-                  />
-                  {/* Add this route to allow Tempo to capture routes */}
-                  {import.meta.env.VITE_TEMPO && (
-                    <Route path="/tempobook/*" element={<></>} />
-                  )}
-                  <Route path="*" element={<Navigate to="/login" />} />
-                </Routes>
-              </div>
-            </Suspense>
-          </UserProvider>
-        </TenantProvider>
+            {/* Main content */}
+            <main className="flex-1">
+              {/* For the tempo routes */}
+              {import.meta.env.VITE_TEMPO === "true" && useRoutes(routes)}
+
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                <Route
+                  path="/"
+                  element={
+                    isLoggedIn ? (
+                      <Navigate to="/dashboard" replace />
+                    ) : (
+                      <Navigate to="/login" replace />
+                    )
+                  }
+                />
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <Home />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/clients"
+                  element={
+                    <ProtectedRoute>
+                      <ClientsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/clients/new"
+                  element={
+                    <ProtectedRoute>
+                      <NewClientForm />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/assessments"
+                  element={
+                    <ProtectedRoute>
+                      <AssessmentsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/events"
+                  element={
+                    <ProtectedRoute>
+                      <EventsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/events/new"
+                  element={
+                    <ProtectedRoute>
+                      <NewEventForm />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/events/attendance/:eventId"
+                  element={
+                    <ProtectedRoute>
+                      <EventAttendanceRegister
+                        eventId="1"
+                        onSave={(attendees) =>
+                          console.log("Saved attendees:", attendees)
+                        }
+                      />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/client/:id"
+                  element={
+                    <ProtectedRoute>
+                      <ClientProfile />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/events/register/:eventId"
+                  element={
+                    <ProtectedRoute>
+                      <SelfRegistrationPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin"
+                  element={
+                    <ProtectedRoute>
+                      <AdminDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/super-admin"
+                  element={
+                    <ProtectedRoute>
+                      <SuperAdminDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin/users/new"
+                  element={
+                    <ProtectedRoute>
+                      <NewUserForm />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Add this before the catchall route */}
+                {import.meta.env.VITE_TEMPO === "true" && (
+                  <Route path="/tempobook/*" />
+                )}
+
+                <Route
+                  path="*"
+                  element={
+                    <Navigate
+                      to={isLoggedIn ? "/dashboard" : "/login"}
+                      replace
+                    />
+                  }
+                />
+              </Routes>
+            </main>
+
+            {/* User Settings Dialog */}
+            {isLoggedIn && (
+              <UserSettings
+                open={showUserSettings}
+                onOpenChange={setShowUserSettings}
+              />
+            )}
+          </div>
+        </Suspense>
       </NotificationProvider>
-    </Router>
+    </TenantProvider>
   );
 }
 

@@ -8,9 +8,7 @@ interface UserHeaderProps {
   onSettingsClick?: () => void;
 }
 
-const UserHeader: React.FC<UserHeaderProps> = ({
-  onSettingsClick = () => {},
-}) => {
+const UserHeader: React.FC<UserHeaderProps> = ({ onSettingsClick }) => {
   const { user } = useUser();
 
   if (!user) return null;

@@ -4,11 +4,10 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App.tsx";
 import "./index.css";
 import { UserProvider } from "./context/UserContext";
-// Import tempo devtools
-import { tempo } from "tempo-devtools/dist/vite";
+import { TempoDevtools } from "tempo-devtools";
 
 // Initialize Tempo Devtools
-tempo.init();
+TempoDevtools.init();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

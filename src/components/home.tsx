@@ -40,17 +40,24 @@ import {
   Calendar,
   Users,
   BarChart2,
+  Settings,
+  Bell,
+  Search,
   Plus,
   CheckCircle,
   FileText,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import NotificationCenter from "@/components/NotificationCenter";
+import UserSettings from "@/components/UserSettings";
 import { Input } from "@/components/ui/input";
+import UserHeader from "@/components/UserHeader";
 import { useUser } from "@/context/UserContext";
 import { Label } from "@/components/ui/label";
+import Logo from "./Logo";
 
 const Home = () => {
+  const [showUserSettings, setShowUserSettings] = useState(false);
   const [showAddTaskDialog, setShowAddTaskDialog] = useState(false);
   const [showAssignTaskDialog, setShowAssignTaskDialog] = useState(false);
   const [showRoleDialog, setShowRoleDialog] = useState(false);
@@ -289,6 +296,15 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <header className="sticky top-0 z-10 border-b bg-background">
+        <div className="flex h-16 items-center px-4 md:px-6">
+          <Logo size="md" />
+          <div className="ml-auto flex items-center gap-4">
+            <UserHeader onSettingsClick={() => setShowUserSettings(true)} />
+          </div>
+        </div>
+      </header>
+
       {/* Main Content */}
       <main className="container mx-auto p-4 md:p-6">
         <div className="flex justify-between items-center mb-4"></div>
@@ -637,6 +653,18 @@ const Home = () => {
           </Tabs>
         </div>
       </main>
+
+      {/* User Settings Dialog */}
+      <Dialog open={showUserSettings} onOpenChange={setShowUserSettings}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>User Settings</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <UserSettings onClose={() => setShowUserSettings(false)} />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Assign Task Dialog */}
       <Dialog
