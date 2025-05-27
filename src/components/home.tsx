@@ -46,10 +46,11 @@ import {
   Plus,
   CheckCircle,
   FileText,
+  Trash2,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import NotificationCenter from "@/components/NotificationCenter";
-import UserSettings from "@/components/UserSettings";
+
 import { Input } from "@/components/ui/input";
 import UserHeader from "@/components/UserHeader";
 import { useUser } from "@/context/UserContext";
@@ -57,7 +58,6 @@ import { Label } from "@/components/ui/label";
 import Logo from "./Logo";
 
 const Home = () => {
-  const [showUserSettings, setShowUserSettings] = useState(false);
   const [showAddTaskDialog, setShowAddTaskDialog] = useState(false);
   const [showAssignTaskDialog, setShowAssignTaskDialog] = useState(false);
   const [showRoleDialog, setShowRoleDialog] = useState(false);
@@ -115,6 +115,14 @@ const Home = () => {
           },
         ];
   });
+
+  // Get recent assessments from localStorage
+  const recentAssessments = React.useMemo(() => {
+    const savedAssessments = JSON.parse(
+      localStorage.getItem("assessments") || "[]",
+    );
+    return savedAssessments.slice(0, 3);
+  }, []);
   // Get data from localStorage or use empty arrays/objects
   const recentClients = React.useMemo(() => {
     const savedClients = JSON.parse(localStorage.getItem("clients") || "[]");
@@ -268,6 +276,12 @@ const Home = () => {
     localStorage.setItem("tasks", JSON.stringify(updatedTasks));
   };
 
+  const deleteTask = (taskId) => {
+    const updatedTasks = tasks.filter((task) => task.id !== taskId);
+    setTasks(updatedTasks);
+    localStorage.setItem("tasks", JSON.stringify(updatedTasks));
+  };
+
   const handleAddTask = () => {
     if (!newTask.title) return;
 
@@ -294,20 +308,39 @@ const Home = () => {
     setShowAddTaskDialog(false);
   };
 
+  const getTypeBadgeVariant = (type: string) => {
+    switch (type) {
+      case "introduction":
+        return "default";
+      case "progress":
+        return "secondary";
+      case "exit":
+        return "outline";
+      default:
+        return "default";
+    }
+  };
+
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case "introduction":
+        return "Introduction";
+      case "progress":
+        return "Progress";
+      case "exit":
+        return "Exit";
+      default:
+        return type.charAt(0).toUpperCase() + type.slice(1);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-10 border-b bg-background">
-        <div className="flex h-16 items-center px-4 md:px-6">
-          <Logo size="md" />
-          <div className="ml-auto flex items-center gap-4">
-            <UserHeader onSettingsClick={() => setShowUserSettings(true)} />
-          </div>
-        </div>
-      </header>
-
       {/* Main Content */}
       <main className="container mx-auto p-4 md:p-6">
-        <div className="flex justify-between items-center mb-4"></div>
+        <div className="flex justify-between items-center mb-4">
+          <div></div>
+        </div>
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
           {/* Page Title and Search */}
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -427,6 +460,17 @@ const Home = () => {
                             <CheckCircle className="h-3 w-3" /> Completed
                           </span>
                         )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteTask(task.id);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -435,24 +479,25 @@ const Home = () => {
                 <div className="flex flex-col items-center justify-center py-8 text-center">
                   <CheckCircle className="h-12 w-12 text-muted-foreground mb-2" />
                   <p className="text-muted-foreground">No tasks assigned.</p>
-                  <Button variant="outline" size="sm" className="mt-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-4"
+                    onClick={() => setShowAddTaskDialog(true)}
+                  >
                     <Plus className="mr-2 h-4 w-4" />
                     Add New Task
                   </Button>
                 </div>
               )}
             </CardContent>
-            <CardFooter className="flex justify-between">
+            <CardFooter>
               <Button
                 variant="outline"
                 onClick={() => setShowAddTaskDialog(true)}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Task
-              </Button>
-              <Button variant="outline">
-                <BarChart2 className="mr-2 h-4 w-4" />
-                View All Tasks
               </Button>
             </CardFooter>
           </Card>
@@ -578,66 +623,48 @@ const Home = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between border-b pb-4">
-                      <div>
-                        <p className="font-medium">
-                          Jane Smith - Introduction Assessment
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Completed on June 10, 2023
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800">
-                          Introduction
-                        </span>
-                        <Link to="/client/1">
-                          <Button variant="ghost" size="sm">
-                            View
-                          </Button>
-                        </Link>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between border-b pb-4">
-                      <div>
-                        <p className="font-medium">
-                          Robert Chen - Progress Assessment
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Completed on June 5, 2023
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800">
-                          Progress
-                        </span>
-                        <Link to="/client/2">
-                          <Button variant="ghost" size="sm">
-                            View
-                          </Button>
-                        </Link>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between pb-4">
-                      <div>
-                        <p className="font-medium">
-                          Maria Garcia - Exit Assessment
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Completed on May 20, 2023
+                    {JSON.parse(localStorage.getItem("assessments") || "[]")
+                      .slice(0, 3)
+                      .map((assessment) => (
+                        <div
+                          key={assessment.id}
+                          className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0"
+                        >
+                          <div>
+                            <p className="font-medium">
+                              {assessment.clientName} -{" "}
+                              {getTypeLabel(assessment.type)} Assessment
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Completed on{" "}
+                              {new Date(assessment.date).toLocaleDateString()}
+                              {assessment.completedBy && (
+                                <> by {assessment.completedBy}</>
+                              )}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${assessment.type === "introduction" ? "bg-blue-100 text-blue-800" : assessment.type === "progress" ? "bg-yellow-100 text-yellow-800" : "bg-green-100 text-green-800"}`}
+                            >
+                              {getTypeLabel(assessment.type)}
+                            </span>
+                            <Link to={`/assessment/view/${assessment.id}`}>
+                              <Button variant="ghost" size="sm">
+                                View
+                              </Button>
+                            </Link>
+                          </div>
+                        </div>
+                      ))}
+                    {JSON.parse(localStorage.getItem("assessments") || "[]")
+                      .length === 0 && (
+                      <div className="text-center py-4">
+                        <p className="text-muted-foreground">
+                          No assessments found
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800">
-                          Exit
-                        </span>
-                        <Link to="/client/3">
-                          <Button variant="ghost" size="sm">
-                            View
-                          </Button>
-                        </Link>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </CardContent>
                 <CardFooter>
@@ -654,15 +681,68 @@ const Home = () => {
         </div>
       </main>
 
-      {/* User Settings Dialog */}
-      <Dialog open={showUserSettings} onOpenChange={setShowUserSettings}>
+      {/* Add Task Dialog */}
+      <Dialog open={showAddTaskDialog} onOpenChange={setShowAddTaskDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>User Settings</DialogTitle>
+            <DialogTitle>Add New Task</DialogTitle>
+            <DialogDescription>
+              Create a new task for yourself or your team.
+            </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <UserSettings onClose={() => setShowUserSettings(false)} />
+          <div className="space-y-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="task-title">Task Title</Label>
+              <Input
+                id="task-title"
+                value={newTask.title}
+                onChange={(e) =>
+                  setNewTask({ ...newTask, title: e.target.value })
+                }
+                placeholder="Enter task title"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="due-date">Due Date</Label>
+              <Input
+                id="due-date"
+                type="date"
+                value={newTask.dueDate}
+                onChange={(e) =>
+                  setNewTask({ ...newTask, dueDate: e.target.value })
+                }
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="priority">Priority</Label>
+              <Select
+                value={newTask.priority}
+                onValueChange={(value) =>
+                  setNewTask({ ...newTask, priority: value })
+                }
+              >
+                <SelectTrigger id="priority">
+                  <SelectValue placeholder="Select priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowAddTaskDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleAddTask}>Add Task</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

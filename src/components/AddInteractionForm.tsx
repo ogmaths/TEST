@@ -29,7 +29,6 @@ export interface Interaction {
   type: "check-in" | "incident" | "meeting" | "phone-call" | "email" | "other";
   description: string;
   staff: string;
-  includeInReport: boolean;
 }
 
 interface AddInteractionFormProps {
@@ -52,7 +51,6 @@ const AddInteractionForm: React.FC<AddInteractionFormProps> = ({
     type: "check-in",
     description: "",
     staff: user?.name || "",
-    includeInReport: false,
   });
 
   const [topicsInput, setTopicsInput] = useState("");
@@ -77,7 +75,6 @@ const AddInteractionForm: React.FC<AddInteractionFormProps> = ({
       type: formData.type,
       description: formData.description,
       staff: formData.staff,
-      includeInReport: formData.includeInReport,
     };
 
     // Save interaction to localStorage
@@ -119,7 +116,7 @@ const AddInteractionForm: React.FC<AddInteractionFormProps> = ({
                 id="topicsCovered"
                 value={topicsInput}
                 onChange={(e) => setTopicsInput(e.target.value)}
-                placeholder="Topic 1, Topic 2, Topic 3"
+                placeholder="Breastfeeding, Support, Weaning"
                 required
               />
               <p className="text-xs text-muted-foreground">
@@ -210,19 +207,6 @@ const AddInteractionForm: React.FC<AddInteractionFormProps> = ({
               rows={4}
               required
             />
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              id="includeInReport"
-              checked={formData.includeInReport}
-              onChange={(e) =>
-                setFormData({ ...formData, includeInReport: e.target.checked })
-              }
-              className="rounded border-gray-300 text-primary focus:ring-primary"
-            />
-            <Label htmlFor="includeInReport">Include in impact report</Label>
           </div>
         </CardContent>
         <CardFooter className="flex justify-between">

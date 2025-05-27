@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,57 +17,90 @@ interface Assessment {
   date: string;
   completedBy: string;
   score?: number;
+  status?: string;
 }
 
 const AssessmentsPage: React.FC = () => {
-  // Mock assessments data
-  const assessments: Assessment[] = [
-    {
-      id: "1",
-      clientName: "Jane Smith",
-      clientId: "1",
-      type: "introduction",
-      date: "2023-03-10",
-      completedBy: "Michael Johnson",
-      score: 3.2,
-    },
-    {
-      id: "2",
-      clientName: "Robert Chen",
-      clientId: "2",
-      type: "introduction",
-      date: "2023-04-05",
-      completedBy: "Sarah Williams",
-      score: 2.8,
-    },
-    {
-      id: "3",
-      clientName: "Maria Garcia",
-      clientId: "3",
-      type: "exit",
-      date: "2023-05-20",
-      completedBy: "Michael Johnson",
-      score: 7.5,
-    },
-    {
-      id: "4",
-      clientName: "David Wilson",
-      clientId: "4",
-      type: "progress",
-      date: "2023-05-12",
-      completedBy: "Lisa Chen",
-      score: 5.2,
-    },
-    {
-      id: "5",
-      clientName: "Jane Smith",
-      clientId: "1",
-      type: "progress",
-      date: "2023-06-10",
-      completedBy: "Sarah Williams",
-      score: 6.1,
-    },
-  ];
+  // Load assessments from localStorage
+  const [assessments, setAssessments] = useState<Assessment[]>(() => {
+    const savedAssessments = JSON.parse(
+      localStorage.getItem("assessments") || "[]",
+    );
+
+    // Load clients data to get full names
+    const savedClients = JSON.parse(localStorage.getItem("clients") || "[]");
+
+    // If we have saved assessments, use them
+    if (savedAssessments.length > 0) {
+      // Map the saved assessments to match our Assessment interface
+      return savedAssessments.map((assessment: any) => {
+        // Find the client by ID to get the full name
+        const client = savedClients.find(
+          (c: any) => c.id === assessment.clientId,
+        );
+
+        return {
+          id: assessment.id,
+          clientName: client?.name || assessment.clientName || "Unknown Client",
+          clientId: assessment.clientId,
+          type: assessment.type?.toLowerCase() || "introduction",
+          date: assessment.date,
+          completedBy: assessment.completedBy || "",
+          score: assessment.score || assessment.overallScore,
+          status: assessment.status,
+        };
+      });
+    }
+
+    // Fallback to mock data if no assessments found
+    return [
+      {
+        id: "1",
+        clientName: "Jane Smith",
+        clientId: "1",
+        type: "introduction",
+        date: "2023-03-10",
+        completedBy: "Michael Johnson",
+        score: 3.2,
+      },
+      {
+        id: "2",
+        clientName: "Robert Chen",
+        clientId: "2",
+        type: "introduction",
+        date: "2023-04-05",
+        completedBy: "Sarah Williams",
+        score: 2.8,
+      },
+      {
+        id: "3",
+        clientName: "Maria Garcia",
+        clientId: "3",
+        type: "exit",
+        date: "2023-05-20",
+        completedBy: "Michael Johnson",
+        score: 7.5,
+      },
+      {
+        id: "4",
+        clientName: "David Wilson",
+        clientId: "4",
+        type: "progress",
+        date: "2023-05-12",
+        completedBy: "Lisa Chen",
+        score: 5.2,
+      },
+      {
+        id: "5",
+        clientName: "Jane Smith",
+        clientId: "1",
+        type: "progress",
+        date: "2023-06-10",
+        completedBy: "Sarah Williams",
+        score: 6.1,
+      },
+    ];
+  });
 
   const getTypeLabel = (type: string) => {
     switch (type) {
@@ -146,7 +179,9 @@ const AssessmentsPage: React.FC = () => {
                       {new Date(assessment.date).toLocaleDateString()}
                     </td>
                     <td className="p-4 text-sm font-medium">
-                      {assessment.score ? assessment.score.toFixed(1) : "N/A"}
+                      {assessment.score
+                        ? Number(assessment.score).toFixed(1)
+                        : "N/A"}
                     </td>
                     <td className="p-4">
                       <div className="flex gap-2">

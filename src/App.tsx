@@ -21,9 +21,10 @@ import { TenantProvider } from "./context/TenantContext";
 import UserHeader from "./components/UserHeader";
 import NotificationCenter from "./components/NotificationCenter";
 import { useState } from "react";
-import UserSettings from "./components/UserSettings";
 import OrganizationSwitcher from "./components/OrganizationSwitcher";
 import SuperAdminDashboard from "./components/SuperAdminDashboard";
+import ViewAssessment from "./components/ViewAssessment";
+import AssessmentForm from "./components/AssessmentForm";
 import {
   NavigationMenu,
   NavigationMenuList,
@@ -33,7 +34,6 @@ import {
 } from "@/components/ui/navigation-menu";
 
 function App() {
-  const [showUserSettings, setShowUserSettings] = useState(false);
   const { user, isLoggedIn } = useUser();
 
   // Protected route component
@@ -49,57 +49,67 @@ function App() {
       <NotificationProvider>
         <Suspense fallback={<p>Loading...</p>}>
           <div className="flex flex-col min-h-screen">
-            {isLoggedIn && (
-              <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-                <div className="container flex h-14 items-center justify-between">
-                  <div className="flex items-center gap-6">
-                    <Logo size="md" variant="default" />
+            {/* Header with navigation menu */}
+            <header className="bg-background border-b sticky top-0 z-10">
+              <div className="container mx-auto px-4 py-2 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Logo />
+                </div>
+
+                <div className="flex items-center gap-4">
+                  {isLoggedIn && (
                     <NavigationMenu>
                       <NavigationMenuList>
                         <NavigationMenuItem>
-                          <Link
-                            to="/dashboard"
-                            className={navigationMenuTriggerStyle()}
-                          >
-                            Dashboard
+                          <Link to="/dashboard" legacyBehavior passHref>
+                            <NavigationMenuLink
+                              className={navigationMenuTriggerStyle()}
+                            >
+                              Dashboard
+                            </NavigationMenuLink>
                           </Link>
                         </NavigationMenuItem>
                         <NavigationMenuItem>
-                          <Link
-                            to="/clients"
-                            className={navigationMenuTriggerStyle()}
-                          >
-                            Clients
+                          <Link to="/clients" legacyBehavior passHref>
+                            <NavigationMenuLink
+                              className={navigationMenuTriggerStyle()}
+                            >
+                              Clients
+                            </NavigationMenuLink>
                           </Link>
                         </NavigationMenuItem>
                         <NavigationMenuItem>
-                          <Link
-                            to="/events"
-                            className={navigationMenuTriggerStyle()}
-                          >
-                            Events
+                          <Link to="/assessments" legacyBehavior passHref>
+                            <NavigationMenuLink
+                              className={navigationMenuTriggerStyle()}
+                            >
+                              Assessments
+                            </NavigationMenuLink>
                           </Link>
                         </NavigationMenuItem>
                         <NavigationMenuItem>
-                          <Link
-                            to="/assessments"
-                            className={navigationMenuTriggerStyle()}
-                          >
-                            Assessments
+                          <Link to="/events" legacyBehavior passHref>
+                            <NavigationMenuLink
+                              className={navigationMenuTriggerStyle()}
+                            >
+                              Events
+                            </NavigationMenuLink>
                           </Link>
                         </NavigationMenuItem>
                       </NavigationMenuList>
                     </NavigationMenu>
-                  </div>
-                  {/* Right side header */}
-                  <div className="flex items-center gap-4">
-                    <UserHeader
-                      onSettingsClick={() => setShowUserSettings(true)}
-                    />
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    {isLoggedIn && <NotificationCenter />}
+                    {isLoggedIn && <UserHeader />}
+                    {isLoggedIn && user?.role === "super_admin" && (
+                      <OrganizationSwitcher />
+                    )}
                   </div>
                 </div>
-              </header>
-            )}
+              </div>
+            </header>
 
             {/* Main content */}
             <main className="flex-1">
@@ -147,6 +157,22 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <AssessmentsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/assessment/view/:id"
+                  element={
+                    <ProtectedRoute>
+                      <ViewAssessment />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/assessment/edit/:id"
+                  element={
+                    <ProtectedRoute>
+                      <AssessmentForm />
                     </ProtectedRoute>
                   }
                 />
@@ -238,14 +264,6 @@ function App() {
                 />
               </Routes>
             </main>
-
-            {/* User Settings Dialog */}
-            {isLoggedIn && (
-              <UserSettings
-                open={showUserSettings}
-                onOpenChange={setShowUserSettings}
-              />
-            )}
           </div>
         </Suspense>
       </NotificationProvider>

@@ -31,6 +31,7 @@ interface Comment {
   text: string;
   timestamp: Date;
   authorAvatar?: string;
+  mentions?: string[];
 }
 
 interface JourneyTimelineProps {
@@ -49,8 +50,58 @@ const AddCommentForm = ({
 }) => {
   const [comment, setComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<
+    { id: string; name: string }[]
+  >([]);
   const { addNotification } = useNotifications();
   const { user } = useUser();
+
+  // Load team members on component mount
+  useEffect(() => {
+    // In a real app, this would fetch from your database
+    // For now, we'll use mock data stored in localStorage
+    const loadTeamMembers = () => {
+      try {
+        const savedTeamMembers = localStorage.getItem("teamMembers");
+        if (savedTeamMembers) {
+          setTeamMembers(JSON.parse(savedTeamMembers));
+        } else {
+          // Create some mock team members if none exist
+          const mockTeamMembers = [
+            { id: "user1", name: "John Smith" },
+            { id: "user2", name: "Sarah Johnson" },
+            { id: "user3", name: "Michael Brown" },
+          ];
+          localStorage.setItem("teamMembers", JSON.stringify(mockTeamMembers));
+          setTeamMembers(mockTeamMembers);
+        }
+      } catch (error) {
+        console.error("Error loading team members:", error);
+      }
+    };
+
+    loadTeamMembers();
+  }, []);
+
+  // Parse comment text for @mentions
+  const parseMentions = (text: string): string[] => {
+    const mentionRegex = /@([\w\s]+)/g;
+    const mentions: string[] = [];
+
+    let match;
+    while ((match = mentionRegex.exec(text)) !== null) {
+      const mentionName = match[1].trim();
+      const teamMember = teamMembers.find(
+        (member) => member.name.toLowerCase() === mentionName.toLowerCase(),
+      );
+
+      if (teamMember) {
+        mentions.push(teamMember.id);
+      }
+    }
+
+    return mentions;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,12 +109,16 @@ const AddCommentForm = ({
 
     setIsSubmitting(true);
 
+    // Parse mentions from comment text
+    const mentions = parseMentions(comment);
+
     // Create the new comment
     const newComment = {
       id: Date.now().toString(),
       author: user?.name || "Anonymous User",
       text: comment,
       timestamp: new Date(),
+      mentions,
       authorAvatar: `https://api.dicebear.com/7.x/initials/svg?seed=${
         user?.name
           ? user.name
@@ -76,18 +131,36 @@ const AddCommentForm = ({
 
     // Save to localStorage
     const comments = JSON.parse(
-      localStorage.getItem(`comments_${eventId}`) || "[]",
+      localStorage.getItem("comments_" + eventId) || "[]",
     );
     comments.push(newComment);
-    localStorage.setItem(`comments_${eventId}`, JSON.stringify(comments));
+    localStorage.setItem("comments_" + eventId, JSON.stringify(comments));
 
-    // Add notification
+    // Add notification for the comment author
     addNotification({
       title: "Comment Added",
       message: "Your comment has been added to the timeline.",
       type: "success",
       priority: "low",
     });
+
+    // Send notifications to mentioned users
+    if (mentions.length > 0) {
+      mentions.forEach((userId) => {
+        const mentionedUser = teamMembers.find(
+          (member) => member.id === userId,
+        );
+        if (mentionedUser) {
+          addNotification({
+            title: "You were mentioned",
+            message: `${user?.name || "Someone"} mentioned you in a comment: "${comment.substring(0, 50)}${comment.length > 50 ? "..." : ""}"`,
+            type: "communication",
+            priority: "medium",
+            targetUserId: userId,
+          });
+        }
+      });
+    }
 
     // Reset form
     setComment("");
@@ -99,10 +172,13 @@ const AddCommentForm = ({
 
   return (
     <form onSubmit={handleSubmit} className="mt-2">
+      <div className="mb-1 text-xs text-muted-foreground">
+        Mention team members with @ (e.g. @John Smith)
+      </div>
       <Textarea
         value={comment}
         onChange={(e) => setComment(e.target.value)}
-        placeholder="Add a comment..."
+        placeholder="Add a comment... Use @ to mention team members"
         className="mb-2"
         rows={2}
       />
@@ -129,7 +205,7 @@ const JourneyTimeline: React.FC<JourneyTimelineProps> = ({
   // Function to handle adding a new interaction
   const handleAddInteraction = () => {
     // Navigate to the client profile with the interaction form open
-    navigate(`/client/${clientId}?showAddInteraction=true`);
+    navigate("/client/" + clientId + "?showAddInteraction=true");
   };
 
   // Load comments for all events
@@ -139,7 +215,7 @@ const JourneyTimeline: React.FC<JourneyTimelineProps> = ({
 
       events.forEach((event) => {
         const eventComments = JSON.parse(
-          localStorage.getItem(`comments_${event.id}`) || "[]",
+          localStorage.getItem("comments_" + event.id) || "[]",
         );
         // Sort comments by timestamp, newest first
         allComments[event.id] = eventComments.sort(
@@ -162,7 +238,7 @@ const JourneyTimeline: React.FC<JourneyTimelineProps> = ({
       try {
         // First check for interactions
         const savedInteractions = JSON.parse(
-          localStorage.getItem(`interactions_${clientId}`) || "[]",
+          localStorage.getItem("interactions_" + clientId) || "[]",
         );
 
         // Convert interactions to timeline events
@@ -173,8 +249,10 @@ const JourneyTimeline: React.FC<JourneyTimelineProps> = ({
           title:
             interaction.title ||
             (interaction.type
-              ? interaction.type.charAt(0).toUpperCase() +
-                interaction.type.slice(1)
+              ? interaction.type === "phone-call"
+                ? "Phone Call"
+                : interaction.type.charAt(0).toUpperCase() +
+                  interaction.type.slice(1)
               : "Interaction"),
           date: new Date(interaction.date),
           description: interaction.description || interaction.notes,
@@ -383,7 +461,12 @@ const JourneyTimeline: React.FC<JourneyTimelineProps> = ({
                             className="flex items-start gap-2"
                           >
                             <Avatar className="h-6 w-6">
-                              <AvatarImage src={comment.authorAvatar} />
+                              <AvatarImage
+                                src={`https://api.dicebear.com/7.x/initials/svg?seed=${comment.author
+                                  .split(" ")
+                                  .map((n) => n[0])
+                                  .join("")}`}
+                              />
                               <AvatarFallback>
                                 {comment.author.charAt(0)}
                               </AvatarFallback>
@@ -402,7 +485,32 @@ const JourneyTimeline: React.FC<JourneyTimelineProps> = ({
                                   })}
                                 </span>
                               </div>
-                              <p className="text-xs">{comment.text}</p>
+                              <p className="text-xs">
+                                {comment.mentions &&
+                                comment.mentions.length > 0 ? (
+                                  <>
+                                    {comment.text
+                                      .split(/(@[\w\s]+)/)
+                                      .map((part, i) => {
+                                        const mentionMatch =
+                                          part.match(/@([\w\s]+)/);
+                                        if (mentionMatch) {
+                                          return (
+                                            <span
+                                              key={i}
+                                              className="bg-primary/20 text-primary font-medium rounded px-1"
+                                            >
+                                              {part}
+                                            </span>
+                                          );
+                                        }
+                                        return part;
+                                      })}
+                                  </>
+                                ) : (
+                                  comment.text
+                                )}
+                              </p>
                             </div>
                           </div>
                         ))}

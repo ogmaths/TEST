@@ -47,8 +47,11 @@ interface ClientProfileProps {
   clientId?: string;
 }
 
-const ClientProfile = ({ clientId = "1" }: ClientProfileProps) => {
+const ClientProfile = ({ clientId }: ClientProfileProps) => {
   const location = useLocation();
+  // Extract clientId from URL if not provided as prop
+  const urlClientId = location.pathname.split("/").pop();
+  const effectiveClientId = clientId || urlClientId || "1";
   const [showAssessment, setShowAssessment] = useState(false);
   const [showAddInteraction, setShowAddInteraction] = useState(() => {
     // Check if URL has showAddInteraction parameter
@@ -66,7 +69,9 @@ const ClientProfile = ({ clientId = "1" }: ClientProfileProps) => {
   const [client, setClient] = useState(() => {
     // Try to find the client in localStorage
     const savedClients = JSON.parse(localStorage.getItem("clients") || "[]");
-    const foundClient = savedClients.find((c: any) => c.id === clientId);
+    const foundClient = savedClients.find(
+      (c: any) => c.id === effectiveClientId,
+    );
 
     if (foundClient) {
       return {
@@ -77,7 +82,7 @@ const ClientProfile = ({ clientId = "1" }: ClientProfileProps) => {
 
     // Fallback to mock data if client not found
     return {
-      id: clientId,
+      id: effectiveClientId,
       name: "Jane Smith",
       email: "jane.smith@example.com",
       phone: "+44 7700 900000",
@@ -187,7 +192,7 @@ const ClientProfile = ({ clientId = "1" }: ClientProfileProps) => {
       localStorage.getItem("assessments") || "[]",
     );
     const clientAssessments = savedAssessments.filter(
-      (a: any) => a.clientId === clientId,
+      (a: any) => a.clientId === effectiveClientId,
     );
 
     if (clientAssessments.length > 0) {
@@ -198,7 +203,7 @@ const ClientProfile = ({ clientId = "1" }: ClientProfileProps) => {
     return [
       {
         id: "1",
-        clientId: clientId,
+        clientId: effectiveClientId,
         date: client.assessmentDates?.introduction || "2023-03-10",
         type: "Introduction",
         completedBy: client.caseWorker || "Michael Johnson",
@@ -243,7 +248,9 @@ const ClientProfile = ({ clientId = "1" }: ClientProfileProps) => {
 
       // Save to localStorage
       const savedClients = JSON.parse(localStorage.getItem("clients") || "[]");
-      const clientIndex = savedClients.findIndex((c: any) => c.id === clientId);
+      const clientIndex = savedClients.findIndex(
+        (c: any) => c.id === effectiveClientId,
+      );
 
       if (clientIndex !== -1) {
         savedClients[clientIndex] = {
@@ -279,7 +286,9 @@ const ClientProfile = ({ clientId = "1" }: ClientProfileProps) => {
 
   // Load interactions from localStorage
   const [interactions, setInteractions] = useState(() => {
-    return JSON.parse(localStorage.getItem(`interactions_${clientId}`) || "[]");
+    return JSON.parse(
+      localStorage.getItem(`interactions_${effectiveClientId}`) || "[]",
+    );
   });
 
   // Handle adding a new interaction
@@ -287,6 +296,16 @@ const ClientProfile = ({ clientId = "1" }: ClientProfileProps) => {
     // Update the UI with the new interaction
     setInteractions([interaction, ...interactions]);
     setShowAddInteraction(false);
+
+    // Save interaction to localStorage
+    const savedInteractions = JSON.parse(
+      localStorage.getItem(`interactions_${effectiveClientId}`) || "[]",
+    );
+    savedInteractions.push(interaction);
+    localStorage.setItem(
+      `interactions_${effectiveClientId}`,
+      JSON.stringify(savedInteractions),
+    );
 
     // Show notification
     addNotification({
@@ -310,7 +329,7 @@ const ClientProfile = ({ clientId = "1" }: ClientProfileProps) => {
           </Button>
         </div>
         <AddInteractionForm
-          clientId={clientId}
+          clientId={effectiveClientId}
           onSubmit={handleAddInteraction}
           onCancel={() => setShowAddInteraction(false)}
         />
@@ -332,7 +351,7 @@ const ClientProfile = ({ clientId = "1" }: ClientProfileProps) => {
         </div>
         <AssessmentForm
           type={assessmentType}
-          clientId={clientId}
+          clientId={effectiveClientId}
           onComplete={() => setShowAssessment(false)}
           onBack={() => setShowAssessment(false)}
         />
@@ -646,8 +665,12 @@ const ClientProfile = ({ clientId = "1" }: ClientProfileProps) => {
                         >
                           <p className="text-sm font-medium">
                             {interaction.title ||
-                              interaction.type ||
-                              "Interaction"}
+                              (interaction.type
+                                ? interaction.type === "phone-call"
+                                  ? "Phone Call"
+                                  : interaction.type.charAt(0).toUpperCase() +
+                                    interaction.type.slice(1)
+                                : "Interaction")}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {new Date(interaction.date).toLocaleDateString()}
@@ -691,7 +714,7 @@ const ClientProfile = ({ clientId = "1" }: ClientProfileProps) => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <JourneyTimeline clientId={clientId} />
+              <JourneyTimeline clientId={effectiveClientId} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -798,7 +821,7 @@ const ClientProfile = ({ clientId = "1" }: ClientProfileProps) => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ImpactReport clientId={clientId} />
+              <ImpactReport clientId={effectiveClientId} />
             </CardContent>
           </Card>
         </TabsContent>

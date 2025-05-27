@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useNotifications } from "@/context/NotificationContext";
 import { useUser } from "@/context/UserContext";
@@ -54,17 +55,57 @@ interface Category {
 }
 
 const AssessmentForm: React.FC<AssessmentFormProps> = ({
-  clientId = "1",
-  type = "introduction",
+  clientId: initialClientId = "1",
+  type: initialType = "introduction",
   onComplete = () => {},
   onCancel = () => {},
   onBack = () => {},
 }) => {
+  const { id: assessmentIdParam } = useParams();
+  const navigate = useNavigate();
+  const [clientId, setClientId] = useState(initialClientId);
+  const [type, setType] = useState(initialType);
+  const { addNotification } = useNotifications();
+  const { user } = useUser();
+
+  // If we have an assessment ID in the URL, load that assessment
+  useEffect(() => {
+    if (assessmentIdParam) {
+      const existingAssessments = JSON.parse(
+        localStorage.getItem("assessments") || "[]",
+      );
+
+      const existingAssessment = existingAssessments.find(
+        (a) => a.id === assessmentIdParam,
+      );
+
+      if (existingAssessment) {
+        // Check if current user is allowed to edit
+        if (existingAssessment.completedBy !== user?.name) {
+          addNotification({
+            type: "error",
+            title: "Access Denied",
+            message: "You can only edit assessments that you created",
+            priority: "high",
+          });
+          navigate(`/assessment/view/${assessmentIdParam}`);
+          return;
+        }
+
+        // Set form values from existing assessment
+        setFormValues(existingAssessment.answers || {});
+        setRecommendations(existingAssessment.recommendations || "");
+        setOverallNotes(existingAssessment.overallNotes || "");
+
+        // Set other properties
+        setClientId(existingAssessment.clientId);
+        setType(existingAssessment.type.toLowerCase());
+      }
+    }
+  }, [assessmentIdParam, user, addNotification, navigate]);
   const [currentCategoryIndex, setCurrentCategoryIndex] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formValues, setFormValues] = useState({});
-  const { addNotification } = useNotifications();
-  const { user } = useUser();
 
   // Mock categories and questions
   const categories: Category[] = [
@@ -268,15 +309,33 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({
   const handleSubmit = () => {
     setIsSubmitting(true);
 
+    // Process answers to include question text
+    const processedAnswers = {};
+
+    Object.keys(formValues).forEach((categoryId) => {
+      processedAnswers[categoryId] = {};
+
+      Object.keys(formValues[categoryId] || {}).forEach((questionId) => {
+        // Find the category and question
+        const category = categories.find((c) => c.id === categoryId);
+        const question = category?.questions.find((q) => q.id === questionId);
+
+        processedAnswers[categoryId][questionId] = {
+          ...formValues[categoryId][questionId],
+          question: question?.text || questionId,
+        };
+      });
+    });
+
     // Create assessment record
     const newAssessment = {
-      id: Date.now().toString(),
+      id: assessmentIdParam || Date.now().toString(),
       clientId,
       type: type.charAt(0).toUpperCase() + type.slice(1),
       date: new Date().toISOString().split("T")[0],
       completedBy: user?.name || "Anonymous User",
       status: "completed",
-      answers: formValues,
+      answers: processedAnswers,
       recommendations,
       overallNotes,
     };
@@ -285,10 +344,19 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({
     const existingAssessments = JSON.parse(
       localStorage.getItem("assessments") || "[]",
     );
-    localStorage.setItem(
-      "assessments",
-      JSON.stringify([...existingAssessments, newAssessment]),
-    );
+
+    // If editing an existing assessment, replace it; otherwise add new
+    if (assessmentIdParam) {
+      const updatedAssessments = existingAssessments.map((a) =>
+        a.id === assessmentIdParam ? newAssessment : a,
+      );
+      localStorage.setItem("assessments", JSON.stringify(updatedAssessments));
+    } else {
+      localStorage.setItem(
+        "assessments",
+        JSON.stringify([...existingAssessments, newAssessment]),
+      );
+    }
 
     // Simulate API call
     setTimeout(() => {

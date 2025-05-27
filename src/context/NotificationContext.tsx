@@ -10,7 +10,9 @@ interface NotificationContextType {
   notifications: Notification[];
   settings: NotificationSettings;
   addNotification: (
-    notification: Omit<Notification, "id" | "timestamp" | "read">,
+    notification: Omit<Notification, "id" | "timestamp" | "read"> & {
+      targetUserId?: string;
+    },
   ) => void;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
@@ -86,20 +88,51 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [settings]);
 
   const addNotification = (
-    notification: Omit<Notification, "id" | "timestamp" | "read">,
+    notification: Omit<Notification, "id" | "timestamp" | "read"> & {
+      targetUserId?: string;
+    },
   ) => {
     // Check if notifications are enabled for this category
     if (!settings.enabled || !settings.categories[notification.type]) {
       return;
     }
 
+    // Extract targetUserId and remove it from the notification object
+    const { targetUserId, ...notificationData } = notification;
+
     const newNotification: Notification = {
-      ...notification,
+      ...notificationData,
       id: Date.now().toString(),
       timestamp: new Date(),
       read: false,
     };
 
+    // If this is a mention notification for another user, store it separately
+    if (targetUserId) {
+      // In a real app, this would be stored in a database or sent to a notification service
+      // For this demo, we'll store it in localStorage under the target user's ID
+      try {
+        const userNotificationsKey = `user_notifications_${targetUserId}`;
+        const userNotifications = JSON.parse(
+          localStorage.getItem(userNotificationsKey) || "[]",
+        );
+        userNotifications.push(newNotification);
+        localStorage.setItem(
+          userNotificationsKey,
+          JSON.stringify(userNotifications),
+        );
+
+        console.log(
+          `Notification sent to user ${targetUserId}:`,
+          newNotification,
+        );
+        return; // Don't add to current user's notifications
+      } catch (error) {
+        console.error("Failed to store user notification", error);
+      }
+    }
+
+    // Add to current user's notifications
     setNotifications((prev) => [newNotification, ...prev]);
 
     // In a real app, you would handle email and SMS delivery here
@@ -155,7 +188,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 };
 
-export const useNotifications = () => {
+export function useNotifications() {
   const context = useContext(NotificationContext);
   if (context === undefined) {
     throw new Error(
@@ -163,4 +196,4 @@ export const useNotifications = () => {
     );
   }
   return context;
-};
+}

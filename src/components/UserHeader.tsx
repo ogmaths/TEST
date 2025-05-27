@@ -2,16 +2,21 @@ import React from "react";
 import { useUser } from "@/context/UserContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Settings } from "lucide-react";
+import { LogOut } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
-interface UserHeaderProps {
-  onSettingsClick?: () => void;
-}
+interface UserHeaderProps {}
 
-const UserHeader: React.FC<UserHeaderProps> = ({ onSettingsClick }) => {
-  const { user } = useUser();
+const UserHeader: React.FC<UserHeaderProps> = () => {
+  const { user, setUser } = useUser();
+  const navigate = useNavigate();
 
   if (!user) return null;
+
+  const handleSignOut = () => {
+    setUser(null);
+    navigate("/login");
+  };
 
   return (
     <div className="flex items-center gap-4 px-4 py-2 bg-muted/30 rounded-lg">
@@ -41,10 +46,10 @@ const UserHeader: React.FC<UserHeaderProps> = ({ onSettingsClick }) => {
       <Button
         variant="ghost"
         size="icon"
-        onClick={onSettingsClick}
-        type="button"
+        onClick={handleSignOut}
+        title="Sign out"
       >
-        <Settings className="h-4 w-4" />
+        <LogOut className="h-4 w-4" />
       </Button>
     </div>
   );
