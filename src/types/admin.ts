@@ -1,3 +1,14 @@
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  lastLogin: string;
+  status: string;
+  organizationId: string;
+  area?: string;
+}
+
 export interface Organization {
   id: string;
   name: string;

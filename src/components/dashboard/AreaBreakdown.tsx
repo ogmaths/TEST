@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart2, Plus, Edit, Trash2 } from "lucide-react";
+import { BarChart2, Plus, Edit, Trash2, Users } from "lucide-react";
 import { useNotifications } from "@/context/NotificationContext";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +31,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { User } from "@/types/admin";
 
 interface Area {
   id: string;
@@ -44,18 +52,25 @@ interface Area {
 
 interface AreaBreakdownProps {
   isManagementView?: boolean;
+  hidePerformanceMetrics?: boolean;
 }
 
 const AreaBreakdown: React.FC<AreaBreakdownProps> = ({
   isManagementView = false,
+  hidePerformanceMetrics = false,
 }) => {
   const { addNotification } = useNotifications();
   // Area management state
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showStaffAssignDialog, setShowStaffAssignDialog] = useState(false);
   const [areaName, setAreaName] = useState("");
   const [selectedArea, setSelectedArea] = useState<Area | null>(null);
+
+  // Staff management state
+  const [staffMembers, setStaffMembers] = useState<User[]>([]);
+  const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
 
   // Remove duplicate areas by using a Set-like approach with a Map
   const initialAreas = [
@@ -122,6 +137,64 @@ const AreaBreakdown: React.FC<AreaBreakdownProps> = ({
     }
   }, []);
 
+  // Load staff members
+  useEffect(() => {
+    // In a real implementation, this would fetch from Supabase
+    // For now, we'll use mock data
+    const mockStaffData: User[] = [
+      {
+        id: "1",
+        name: "Stacy Williams",
+        email: "stacy.williams@example.com",
+        role: "admin",
+        lastLogin: "2023-06-10T14:30:00Z",
+        status: "active",
+        organizationId: "1",
+        area: "North District",
+      },
+      {
+        id: "2",
+        name: "John Doe",
+        email: "john.doe@example.com",
+        role: "support_worker",
+        lastLogin: "2023-06-09T10:15:00Z",
+        status: "active",
+        organizationId: "1",
+        area: "South District",
+      },
+      {
+        id: "3",
+        name: "Jane Smith",
+        email: "jane.smith@example.com",
+        role: "support_worker",
+        lastLogin: "2023-06-08T09:45:00Z",
+        status: "active",
+        organizationId: "1",
+        area: "East District",
+      },
+      {
+        id: "4",
+        name: "Michael Johnson",
+        email: "michael.j@example.com",
+        role: "support_worker",
+        lastLogin: "2023-06-07T11:20:00Z",
+        status: "active",
+        organizationId: "1",
+      },
+      {
+        id: "5",
+        name: "Emily Davis",
+        email: "emily.d@example.com",
+        role: "support_worker",
+        lastLogin: "2023-06-06T09:15:00Z",
+        status: "active",
+        organizationId: "1",
+      },
+    ];
+
+    setStaffMembers(mockStaffData);
+  }, []);
+
   const [activeTab, setActiveTab] = useState("clients");
 
   const getTotalForMetric = (metric: keyof Area) => {
@@ -184,6 +257,16 @@ const AreaBreakdown: React.FC<AreaBreakdownProps> = ({
   const handleDeleteArea = (area: Area) => {
     setSelectedArea(area);
     setShowDeleteDialog(true);
+  };
+
+  const handleAssignStaff = (area: Area) => {
+    setSelectedArea(area);
+    // Find staff members already assigned to this area
+    const assignedStaff = staffMembers
+      .filter((staff) => staff.area === area.name)
+      .map((staff) => staff.id);
+    setSelectedStaffIds(assignedStaff);
+    setShowStaffAssignDialog(true);
   };
 
   const saveNewArea = () => {
@@ -301,12 +384,56 @@ const AreaBreakdown: React.FC<AreaBreakdownProps> = ({
     localStorage.setItem("areas", JSON.stringify(updatedAreas));
     setShowDeleteDialog(false);
 
+    // Also update staff members who were assigned to this area
+    const updatedStaff = staffMembers.map((staff) =>
+      staff.area === selectedArea.name ? { ...staff, area: undefined } : staff,
+    );
+    setStaffMembers(updatedStaff);
+
     addNotification({
       type: "success",
       title: "Area Deleted",
       message: `${selectedArea.name} has been deleted successfully`,
       priority: "high",
     });
+  };
+
+  const saveStaffAssignments = () => {
+    if (!selectedArea) return;
+
+    // Update staff members with new area assignments
+    const updatedStaff = staffMembers.map((staff) => {
+      if (selectedStaffIds.includes(staff.id)) {
+        return { ...staff, area: selectedArea.name };
+      } else if (staff.area === selectedArea.name) {
+        // Remove area from staff members who were previously assigned but now unselected
+        return { ...staff, area: undefined };
+      }
+      return staff;
+    });
+
+    setStaffMembers(updatedStaff);
+    setShowStaffAssignDialog(false);
+
+    addNotification({
+      type: "success",
+      title: "Staff Assigned",
+      message: `Staff members have been assigned to ${selectedArea.name}`,
+      priority: "high",
+    });
+  };
+
+  const toggleStaffSelection = (staffId: string) => {
+    if (selectedStaffIds.includes(staffId)) {
+      setSelectedStaffIds(selectedStaffIds.filter((id) => id !== staffId));
+    } else {
+      setSelectedStaffIds([...selectedStaffIds, staffId]);
+    }
+  };
+
+  // Get staff count for a specific area
+  const getStaffCountForArea = (areaName: string): number => {
+    return staffMembers.filter((staff) => staff.area === areaName).length;
   };
 
   return (
@@ -329,9 +456,7 @@ const AreaBreakdown: React.FC<AreaBreakdownProps> = ({
               <thead>
                 <tr className="border-b bg-muted/50 text-left">
                   <th className="p-2 pl-4">Area Name</th>
-                  <th className="p-2">Clients</th>
-                  <th className="p-2">Events</th>
-                  <th className="p-2">Assessments</th>
+                  <th className="p-2">Staff Assigned</th>
                   <th className="p-2 text-right pr-4">Actions</th>
                 </tr>
               </thead>
@@ -347,11 +472,23 @@ const AreaBreakdown: React.FC<AreaBreakdownProps> = ({
                         <span className="font-medium">{area.name}</span>
                       </div>
                     </td>
-                    <td className="p-2">{area.clientCount}</td>
-                    <td className="p-2">{area.eventCount}</td>
-                    <td className="p-2">{area.assessmentCount}</td>
+                    <td className="p-2">
+                      <div className="flex items-center">
+                        <span className="text-sm">
+                          {getStaffCountForArea(area.name)}
+                        </span>
+                      </div>
+                    </td>
                     <td className="p-2 text-right">
                       <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleAssignStaff(area)}
+                          className="flex items-center gap-1"
+                        >
+                          <Users className="h-4 w-4" /> Assign Staff
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -375,7 +512,7 @@ const AreaBreakdown: React.FC<AreaBreakdownProps> = ({
                 {areas.length === 0 && (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={2}
                       className="p-4 text-center text-muted-foreground"
                     >
                       No areas found. Click "Add Area" to create your first
@@ -403,6 +540,44 @@ const AreaBreakdown: React.FC<AreaBreakdownProps> = ({
                 </span>
               </div>
               {renderBarChart("clientCount")}
+
+              {/* Staff assignment summary */}
+              <div className="mt-6 pt-4 border-t">
+                <h4 className="text-sm font-medium mb-3">Staff Assignment</h4>
+                {areas.map((area) => {
+                  const areaStaff = staffMembers.filter(
+                    (staff) => staff.area === area.name,
+                  );
+                  return (
+                    <div key={`staff-${area.id}`} className="mb-3">
+                      <div className="flex justify-between items-center mb-1">
+                        <div className="flex items-center">
+                          <div
+                            className="w-3 h-3 rounded-full mr-2"
+                            style={{ backgroundColor: area.color }}
+                          ></div>
+                          <span className="text-sm font-medium">
+                            {area.name}
+                          </span>
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {areaStaff.length} staff
+                        </span>
+                      </div>
+                      {areaStaff.length > 0 && (
+                        <div className="pl-5 text-xs text-muted-foreground">
+                          {areaStaff.map((staff, idx) => (
+                            <span key={staff.id}>
+                              {staff.name}
+                              {idx < areaStaff.length - 1 ? ", " : ""}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </TabsContent>
 
             <TabsContent value="events" className="space-y-4">
@@ -518,6 +693,72 @@ const AreaBreakdown: React.FC<AreaBreakdownProps> = ({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Assign Staff Dialog */}
+        <Dialog
+          open={showStaffAssignDialog}
+          onOpenChange={setShowStaffAssignDialog}
+        >
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Assign Staff to {selectedArea?.name}</DialogTitle>
+              <DialogDescription>
+                Select support workers to assign to this area. This will update
+                their profile and affect CRM metrics.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <div className="rounded-md border max-h-[300px] overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-background">
+                    <tr className="border-b bg-muted/50 text-left">
+                      <th className="p-2 pl-4">Name</th>
+                      <th className="p-2 text-right pr-4">Assign</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {staffMembers
+                      .filter((staff) => staff.role === "support_worker")
+                      .map((staff) => (
+                        <tr key={staff.id} className="border-b">
+                          <td className="p-2 pl-4 font-medium">{staff.name}</td>
+                          <td className="p-2 text-right">
+                            <input
+                              type="checkbox"
+                              checked={selectedStaffIds.includes(staff.id)}
+                              onChange={() => toggleStaffSelection(staff.id)}
+                              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    {staffMembers.filter(
+                      (staff) => staff.role === "support_worker",
+                    ).length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={2}
+                          className="p-4 text-center text-muted-foreground"
+                        >
+                          No support workers found.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setShowStaffAssignDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button onClick={saveStaffAssignments}>Save Assignments</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );

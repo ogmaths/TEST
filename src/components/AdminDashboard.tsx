@@ -56,7 +56,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useUser } from "@/context/UserContext";
-import { User } from "@/types/admin";
+import { User, Organization } from "@/types/admin";
 import BackButton from "./BackButton";
 import { Link as RouterLink } from "react-router-dom";
 import { Link } from "react-router-dom";
@@ -95,8 +95,17 @@ const AdminDashboard = () => {
   const [showDeleteUserDialog, setShowDeleteUserDialog] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [showRoleDialog, setShowRoleDialog] = useState(false);
+  const [showStaffDialog, setShowStaffDialog] = useState(false);
+  const [showAreaDialog, setShowAreaDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedRole, setSelectedRole] = useState("support_worker");
+  const [selectedArea, setSelectedArea] = useState("");
+  const [staffFormData, setStaffFormData] = useState({
+    name: "",
+    email: "",
+    role: "support_worker",
+    area: "",
+  });
   const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [userToReset, setUserToReset] = useState<{
     id: string;
@@ -131,6 +140,7 @@ const AdminDashboard = () => {
       lastLogin: "2023-06-10T14:30:00Z",
       status: "active",
       organizationId: "1",
+      area: "North Region",
     },
     {
       id: "2",
@@ -140,6 +150,7 @@ const AdminDashboard = () => {
       lastLogin: "2023-06-09T10:15:00Z",
       status: "active",
       organizationId: "1",
+      area: "South Region",
     },
     {
       id: "3",
@@ -149,7 +160,17 @@ const AdminDashboard = () => {
       lastLogin: "2023-06-08T09:45:00Z",
       status: "active",
       organizationId: "1",
+      area: "East Region",
     },
+  ]);
+
+  // Mock areas data
+  const [areas] = useState([
+    "North Region",
+    "South Region",
+    "East Region",
+    "West Region",
+    "Central Region",
   ]);
 
   const [clients, setClients] = useState(() => {
@@ -422,6 +443,116 @@ const AdminDashboard = () => {
     setShowRoleDialog(true);
   };
 
+  const handleEditStaff = (user: User) => {
+    setSelectedUser(user);
+    setStaffFormData({
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      area: user.area || "",
+    });
+    setShowStaffDialog(true);
+  };
+
+  const handleAssignArea = (user: User) => {
+    setSelectedUser(user);
+    setSelectedArea(user.area || "");
+    setShowAreaDialog(true);
+  };
+
+  const handleArchiveStaff = (user: User) => {
+    const updatedUsers = users.map((u) =>
+      u.id === user.id
+        ? { ...u, status: u.status === "archived" ? "active" : "archived" }
+        : u,
+    );
+    setUsers(updatedUsers);
+
+    addNotification({
+      type: "success",
+      title: user.status === "archived" ? "Staff Unarchived" : "Staff Archived",
+      message: `${user.name} has been ${user.status === "archived" ? "unarchived" : "archived"} successfully`,
+      priority: "high",
+    });
+  };
+
+  const handleStaffFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (selectedUser) {
+      // Update existing staff
+      const updatedUsers = users.map((u) =>
+        u.id === selectedUser.id
+          ? {
+              ...u,
+              name: staffFormData.name,
+              email: staffFormData.email,
+              role: staffFormData.role,
+              area: staffFormData.area,
+            }
+          : u,
+      );
+      setUsers(updatedUsers);
+
+      addNotification({
+        type: "success",
+        title: "Staff Updated",
+        message: `${staffFormData.name} has been updated successfully`,
+        priority: "high",
+      });
+    } else {
+      // Add new staff
+      const newStaff: User = {
+        id: Date.now().toString(),
+        name: staffFormData.name,
+        email: staffFormData.email,
+        role: staffFormData.role,
+        lastLogin: new Date().toISOString(),
+        status: "active",
+        organizationId: "1",
+        area: staffFormData.area,
+      };
+
+      setUsers([...users, newStaff]);
+
+      addNotification({
+        type: "success",
+        title: "Staff Added",
+        message: `${newStaff.name} has been added successfully`,
+        priority: "high",
+      });
+    }
+
+    setShowStaffDialog(false);
+    setSelectedUser(null);
+    setStaffFormData({
+      name: "",
+      email: "",
+      role: "support_worker",
+      area: "",
+    });
+  };
+
+  const handleAreaAssignment = () => {
+    if (selectedUser) {
+      const updatedUsers = users.map((u) =>
+        u.id === selectedUser.id ? { ...u, area: selectedArea } : u,
+      );
+      setUsers(updatedUsers);
+
+      addNotification({
+        type: "success",
+        title: "Area Assigned",
+        message: `${selectedUser.name} has been assigned to ${selectedArea || "No Area"}`,
+        priority: "high",
+      });
+
+      setShowAreaDialog(false);
+      setSelectedUser(null);
+      setSelectedArea("");
+    }
+  };
+
   const handleResetPassword = (userId: string, email: string, name: string) => {
     setUserToReset({
       id: userId,
@@ -612,19 +743,21 @@ const AdminDashboard = () => {
                 {manageSectionOpen && (
                   <div className="space-y-1 pl-2">
                     <div
+                      className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "organization" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                      onClick={() => setActiveTab("organization")}
+                    >
+                      <Award className="h-4 w-4" />
+                      <span className="font-medium">Organization</span>
+                    </div>
+
+                    <div
                       className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "areas" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
                       onClick={() => setActiveTab("areas")}
                     >
                       <BarChart2 className="h-4 w-4" />
                       <span className="font-medium">Area</span>
                     </div>
-                    <div
-                      className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "staff" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                      onClick={() => setActiveTab("staff")}
-                    >
-                      <Users className="h-4 w-4" />
-                      <span className="font-medium">Staff</span>
-                    </div>
+
                     <div
                       className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "users" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
                       onClick={() => setActiveTab("users")}
@@ -680,20 +813,6 @@ const AdminDashboard = () => {
                     isManagementView={true}
                     hidePerformanceMetrics={true}
                   />
-                </CardContent>
-              </Card>
-            )}
-
-            {activeTab === "staff" && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Staff Performance</CardTitle>
-                  <CardDescription>
-                    Monitor staff activity and performance metrics
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <StaffMetrics />
                 </CardContent>
               </Card>
             )}
@@ -1010,6 +1129,159 @@ const AdminDashboard = () => {
           userType={userToReset.type}
         />
       )}
+
+      {/* Staff Form Dialog */}
+      <Dialog open={showStaffDialog} onOpenChange={setShowStaffDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedUser ? "Edit Staff Member" : "Add New Staff Member"}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedUser
+                ? "Update the staff member's details below"
+                : "Fill in the details to add a new staff member"}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleStaffFormSubmit}>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  placeholder="Staff member name"
+                  value={staffFormData.name}
+                  onChange={(e) =>
+                    setStaffFormData({ ...staffFormData, name: e.target.value })
+                  }
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="Email address"
+                  value={staffFormData.email}
+                  onChange={(e) =>
+                    setStaffFormData({
+                      ...staffFormData,
+                      email: e.target.value,
+                    })
+                  }
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="role">Role</Label>
+                <Select
+                  value={staffFormData.role}
+                  onValueChange={(value) =>
+                    setStaffFormData({ ...staffFormData, role: value })
+                  }
+                >
+                  <SelectTrigger id="role">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="org_admin">
+                      Organization Admin
+                    </SelectItem>
+                    <SelectItem value="support_worker">
+                      Support Worker
+                    </SelectItem>
+                    <SelectItem value="manager">Manager</SelectItem>
+                    <SelectItem value="readonly">Read Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="area">Area</Label>
+                <Select
+                  value={staffFormData.area}
+                  onValueChange={(value) =>
+                    setStaffFormData({ ...staffFormData, area: value })
+                  }
+                >
+                  <SelectTrigger id="area">
+                    <SelectValue placeholder="Select area" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Not Assigned</SelectItem>
+                    {areas.map((area) => (
+                      <SelectItem key={area} value={area}>
+                        {area}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowStaffDialog(false);
+                  setSelectedUser(null);
+                  setStaffFormData({
+                    name: "",
+                    email: "",
+                    role: "support_worker",
+                    area: "",
+                  });
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">
+                {selectedUser ? "Update Staff" : "Add Staff"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Area Assignment Dialog */}
+      <Dialog open={showAreaDialog} onOpenChange={setShowAreaDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Area</DialogTitle>
+            <DialogDescription>
+              {selectedUser
+                ? `Assign ${selectedUser.name} to an area`
+                : "Select an area to assign"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="area-select">Area</Label>
+            <Select value={selectedArea} onValueChange={setSelectedArea}>
+              <SelectTrigger className="mt-2" id="area-select">
+                <SelectValue placeholder="Select area" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Not Assigned</SelectItem>
+                {areas.map((area) => (
+                  <SelectItem key={area} value={area}>
+                    {area}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAreaDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAreaAssignment}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Event Form Dialog */}
       <Dialog open={showEventDialog} onOpenChange={setShowEventDialog}>

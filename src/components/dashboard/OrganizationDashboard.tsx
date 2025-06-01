@@ -108,52 +108,20 @@ const OrganizationDashboard: React.FC = () => {
 
         <TabsContent value="overview" className="space-y-6 mt-6">
           {/* Key Performance Indicators */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
             <Card>
               <CardContent className="pt-6">
                 <div className="flex flex-col items-center justify-center text-center space-y-2">
                   <Users className="h-8 w-8 text-primary" />
                   <h3 className="text-2xl font-bold">
-                    {JSON.parse(localStorage.getItem("clients") || "[]").length}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">Total Clients</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex flex-col items-center justify-center text-center space-y-2">
-                  <BarChart2 className="h-8 w-8 text-primary" />
-                  <h3 className="text-2xl font-bold">
                     {
                       JSON.parse(
-                        localStorage.getItem("assessments") || "[]",
-                      ).filter((a: any) => a.status === "completed").length
+                        localStorage.getItem("clients") || "[]",
+                      ).filter((c: any) => c.status === "active").length
                     }
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    Active Assessments
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex flex-col items-center justify-center text-center space-y-2">
-                  <FileText className="h-8 w-8 text-primary" />
-                  <h3 className="text-2xl font-bold">
-                    {
-                      JSON.parse(
-                        localStorage.getItem("assessments") || "[]",
-                      ).filter(
-                        (a: any) => a.type === "exit" || a.type === "Exit",
-                      ).length
-                    }
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Exit Assessments
+                    Total Active Clients
                   </p>
                 </div>
               </CardContent>
