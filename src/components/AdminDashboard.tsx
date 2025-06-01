@@ -53,6 +53,7 @@ import {
   BarChart2,
   Settings,
   Award,
+  ChevronDown,
 } from "lucide-react";
 import { useUser } from "@/context/UserContext";
 import { User } from "@/types/admin";
@@ -84,6 +85,7 @@ const AdminDashboard = () => {
   const { user } = useUser();
   const { addNotification } = useNotifications();
   const [activeTab, setActiveTab] = useState("organization");
+  const [manageSectionOpen, setManageSectionOpen] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
@@ -585,95 +587,74 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-10 border-b bg-background">
-        <div className="flex h-16 items-center justify-between px-4 md:px-6">
-          <div className="flex items-center">
-            <Logo size="md" />
-            <BackButton className="ml-4" />
-          </div>
-        </div>
-      </header>
-
       <main className="container mx-auto p-4 md:p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="relative w-full max-w-sm">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search users or clients..."
-              className="pl-8"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <div className="flex gap-2">
-            <Link to="/clients/new">
-              <Button variant="outline" className="flex items-center gap-2">
-                Add Client
-              </Button>
-            </Link>
-            <Link to="/admin/users/new">
-              <Button className="flex items-center gap-2">
-                <UserPlus className="h-4 w-4" /> Add User
-              </Button>
-            </Link>
-          </div>
-        </div>
-
         <div className="flex gap-6">
           {/* Left sidebar with vertical tabs */}
           <div className="w-64 shrink-0">
             <div className="bg-card rounded-lg border shadow-sm">
               <div className="p-2">
-                <div
-                  className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "organization" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                  onClick={() => setActiveTab("organization")}
-                >
-                  <BarChart2 className="h-4 w-4" />
-                  <span className="font-medium">Organization</span>
+                {/* Settings/Manage Section */}
+                <div className="mt-4 mb-2 px-3">
+                  <button
+                    onClick={() => setManageSectionOpen(!manageSectionOpen)}
+                    className="flex items-center gap-2 w-full text-left"
+                  >
+                    <Settings className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-muted-foreground">
+                      Manage
+                    </span>
+                    <ChevronDown
+                      className={`h-4 w-4 ml-auto transition-transform ${manageSectionOpen ? "rotate-180" : ""}`}
+                    />
+                  </button>
                 </div>
-                <div
-                  className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "areas" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                  onClick={() => setActiveTab("areas")}
-                >
-                  <BarChart2 className="h-4 w-4" />
-                  <span className="font-medium">Area</span>
-                </div>
-                <div
-                  className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "staff" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                  onClick={() => setActiveTab("staff")}
-                >
-                  <Users className="h-4 w-4" />
-                  <span className="font-medium">Staff</span>
-                </div>
-                <div
-                  className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "users" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                  onClick={() => setActiveTab("users")}
-                >
-                  <Users className="h-4 w-4" />
-                  <span className="font-medium">Users</span>
-                </div>
-                <div
-                  className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "clients" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                  onClick={() => setActiveTab("clients")}
-                >
-                  <UserPlus className="h-4 w-4" />
-                  <span className="font-medium">Clients</span>
-                </div>
-                <div
-                  className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "events" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                  onClick={() => setActiveTab("events")}
-                >
-                  <Calendar className="h-4 w-4" />
-                  <span className="font-medium">Events</span>
-                </div>
-                <div
-                  className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "assessments" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                  onClick={() => setActiveTab("assessments")}
-                >
-                  <Edit className="h-4 w-4" />
-                  <span className="font-medium">Assessments</span>
-                </div>
+
+                {manageSectionOpen && (
+                  <div className="space-y-1 pl-2">
+                    <div
+                      className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "areas" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                      onClick={() => setActiveTab("areas")}
+                    >
+                      <BarChart2 className="h-4 w-4" />
+                      <span className="font-medium">Area</span>
+                    </div>
+                    <div
+                      className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "staff" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                      onClick={() => setActiveTab("staff")}
+                    >
+                      <Users className="h-4 w-4" />
+                      <span className="font-medium">Staff</span>
+                    </div>
+                    <div
+                      className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "users" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                      onClick={() => setActiveTab("users")}
+                    >
+                      <Users className="h-4 w-4" />
+                      <span className="font-medium">Users</span>
+                    </div>
+                    <div
+                      className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "clients" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                      onClick={() => setActiveTab("clients")}
+                    >
+                      <UserPlus className="h-4 w-4" />
+                      <span className="font-medium">Clients</span>
+                    </div>
+                    <div
+                      className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "events" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                      onClick={() => setActiveTab("events")}
+                    >
+                      <Calendar className="h-4 w-4" />
+                      <span className="font-medium">Events</span>
+                    </div>
+                    <div
+                      className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "assessments" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                      onClick={() => setActiveTab("assessments")}
+                    >
+                      <Edit className="h-4 w-4" />
+                      <span className="font-medium">Assessments</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -695,7 +676,10 @@ const AdminDashboard = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <AreaBreakdown isManagementView={true} />
+                  <AreaBreakdown
+                    isManagementView={true}
+                    hidePerformanceMetrics={true}
+                  />
                 </CardContent>
               </Card>
             )}

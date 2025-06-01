@@ -20,27 +20,29 @@ const UserHeader: React.FC<UserHeaderProps> = () => {
 
   return (
     <div className="flex items-center gap-4 px-4 py-2 bg-muted/30 rounded-lg">
-      <Avatar className="h-8 w-8">
-        <AvatarImage
-          src={`https://api.dicebear.com/7.x/initials/svg?seed=${user.name}`}
-          alt={user.name}
-        />
-        <AvatarFallback>
-          {user.name
-            .split(" ")
-            .map((n) => n[0])
-            .join("")}
-        </AvatarFallback>
-      </Avatar>
-      <div className="flex-1">
-        <p className="text-sm font-medium">{user.name}</p>
-        <div className="flex flex-col">
-          <p className="text-xs text-muted-foreground">{user.role}</p>
-          {user.organizationName && (
-            <p className="text-xs font-medium text-muted-foreground/80">
-              {user.organizationName}
-            </p>
-          )}
+      <div className="flex-1 flex items-center gap-4">
+        <Avatar className="h-8 w-8">
+          <AvatarImage
+            src={`https://api.dicebear.com/7.x/initials/svg?seed=${user.name}`}
+            alt={user.name}
+          />
+          <AvatarFallback>
+            {user.name
+              .split(" ")
+              .map((n) => n[0])
+              .join("")}
+          </AvatarFallback>
+        </Avatar>
+        <div className="flex-1">
+          <p className="text-sm font-medium">{user.name}</p>
+          <div className="flex flex-col">
+            <p className="text-xs text-muted-foreground">{user.role}</p>
+            {user.organizationName && (
+              <p className="text-xs font-medium text-muted-foreground/80">
+                {user.organizationName}
+              </p>
+            )}
+          </div>
         </div>
       </div>
       <Button

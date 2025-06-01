@@ -82,7 +82,10 @@ function App() {
             {/* Header with navigation menu */}
             <header className="bg-background border-b sticky top-0 z-10">
               <div className="container mx-auto px-4 py-2 flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-4">
+                  {isLoggedIn && !isDashboardRoute && (
+                    <Logo size="sm" variant="default" />
+                  )}
                   {isLoggedIn && isDashboardRoute && (
                     <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
                       <SheetTrigger asChild>
@@ -141,6 +144,9 @@ function App() {
                         </div>
                       </SheetContent>
                     </Sheet>
+                  )}
+                  {isLoggedIn && isDashboardRoute && (
+                    <Logo size="sm" variant="default" className="ml-2" />
                   )}
                 </div>
 
