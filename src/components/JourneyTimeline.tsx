@@ -11,7 +11,9 @@ import {
   Calendar,
   CheckCircle,
   MessageCircle,
+  Sparkles,
 } from "lucide-react";
+import AIRecommendationEngine from "./AIRecommendationEngine";
 import { useNavigate } from "react-router-dom";
 
 interface TimelineEvent {
@@ -53,6 +55,11 @@ const AddCommentForm = ({
   const [teamMembers, setTeamMembers] = useState<
     { id: string; name: string }[]
   >([]);
+  const [showMentionDropdown, setShowMentionDropdown] = useState(false);
+  const [mentionFilter, setMentionFilter] = useState("");
+  const [cursorPosition, setCursorPosition] = useState(0);
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
   const { addNotification } = useNotifications();
   const { user } = useUser();
 
@@ -65,6 +72,10 @@ const AddCommentForm = ({
         const savedTeamMembers = localStorage.getItem("teamMembers");
         if (savedTeamMembers) {
           setTeamMembers(JSON.parse(savedTeamMembers));
+          console.log(
+            "Loaded team members from localStorage:",
+            JSON.parse(savedTeamMembers),
+          );
         } else {
           // Create some mock team members if none exist
           const mockTeamMembers = [
@@ -74,6 +85,7 @@ const AddCommentForm = ({
           ];
           localStorage.setItem("teamMembers", JSON.stringify(mockTeamMembers));
           setTeamMembers(mockTeamMembers);
+          console.log("Created mock team members:", mockTeamMembers);
         }
       } catch (error) {
         console.error("Error loading team members:", error);
@@ -82,6 +94,77 @@ const AddCommentForm = ({
 
     loadTeamMembers();
   }, []);
+
+  // Check for @ character and show dropdown
+  const handleCommentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newComment = e.target.value;
+    setComment(newComment);
+
+    // Store cursor position
+    setCursorPosition(e.target.selectionStart);
+
+    // Check if we should show the mention dropdown
+    const textBeforeCursor = newComment.substring(0, e.target.selectionStart);
+    const atSignIndex = textBeforeCursor.lastIndexOf("@");
+
+    if (atSignIndex !== -1 && atSignIndex < textBeforeCursor.length) {
+      // Get the text between @ and cursor
+      const filterText = textBeforeCursor.substring(atSignIndex + 1);
+      // Only show dropdown if there's no space after @ or if there's text after @
+      if (!filterText.includes(" ") || filterText.trim() !== "") {
+        setMentionFilter(filterText.trim().toLowerCase());
+        setShowMentionDropdown(true);
+        return;
+      }
+    }
+
+    setShowMentionDropdown(false);
+  };
+
+  // Handle clicking outside the dropdown to close it
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowMentionDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Insert the selected mention into the comment
+  const insertMention = (memberName: string) => {
+    const beforeCursor = comment.substring(0, cursorPosition);
+    const atSignIndex = beforeCursor.lastIndexOf("@");
+
+    if (atSignIndex !== -1) {
+      const newComment =
+        beforeCursor.substring(0, atSignIndex) +
+        "@" +
+        memberName +
+        " " +
+        comment.substring(cursorPosition);
+
+      setComment(newComment);
+      setShowMentionDropdown(false);
+
+      // Focus back on textarea and set cursor position after the inserted mention
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          const newPosition = atSignIndex + memberName.length + 2; // +2 for @ and space
+          textareaRef.current.setSelectionRange(newPosition, newPosition);
+          setCursorPosition(newPosition);
+        }
+      }, 0);
+    }
+  };
 
   // Parse comment text for @mentions
   const parseMentions = (text: string): string[] => {
@@ -97,6 +180,11 @@ const AddCommentForm = ({
 
       if (teamMember) {
         mentions.push(teamMember.id);
+        console.log(
+          `Found mention for ${mentionName} with ID ${teamMember.id}`,
+        );
+      } else {
+        console.log(`No team member found for mention: ${mentionName}`);
       }
     }
 
@@ -151,12 +239,21 @@ const AddCommentForm = ({
           (member) => member.id === userId,
         );
         if (mentionedUser) {
+          console.log(`Sending notification to user ${userId}`);
           addNotification({
             title: "You were mentioned",
             message: `${user?.name || "Someone"} mentioned you in a comment: "${comment.substring(0, 50)}${comment.length > 50 ? "..." : ""}"`,
             type: "communication",
             priority: "medium",
             targetUserId: userId,
+          });
+
+          // Also add a notification to the current user's feed for better visibility
+          addNotification({
+            title: "Mention sent",
+            message: `You mentioned ${mentionedUser.name} in a comment.`,
+            type: "communication",
+            priority: "low",
           });
         }
       });
@@ -170,18 +267,56 @@ const AddCommentForm = ({
     onCommentAdded();
   };
 
+  // Filter team members based on input after @
+  const filteredTeamMembers = teamMembers.filter(
+    (member) =>
+      mentionFilter === "" || member.name.toLowerCase().includes(mentionFilter),
+  );
+
   return (
     <form onSubmit={handleSubmit} className="mt-2">
       <div className="mb-1 text-xs text-muted-foreground">
-        Mention team members with @ (e.g. @John Smith)
+        Mention team members with @ (e.g. @John Smith, @Sarah Johnson, @Michael
+        Brown)
       </div>
-      <Textarea
-        value={comment}
-        onChange={(e) => setComment(e.target.value)}
-        placeholder="Add a comment... Use @ to mention team members"
-        className="mb-2"
-        rows={2}
-      />
+      <div className="relative">
+        <Textarea
+          ref={textareaRef}
+          value={comment}
+          onChange={handleCommentChange}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && showMentionDropdown) {
+              e.preventDefault();
+              setShowMentionDropdown(false);
+            }
+          }}
+          placeholder="Add a comment... Use @ to mention team members"
+          className="mb-2"
+          rows={2}
+        />
+        {showMentionDropdown && filteredTeamMembers.length > 0 && (
+          <div
+            ref={dropdownRef}
+            className="absolute z-10 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg max-h-48 overflow-y-auto w-64"
+          >
+            {filteredTeamMembers.map((member) => (
+              <div
+                key={member.id}
+                className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex items-center"
+                onClick={() => insertMention(member.name)}
+              >
+                <div className="h-6 w-6 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs mr-2">
+                  {member.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")}
+                </div>
+                <span>{member.name}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
       <Button type="submit" size="sm" disabled={isSubmitting}>
         {isSubmitting ? "Saving..." : "Add Comment"}
       </Button>
@@ -204,8 +339,9 @@ const JourneyTimeline: React.FC<JourneyTimelineProps> = ({
 
   // Function to handle adding a new interaction
   const handleAddInteraction = () => {
-    // Navigate to the client profile with the interaction form open
-    navigate("/client/" + clientId + "?showAddInteraction=true");
+    // Navigate to the interaction add page with the client ID
+    navigate(`/interaction/add?clientId=${clientId}`);
+    console.log("Navigating to add interaction form with clientId:", clientId);
   };
 
   // Load comments for all events
@@ -246,14 +382,12 @@ const JourneyTimeline: React.FC<JourneyTimelineProps> = ({
           id: interaction.id,
           clientId,
           type: interaction.type || "check-in",
-          title:
-            interaction.title ||
-            (interaction.type
-              ? interaction.type === "phone-call"
-                ? "Phone Call"
-                : interaction.type.charAt(0).toUpperCase() +
-                  interaction.type.slice(1)
-              : "Interaction"),
+          title: interaction.type
+            ? interaction.type === "phone_call"
+              ? "Phone Call"
+              : interaction.type.charAt(0).toUpperCase() +
+                interaction.type.slice(1).replace("_", " ")
+            : "Interaction",
           date: new Date(interaction.date),
           description: interaction.description || interaction.notes,
           status: "completed",
@@ -344,7 +478,7 @@ const JourneyTimeline: React.FC<JourneyTimelineProps> = ({
     };
 
     loadJourneyData();
-  }, [clientId, addNotification]);
+  }, [clientId, addNotification, user]);
 
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString("en-GB", {
@@ -391,6 +525,28 @@ const JourneyTimeline: React.FC<JourneyTimelineProps> = ({
         </Button>
       </CardHeader>
       <CardContent>
+        {/* AI Recommendation Engine */}
+        <div className="mb-6">
+          <AIRecommendationEngine
+            clientId={clientId}
+            interactionData={events.filter(
+              (e) => e.type === "check-in" || e.type === "meeting",
+            )}
+            onRecommendationSelect={(recommendation) => {
+              // Handle recommendation selection
+              console.log("Selected recommendation:", recommendation);
+              // Could navigate to add interaction with pre-filled data
+              // or show a notification with the recommendation
+              addNotification({
+                type: "info",
+                title: "AI Recommendation",
+                message: recommendation,
+                priority: "medium",
+              });
+            }}
+          />
+        </div>
+
         <div className="space-y-6">
           {events.map((event, index) => (
             <div key={event.id} className="relative pl-6 pb-6">

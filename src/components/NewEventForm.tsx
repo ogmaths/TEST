@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { useUser } from "@/context/UserContext";
+import { Calendar } from "lucide-react";
 import { useNotifications } from "@/context/NotificationContext";
 import {
   Card,
@@ -24,11 +26,14 @@ import BackButton from "./BackButton";
 
 const NewEventForm = () => {
   const navigate = useNavigate();
+  const { user } = useUser();
   const [formData, setFormData] = useState({
     name: "",
     date: "",
     time: "",
     location: "",
+    area: "",
+    facilitator: "",
     type: "workshop",
     description: "",
     capacity: "",
@@ -58,11 +63,14 @@ const NewEventForm = () => {
       date: formData.date,
       time: formData.time,
       location: formData.location,
+      area: formData.area,
+      facilitator: formData.facilitator,
       type: formData.type,
       description: formData.description,
       capacity: parseInt(formData.capacity) || 20,
       attendees: [],
       createdAt: new Date().toISOString(),
+      organizationId: user?.tenantId || "",
     };
 
     // Store in localStorage to persist between page navigations
@@ -86,6 +94,8 @@ const NewEventForm = () => {
       date: "",
       time: "",
       location: "",
+      area: "",
+      facilitator: "",
       type: "workshop",
       description: "",
       capacity: "",
@@ -170,6 +180,38 @@ const NewEventForm = () => {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="area">Area</Label>
+                <Select
+                  id="area"
+                  value={formData.area}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({ ...prev, area: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select area" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="north">North District</SelectItem>
+                    <SelectItem value="south">South District</SelectItem>
+                    <SelectItem value="east">East District</SelectItem>
+                    <SelectItem value="west">West District</SelectItem>
+                    <SelectItem value="central">Central District</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="facilitator">Facilitator</Label>
+                <Input
+                  id="facilitator"
+                  placeholder="Name of facilitator"
+                  value={formData.facilitator}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="type">Event Type</Label>
                 <Select
                   id="type"
@@ -187,6 +229,9 @@ const NewEventForm = () => {
                     <SelectItem value="training">Training</SelectItem>
                     <SelectItem value="community">Community Event</SelectItem>
                     <SelectItem value="support">Support Group</SelectItem>
+                    <SelectItem value="group_session">Group Session</SelectItem>
+                    <SelectItem value="online">Online Event</SelectItem>
+                    <SelectItem value="hybrid">Hybrid Event</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

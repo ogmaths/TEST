@@ -103,9 +103,14 @@ const EventsPage: React.FC = () => {
 
   const filteredEvents = events.filter(
     (event) =>
-      event.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.organizer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.location.toLowerCase().includes(searchQuery.toLowerCase()),
+      (event.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        event.organizer.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        event.location.toLowerCase().includes(searchQuery.toLowerCase())) &&
+      ((event.type === "workshop" && filters.workshop) ||
+        (event.type === "meeting" && filters.meeting) ||
+        (event.type === "training" && filters.training) ||
+        (event.type === "community" && filters.community) ||
+        (event.type === "other" && filters.other)),
   );
 
   const getEventTypeBadge = (type: string) => {

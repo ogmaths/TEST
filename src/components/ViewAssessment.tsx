@@ -36,6 +36,7 @@ const ViewAssessment: React.FC<ViewAssessmentProps> = ({
   const [assessment, setAssessment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [canEdit, setCanEdit] = useState(false);
+  const [averageScore, setAverageScore] = useState<number | null>(null);
 
   useEffect(() => {
     if (!assessmentId) {
@@ -50,8 +51,34 @@ const ViewAssessment: React.FC<ViewAssessmentProps> = ({
     if (foundAssessment) {
       setAssessment(foundAssessment);
 
-      // Check if current user is the one who completed the assessment
-      if (user && foundAssessment.completedBy === user.name) {
+      // Calculate average score
+      if (foundAssessment.answers) {
+        let totalScore = 0;
+        let numericAnswersCount = 0;
+
+        Object.keys(foundAssessment.answers).forEach((categoryId) => {
+          const category = foundAssessment.answers[categoryId];
+          Object.keys(category).forEach((questionId) => {
+            const answer = category[questionId];
+            if (typeof answer.value === "number") {
+              totalScore += answer.value;
+              numericAnswersCount++;
+            }
+          });
+        });
+
+        if (numericAnswersCount > 0) {
+          setAverageScore(
+            parseFloat((totalScore / numericAnswersCount).toFixed(1)),
+          );
+        }
+      }
+
+      // Check if current user is the one who completed the assessment or is an admin
+      if (
+        user &&
+        (foundAssessment.completedBy === user.name || user.role === "admin")
+      ) {
         setCanEdit(true);
       }
     } else {
@@ -67,7 +94,22 @@ const ViewAssessment: React.FC<ViewAssessmentProps> = ({
   }, [assessmentId, user, addNotification]);
 
   const handleEdit = () => {
-    navigate(`/assessment/edit/${assessmentId}`);
+    // For assessments that are in-progress, navigate to edit
+    if (assessment && assessment.status === "in-progress") {
+      navigate(`/assessment/edit/${assessmentId}`);
+    } else {
+      navigate(`/assessment/edit/${assessmentId}`);
+    }
+  };
+
+  const handleBack = () => {
+    if (propAssessmentId) {
+      // If used as a component with onBack prop
+      onBack();
+    } else {
+      // If accessed via route
+      navigate(-1);
+    }
   };
 
   const getAssessmentTypeTitle = (type: string) => {
@@ -113,20 +155,28 @@ const ViewAssessment: React.FC<ViewAssessmentProps> = ({
 
   return (
     <div className="bg-background w-full max-w-4xl mx-auto p-4">
-      <Button
-        variant="ghost"
-        className="mb-4 flex items-center"
-        onClick={onBack}
-        type="button"
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back
-      </Button>
+      <div className="flex justify-between mb-4">
+        <Button
+          variant="ghost"
+          className="flex items-center"
+          onClick={handleBack}
+          type="button"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
+        </Button>
+
+        {canEdit && assessment && assessment.status === "in-progress" && (
+          <Button onClick={handleEdit} variant="default" size="sm">
+            <Edit className="mr-2 h-4 w-4" /> Continue Editing
+          </Button>
+        )}
+      </div>
 
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>{getAssessmentTypeTitle(assessment.type)}</CardTitle>
-            {canEdit && (
+            {canEdit && assessment.status !== "completed" && (
               <Button onClick={handleEdit} variant="outline" size="sm">
                 <Edit className="mr-2 h-4 w-4" /> Edit
               </Button>
@@ -136,6 +186,15 @@ const ViewAssessment: React.FC<ViewAssessmentProps> = ({
             Completed by {assessment.completedBy} on{" "}
             {new Date(assessment.date).toLocaleDateString()}
           </CardDescription>
+          {averageScore !== null && (
+            <div className="mt-4 flex items-center gap-3">
+              <div className="text-sm font-medium">Average Score:</div>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold">{averageScore}/5</span>
+                <Progress value={averageScore * 20} className="h-2 w-32" />
+              </div>
+            </div>
+          )}
         </CardHeader>
 
         <CardContent>
@@ -222,7 +281,7 @@ const ViewAssessment: React.FC<ViewAssessmentProps> = ({
         </CardContent>
 
         <CardFooter>
-          <Button variant="outline" onClick={onBack} className="w-full">
+          <Button variant="outline" onClick={handleBack} className="w-full">
             Close
           </Button>
         </CardFooter>

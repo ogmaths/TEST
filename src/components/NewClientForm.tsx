@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useNotifications } from "@/context/NotificationContext";
+import { useUser } from "@/context/UserContext";
 import {
   Card,
   CardContent,
@@ -40,6 +41,7 @@ interface AssessmentAssignment {
 
 const NewClientForm = () => {
   const navigate = useNavigate();
+  const { user } = useUser();
   const [showSuccess, setShowSuccess] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
@@ -47,6 +49,7 @@ const NewClientForm = () => {
     email: "",
     phone: "",
     address: "",
+    area: "",
     caseWorker: "",
     status: "new",
     notes: "",
@@ -74,11 +77,33 @@ const NewClientForm = () => {
   };
 
   const addAssessment = () => {
+    // Get assessment templates from localStorage
+    const savedTemplates = localStorage.getItem("assessmentTemplates");
+    let defaultType = "introduction";
+    let defaultDueDate = new Date();
+
+    // If templates exist, use the first active template as default
+    if (savedTemplates) {
+      try {
+        const templates = JSON.parse(savedTemplates);
+        const activeTemplate = templates.find((t: any) => t.isActive);
+        if (activeTemplate) {
+          defaultType = activeTemplate.type;
+          // Set due date based on template's defaultDueInDays
+          const dueDate = new Date();
+          dueDate.setDate(dueDate.getDate() + activeTemplate.defaultDueInDays);
+          defaultDueDate = dueDate;
+        }
+      } catch (error) {
+        console.error("Failed to parse saved assessment templates", error);
+      }
+    }
+
     setAssignedAssessments([
       ...assignedAssessments,
       {
-        type: "introduction",
-        dueDate: new Date(),
+        type: defaultType,
+        dueDate: defaultDueDate,
       },
     ]);
   };
@@ -138,6 +163,11 @@ const NewClientForm = () => {
       phone: formData.phone,
       address: formData.address,
       notes: formData.notes,
+      // Automatically assign the client to the logged-in user's organization
+      organizationId: user?.tenantId || "",
+      organizationName: user?.organizationName || "",
+      organizationSlug: user?.organizationSlug || "",
+      area: formData.area || "Unspecified",
       assessmentDates: {
         introduction: assignedAssessments.find((a) => a.type === "introduction")
           ? formatDate(
@@ -188,6 +218,7 @@ const NewClientForm = () => {
       email: "",
       phone: "",
       address: "",
+      area: "",
       caseWorker: "",
       status: "new",
       notes: "",
@@ -312,6 +343,28 @@ const NewClientForm = () => {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="area">Area</Label>
+                <Select
+                  id="area"
+                  value={formData.area}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({ ...prev, area: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select area" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="north">North District</SelectItem>
+                    <SelectItem value="south">South District</SelectItem>
+                    <SelectItem value="east">East District</SelectItem>
+                    <SelectItem value="west">West District</SelectItem>
+                    <SelectItem value="central">Central District</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="caseWorker">Case Worker</Label>
                 <Select
                   id="caseWorker"
@@ -423,12 +476,56 @@ const NewClientForm = () => {
                               <SelectValue placeholder="Select assessment type" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="introduction">
-                                Introduction
-                              </SelectItem>
-                              <SelectItem value="progress">Progress</SelectItem>
-                              <SelectItem value="exit">Exit</SelectItem>
-                              <SelectItem value="custom">Custom</SelectItem>
+                              {(() => {
+                                // Get assessment templates from localStorage
+                                const savedTemplates = localStorage.getItem(
+                                  "assessmentTemplates",
+                                );
+                                let templates = [];
+
+                                if (savedTemplates) {
+                                  try {
+                                    templates = JSON.parse(savedTemplates)
+                                      .filter((t: any) => t.isActive)
+                                      .map((t: any) => ({
+                                        type: t.type,
+                                        name: t.name,
+                                      }));
+                                  } catch (error) {
+                                    console.error(
+                                      "Failed to parse saved assessment templates",
+                                      error,
+                                    );
+                                  }
+                                }
+
+                                // If no templates found, use default options
+                                if (templates.length === 0) {
+                                  return (
+                                    <>
+                                      <SelectItem value="introduction">
+                                        Introduction
+                                      </SelectItem>
+                                      <SelectItem value="progress">
+                                        Progress
+                                      </SelectItem>
+                                      <SelectItem value="exit">Exit</SelectItem>
+                                      <SelectItem value="custom">
+                                        Custom
+                                      </SelectItem>
+                                    </>
+                                  );
+                                }
+
+                                // Otherwise, use templates from localStorage
+                                return templates.map(
+                                  (template: any, i: number) => (
+                                    <SelectItem key={i} value={template.type}>
+                                      {template.name}
+                                    </SelectItem>
+                                  ),
+                                );
+                              })()}
                             </SelectContent>
                           </Select>
                         </div>

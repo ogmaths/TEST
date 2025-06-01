@@ -116,39 +116,7 @@ const Home = () => {
         ];
   });
 
-  // Get recent assessments from localStorage
-  const recentAssessments = React.useMemo(() => {
-    const savedAssessments = JSON.parse(
-      localStorage.getItem("assessments") || "[]",
-    );
-    return savedAssessments.slice(0, 3);
-  }, []);
-  // Get data from localStorage or use empty arrays/objects
-  const recentClients = React.useMemo(() => {
-    const savedClients = JSON.parse(localStorage.getItem("clients") || "[]");
-    return savedClients.slice(0, 4).map((client) => ({
-      id: client.id,
-      name: client.name,
-      status: client.status,
-      lastVisit: client.lastActivity
-        ? new Date(client.lastActivity).toLocaleDateString()
-        : "N/A",
-      avatar: client.name
-        .split(" ")
-        .map((n) => n[0])
-        .join(""),
-    }));
-  }, []);
-
-  const upcomingEvents = React.useMemo(() => {
-    const savedEvents = JSON.parse(localStorage.getItem("events") || "[]");
-    return savedEvents.slice(0, 3).map((event) => ({
-      id: event.id,
-      title: event.name,
-      date: `${event.date}, ${event.time}`,
-      attendees: event.attendees?.length || 0,
-    }));
-  }, []);
+  // Recent data fetching code removed as requested
 
   const metrics = React.useMemo(() => {
     // Get raw data from localStorage
@@ -157,116 +125,53 @@ const Home = () => {
       localStorage.getItem("assessments") || "[]",
     );
     const eventsData = JSON.parse(localStorage.getItem("events") || "[]");
-    const interactionsData = JSON.parse(
-      localStorage.getItem("interactions") || "[]",
-    );
+
+    // Get all interactions across all clients
+    let allInteractions = [];
+    clientsData.forEach((client) => {
+      const clientInteractions = JSON.parse(
+        localStorage.getItem(`interactions_${client.id}`) || "[]",
+      );
+      allInteractions = [...allInteractions, ...clientInteractions];
+    });
 
     // Count totals
     const clients = clientsData.length;
     const assessments = assessmentsData.length;
     const events = eventsData.length;
-    const interactions = interactionsData.length;
+    const interactions = allInteractions.length;
 
-    // Calculate financial metrics
-    const totalBudget =
-      JSON.parse(localStorage.getItem("budget") || '{"total": 100000}').total ||
-      100000;
-    const totalExpenses =
-      JSON.parse(localStorage.getItem("expenses") || '{"total": 75000}')
-        .total || 75000;
-    const totalRevenue =
-      JSON.parse(localStorage.getItem("revenue") || '{"total": 120000}')
-        .total || 120000;
+    // Filter by current user's organization
+    const userTenantId = user?.tenantId;
+    const orgClients = userTenantId
+      ? clientsData.filter((c) => c.organizationId === userTenantId)
+      : clientsData;
+    const orgEvents = userTenantId
+      ? eventsData.filter((e) => e.organizationId === userTenantId)
+      : eventsData;
+    const orgInteractions = userTenantId
+      ? allInteractions.filter((i) => i.organizationId === userTenantId)
+      : allInteractions;
 
-    // Calculate ROI: (Revenue - Expenses) / Expenses * 100
-    const roi =
-      clients > 0
-        ? Math.round(((totalRevenue - totalExpenses) / totalExpenses) * 100)
-        : 327;
-
-    // Calculate funding utilization: Expenses / Budget * 100
-    const fundingUtil = Math.round((totalExpenses / totalBudget) * 100);
-
-    // Calculate cost per client: Expenses / Number of clients
-    const costPerClient =
-      clients > 0 ? Math.round(totalExpenses / clients) : 1250;
-
-    // Calculate operational metrics
-    const staffData = JSON.parse(localStorage.getItem("staff") || "[]");
-    const staffCapacity =
-      staffData.length > 0
-        ? staffData.reduce((sum, staff) => sum + (staff.capacity || 40), 0)
-        : 200;
-    const staffHoursUsed =
-      interactions > 0 ? Math.min(staffCapacity, interactions * 2) : 174; // Assume each interaction takes 2 hours
-
-    // Staff utilization: Hours used / Total capacity * 100
-    const staffUtil = Math.round((staffHoursUsed / staffCapacity) * 100);
-
-    // Program efficiency: Completed assessments / Total assessments * 100
+    // Count completed assessments
     const completedAssessments = assessmentsData.filter(
       (a) => a.status === "completed",
     ).length;
-    const progEfficiency =
-      assessments > 0
-        ? Math.round((completedAssessments / assessments) * 100)
-        : 94;
 
-    // Client retention: Active clients / Total clients * 100
-    const activeClients = clientsData.filter(
-      (c) => c.status !== "inactive" && c.status !== "exited",
+    // Count exit assessments
+    const exitAssessments = assessmentsData.filter(
+      (a) => a.type === "Exit" || a.type === "exit",
     ).length;
-    const retention =
-      clients > 0 ? Math.round((activeClients / clients) * 100) : 92;
-
-    // Impact metrics
-    const targetOutcomes =
-      JSON.parse(localStorage.getItem("targets") || '{"outcomes": 100}')
-        .outcomes || 100;
-    const achievedOutcomes =
-      completedAssessments > 0
-        ? Math.round((completedAssessments / targetOutcomes) * 100)
-        : 78;
-
-    // Community impact score: Average of all feedback scores (out of 5)
-    const feedbackData = JSON.parse(localStorage.getItem("feedback") || "[]");
-    const avgFeedback =
-      feedbackData.length > 0
-        ? parseFloat(
-            (
-              feedbackData.reduce((sum, item) => sum + (item.score || 0), 0) /
-              feedbackData.length
-            ).toFixed(1),
-          )
-        : 4.6;
-
-    // Sustainability index: Complex calculation based on multiple factors
-    const sustainIndex = Math.round(
-      roi * 0.3 + fundingUtil * 0.2 + retention * 0.3 + avgFeedback * 4,
-    );
 
     return {
-      // Financial metrics
-      programROI: roi,
-      fundingUtilization: fundingUtil,
-      costPerClient: costPerClient,
-
-      // Operational metrics
-      staffUtilization: staffUtil,
-      programEfficiency: progEfficiency,
-      clientRetentionRate: retention,
-
-      // Impact metrics
-      outcomesAchieved: achievedOutcomes,
-      communityImpactScore: avgFeedback,
-      sustainabilityIndex: sustainIndex,
-
       // For charts and additional displays
-      totalClients: clients,
-      activeAssessments: assessments,
-      upcomingEvents: events,
+      totalClients: orgClients.length,
+      activeAssessments: completedAssessments,
+      upcomingEvents: orgEvents.length,
+      exitAssessments: exitAssessments,
+      communityImpactScore: 4.6, // Placeholder
     };
-  }, []);
+  }, [user?.tenantId]);
 
   const toggleTaskCompletion = (taskId) => {
     const updatedTasks = tasks.map((task) =>
@@ -337,10 +242,8 @@ const Home = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Main Content */}
-      <main className="container mx-auto p-4 md:p-6">
-        <div className="flex justify-between items-center mb-4">
-          <div></div>
-        </div>
+      <main className="container mx-auto p-4 md:p-6 pt-0">
+        {/* Removed empty div container */}
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
           {/* Page Title and Search */}
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -502,182 +405,7 @@ const Home = () => {
             </CardFooter>
           </Card>
 
-          {/* Tabs for Recent Activity */}
-          <Tabs defaultValue="clients" className="w-full">
-            <TabsList className="grid w-full md:w-auto grid-cols-3">
-              <TabsTrigger value="clients">Recent Clients</TabsTrigger>
-              <TabsTrigger value="events">Upcoming Events</TabsTrigger>
-              <TabsTrigger value="assessments">Recent Assessments</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="clients" className="mt-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Client Activity</CardTitle>
-                  <CardDescription>
-                    View and manage your recent client interactions
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {recentClients.map((client) => (
-                      <div
-                        key={client.id}
-                        className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarImage
-                              src={`https://api.dicebear.com/7.x/initials/svg?seed=${client.avatar}`}
-                              alt={client.name}
-                            />
-                            <AvatarFallback>{client.avatar}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium">{client.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              Last visit: {client.lastVisit}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${client.status === "New" ? "bg-blue-100 text-blue-800" : client.status === "In Progress" ? "bg-yellow-100 text-yellow-800" : "bg-green-100 text-green-800"}`}
-                          >
-                            {client.status}
-                          </span>
-                          <Link to={`/client/${client.id}`}>
-                            <Button variant="ghost" size="sm">
-                              View
-                            </Button>
-                          </Link>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Link to="/clients" className="w-full">
-                    <Button variant="outline" className="w-full">
-                      <Users className="mr-2 h-4 w-4" />
-                      View All Clients
-                    </Button>
-                  </Link>
-                </CardFooter>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="events" className="mt-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Upcoming Events</CardTitle>
-                  <CardDescription>
-                    Schedule and manage your organization's events
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {upcomingEvents.map((event) => (
-                      <div
-                        key={event.id}
-                        className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0"
-                      >
-                        <div>
-                          <p className="font-medium">{event.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {event.date}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-primary/10 text-primary">
-                            {event.attendees} attendees
-                          </span>
-                          <Link to="/events">
-                            <Button variant="ghost" size="sm">
-                              Details
-                            </Button>
-                          </Link>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Link to="/events" className="w-full">
-                    <Button variant="outline" className="w-full">
-                      <Calendar className="mr-2 h-4 w-4" />
-                      View All Events
-                    </Button>
-                  </Link>
-                </CardFooter>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="assessments" className="mt-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Assessments</CardTitle>
-                  <CardDescription>
-                    Track progress on client assessments
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {JSON.parse(localStorage.getItem("assessments") || "[]")
-                      .slice(0, 3)
-                      .map((assessment) => (
-                        <div
-                          key={assessment.id}
-                          className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0"
-                        >
-                          <div>
-                            <p className="font-medium">
-                              {assessment.clientName} -{" "}
-                              {getTypeLabel(assessment.type)} Assessment
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              Completed on{" "}
-                              {new Date(assessment.date).toLocaleDateString()}
-                              {assessment.completedBy && (
-                                <> by {assessment.completedBy}</>
-                              )}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${assessment.type === "introduction" ? "bg-blue-100 text-blue-800" : assessment.type === "progress" ? "bg-yellow-100 text-yellow-800" : "bg-green-100 text-green-800"}`}
-                            >
-                              {getTypeLabel(assessment.type)}
-                            </span>
-                            <Link to={`/assessment/view/${assessment.id}`}>
-                              <Button variant="ghost" size="sm">
-                                View
-                              </Button>
-                            </Link>
-                          </div>
-                        </div>
-                      ))}
-                    {JSON.parse(localStorage.getItem("assessments") || "[]")
-                      .length === 0 && (
-                      <div className="text-center py-4">
-                        <p className="text-muted-foreground">
-                          No assessments found
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Link to="/assessments" className="w-full">
-                    <Button variant="outline" className="w-full">
-                      <BarChart2 className="mr-2 h-4 w-4" />
-                      View All Assessments
-                    </Button>
-                  </Link>
-                </CardFooter>
-              </Card>
-            </TabsContent>
-          </Tabs>
+          {/* Recent activity tabs removed as requested */}
         </div>
       </main>
 

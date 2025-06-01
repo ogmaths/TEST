@@ -126,7 +126,26 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
           `Notification sent to user ${targetUserId}:`,
           newNotification,
         );
-        return; // Don't add to current user's notifications
+
+        // For demo purposes, also add to current user's notifications to make mentions visible
+        // This simulates the behavior of a real system where mentions would be visible to all parties
+        if (
+          notification.type === "communication" &&
+          notification.message.includes("mentioned you")
+        ) {
+          const mentionNotification = {
+            ...newNotification,
+            id: Date.now().toString() + "-mention",
+            title: "Mention sent",
+            message: notification.message.replace(
+              "mentioned you",
+              "was mentioned by you",
+            ),
+          };
+          setNotifications((prev) => [mentionNotification, ...prev]);
+        }
+
+        return; // Don't add original notification to current user's notifications
       } catch (error) {
         console.error("Failed to store user notification", error);
       }

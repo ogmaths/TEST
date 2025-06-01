@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, Filter, Calendar } from "lucide-react";
+import { Search, Plus, Filter } from "lucide-react";
 import { Link } from "react-router-dom";
 import BackButton from "@/components/BackButton";
 import Logo from "./Logo";
@@ -88,15 +88,8 @@ const ClientsPage: React.FC = () => {
 
   return (
     <div className="p-6 bg-background">
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center">
-          <BackButton />
-        </div>
-        <Link to="/events">
-          <Button variant="outline" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" /> View Events
-          </Button>
-        </Link>
+      <div className="flex items-center mb-4">
+        <BackButton />
       </div>
       <h1 className="text-3xl font-bold mb-6">Client Management</h1>
       <div className="flex justify-between items-center mb-6">
@@ -125,12 +118,13 @@ const ClientsPage: React.FC = () => {
             // This will trigger the search using the current searchQuery value
             // The filtering is already handled by the filteredClients variable
             // This button is now just an alternative way to trigger search (for users who prefer clicking)
-            document
-              .querySelector('input[type="search"]')
-              ?.setAttribute("tabindex", "-1");
-            (
-              document.querySelector('input[type="search"]') as HTMLElement
-            )?.focus();
+            // Focus on the search input
+            const searchInput = document.querySelector(
+              'input[placeholder*="Search"]',
+            );
+            if (searchInput) {
+              (searchInput as HTMLElement).focus();
+            }
           }}
         >
           <Search className="h-4 w-4" /> Search
@@ -152,20 +146,17 @@ const ClientsPage: React.FC = () => {
               <div>Actions</div>
             </div>
             {filteredClients.map((client) => (
-              <div
+              <Link
                 key={client.id}
-                className="grid grid-cols-[auto_1fr_auto_auto_auto] md:grid-cols-[auto_1fr_auto_auto_auto_auto] gap-4 p-4 border-b items-center"
+                to={`/client/${client.id}`}
+                className="grid grid-cols-[auto_1fr_auto_auto_auto] md:grid-cols-[auto_1fr_auto_auto_auto_auto] gap-4 p-4 border-b items-center hover:bg-muted/50 cursor-pointer transition-colors duration-200"
               >
-                <Link to={`/client/${client.id}`}>
-                  <Avatar className="cursor-pointer hover:opacity-80">
-                    <AvatarImage src={client.profileImage} alt={client.name} />
-                    <AvatarFallback>{client.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                </Link>
+                <Avatar>
+                  <AvatarImage src={client.profileImage} alt={client.name} />
+                  <AvatarFallback>{client.name.charAt(0)}</AvatarFallback>
+                </Avatar>
                 <div>
-                  <Link to={`/client/${client.id}`} className="hover:underline">
-                    <div className="font-medium">{client.name}</div>
-                  </Link>
+                  <div className="font-medium">{client.name}</div>
                   <div className="text-sm text-muted-foreground">
                     Since {new Date(client.joinDate).toLocaleDateString()}
                   </div>
@@ -181,14 +172,22 @@ const ClientsPage: React.FC = () => {
                 <div className="text-sm">
                   {new Date(client.lastActivity).toLocaleDateString()}
                 </div>
-                <div>
-                  <Link to={`/client/${client.id}`}>
-                    <Button variant="ghost" size="sm">
-                      View
-                    </Button>
-                  </Link>
+                <div
+                  className="flex gap-2"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link to={`/interaction/add/${client.id}`}>
+                      Add Interaction
+                    </Link>
+                  </Button>
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link to={`/assessment?clientId=${client.id}`}>
+                      Assessment
+                    </Link>
+                  </Button>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </CardContent>

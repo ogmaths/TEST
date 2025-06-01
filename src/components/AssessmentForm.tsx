@@ -39,6 +39,7 @@ interface AssessmentFormProps {
   onComplete?: () => void;
   onCancel?: () => void;
   onBack?: () => void;
+  assessmentId?: string;
 }
 
 interface Question {
@@ -60,35 +61,63 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({
   onComplete = () => {},
   onCancel = () => {},
   onBack = () => {},
+  assessmentId: propAssessmentId,
 }) => {
-  const { id: assessmentIdParam } = useParams();
+  const { id: assessmentIdFromUrl } = useParams();
+  const [searchParams] = useState(new URLSearchParams(window.location.search));
+  const assessmentIdParam =
+    assessmentIdFromUrl || searchParams.get("assessmentId");
   const navigate = useNavigate();
   const [clientId, setClientId] = useState(initialClientId);
   const [type, setType] = useState(initialType);
   const { addNotification } = useNotifications();
   const { user } = useUser();
 
+  // Debug the assessment ID from different sources
+  useEffect(() => {
+    console.log("Assessment ID sources:", {
+      fromParams: assessmentIdParam,
+      fromProps: propAssessmentId,
+      fromURL: new URLSearchParams(window.location.search).get("assessmentId"),
+    });
+  }, [assessmentIdParam, propAssessmentId]);
+
   // If we have an assessment ID in the URL, load that assessment
   useEffect(() => {
-    if (assessmentIdParam) {
+    if (assessmentIdParam || propAssessmentId) {
+      const assessmentId = assessmentIdParam || propAssessmentId;
+      console.log("Loading assessment with ID:", assessmentId);
       const existingAssessments = JSON.parse(
         localStorage.getItem("assessments") || "[]",
       );
 
+      console.log("All assessments:", existingAssessments);
+
+      // Use string comparison to ensure we find the right assessment
       const existingAssessment = existingAssessments.find(
-        (a) => a.id === assessmentIdParam,
+        (a) => String(a.id) === String(assessmentId),
       );
+
+      console.log("Loading assessment by ID:", {
+        assessmentId,
+        existingAssessment,
+        allAssessments: existingAssessments,
+      });
 
       if (existingAssessment) {
         // Check if current user is allowed to edit
-        if (existingAssessment.completedBy !== user?.name) {
+        if (
+          existingAssessment.completedBy &&
+          existingAssessment.completedBy !== user?.name &&
+          existingAssessment.status === "completed"
+        ) {
           addNotification({
             type: "error",
             title: "Access Denied",
             message: "You can only edit assessments that you created",
             priority: "high",
           });
-          navigate(`/assessment/view/${assessmentIdParam}`);
+          navigate(`/assessment/view/${assessmentId}`);
           return;
         }
 
@@ -102,9 +131,10 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({
         setType(existingAssessment.type.toLowerCase());
       }
     }
-  }, [assessmentIdParam, user, addNotification, navigate]);
+  }, [assessmentIdParam, propAssessmentId, user, addNotification, navigate]);
   const [currentCategoryIndex, setCurrentCategoryIndex] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [formValues, setFormValues] = useState({});
 
   // Mock categories and questions
@@ -306,7 +336,7 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({
   const [recommendations, setRecommendations] = useState("");
   const [overallNotes, setOverallNotes] = useState("");
 
-  const handleSubmit = () => {
+  const saveAssessment = (status: "in-progress" | "completed") => {
     setIsSubmitting(true);
 
     // Process answers to include question text
@@ -328,17 +358,26 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({
     });
 
     // Create assessment record
+    // Use the consistent ID format for assessments
+    const assessmentId = assessmentIdParam || `${type}-${clientId}`;
     const newAssessment = {
-      id: assessmentIdParam || Date.now().toString(),
+      id: assessmentId,
       clientId,
       type: type.charAt(0).toUpperCase() + type.slice(1),
       date: new Date().toISOString().split("T")[0],
       completedBy: user?.name || "Anonymous User",
-      status: "completed",
+      status,
       answers: processedAnswers,
       recommendations,
       overallNotes,
     };
+
+    console.log("Saving assessment:", {
+      assessmentIdParam,
+      newAssessment,
+      isEditing: !!assessmentIdParam,
+      status,
+    });
 
     // Save to localStorage
     const existingAssessments = JSON.parse(
@@ -346,17 +385,37 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({
     );
 
     // If editing an existing assessment, replace it; otherwise add new
+    let updatedAssessments;
     if (assessmentIdParam) {
-      const updatedAssessments = existingAssessments.map((a) =>
+      updatedAssessments = existingAssessments.map((a) =>
         a.id === assessmentIdParam ? newAssessment : a,
       );
-      localStorage.setItem("assessments", JSON.stringify(updatedAssessments));
     } else {
-      localStorage.setItem(
-        "assessments",
-        JSON.stringify([...existingAssessments, newAssessment]),
+      // Check if there's already an assessment for this client and type
+      const existingIndex = existingAssessments.findIndex(
+        (a) =>
+          a.clientId === clientId &&
+          a.type.toLowerCase() === type.toLowerCase(),
       );
+
+      if (existingIndex !== -1) {
+        // Replace the existing assessment
+        updatedAssessments = [...existingAssessments];
+        updatedAssessments[existingIndex] = newAssessment;
+      } else {
+        // Add new assessment
+        updatedAssessments = [...existingAssessments, newAssessment];
+      }
     }
+
+    // Save the updated assessments to localStorage
+    localStorage.setItem("assessments", JSON.stringify(updatedAssessments));
+
+    // Force a refresh of the assessments in any open ClientProfile components
+    const event = new CustomEvent("assessment-updated", {
+      detail: { clientId, status },
+    });
+    window.dispatchEvent(event);
 
     // Simulate API call
     setTimeout(() => {
@@ -365,33 +424,39 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({
       // Show notification
       addNotification({
         type: "success",
-        title: "Assessment Submitted",
-        message: `${type.charAt(0).toUpperCase() + type.slice(1)} assessment has been saved successfully`,
+        title:
+          status === "completed" ? "Assessment Submitted" : "Assessment Saved",
+        message: `${type.charAt(0).toUpperCase() + type.slice(1)} assessment has been ${status === "completed" ? "submitted" : "saved"} successfully`,
         priority: "high",
       });
 
-      // Update the assessment status in localStorage
-      const existingAssessments = JSON.parse(
-        localStorage.getItem("assessments") || "[]",
-      );
-      const assessmentIndex = existingAssessments.findIndex(
-        (a: any) =>
-          a.clientId === clientId &&
-          a.type.toLowerCase() === type.toLowerCase(),
-      );
+      // Set success message state for both completed and in-progress
+      setShowSuccessMessage(true);
 
-      if (assessmentIndex !== -1) {
-        existingAssessments[assessmentIndex].status = "completed";
-        existingAssessments[assessmentIndex].completedBy =
-          user?.name || "Anonymous User";
-        localStorage.setItem(
-          "assessments",
-          JSON.stringify(existingAssessments),
-        );
-      }
+      // Show different message based on status
+      const messageTimeout = status === "completed" ? 2000 : 1500;
 
-      onComplete();
+      // Hide success message after timeout and redirect to client profile
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+        // If we're in a standalone route, navigate to client profile
+        if (!propAssessmentId) {
+          // Navigate to client profile with assessments tab active
+          navigate(`/client/${clientId}?tab=assessments`);
+        } else {
+          // If used as a component with onComplete prop
+          onComplete();
+        }
+      }, messageTimeout);
     }, 1500);
+  };
+
+  const handleSubmit = () => {
+    saveAssessment("completed");
+  };
+
+  const handleSaveProgress = () => {
+    saveAssessment("in-progress");
   };
 
   const getAssessmentTypeTitle = () => {
@@ -408,7 +473,32 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({
   };
 
   return (
-    <div className="bg-background w-full max-w-4xl mx-auto p-4">
+    <div className="bg-background w-full max-w-4xl mx-auto p-4 relative">
+      {showSuccessMessage && (
+        <div className="absolute top-0 left-0 right-0 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 p-4 rounded-md shadow-md z-50 mx-4 mt-4 flex items-center justify-between">
+          <div className="flex items-center">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6 mr-2"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+            <span className="font-medium">
+              {type.charAt(0).toUpperCase() + type.slice(1)} assessment
+              {isSubmitting ? "..." : " saved successfully!"}
+            </span>
+          </div>
+          <span className="text-sm">Redirecting to assessment history...</span>
+        </div>
+      )}
       <Button
         variant="ghost"
         className="mb-4 flex items-center"
@@ -566,7 +656,14 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({
               <ChevronLeft className="mr-1 h-4 w-4" /> Previous
             </Button>
           </div>
-          <div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleSaveProgress}
+              disabled={isSubmitting || Object.keys(formValues).length === 0}
+            >
+              {isSubmitting ? "Saving..." : "Save Progress"}
+            </Button>
             {currentCategoryIndex < categories.length ? (
               <Button onClick={handleNext}>
                 Next <ChevronRight className="ml-1 h-4 w-4" />
@@ -574,7 +671,7 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({
             ) : (
               <Button onClick={handleSubmit} disabled={isSubmitting}>
                 {isSubmitting ? (
-                  "Saving..."
+                  "Submitting..."
                 ) : (
                   <>
                     Complete <Save className="ml-1 h-4 w-4" />

@@ -47,7 +47,7 @@ const AssessmentsPage: React.FC = () => {
           date: assessment.date,
           completedBy: assessment.completedBy || "",
           score: assessment.score || assessment.overallScore,
-          status: assessment.status,
+          status: assessment.status || "pending",
         };
       });
     }
@@ -188,6 +188,11 @@ const AssessmentsPage: React.FC = () => {
                         <Link to={`/client/${assessment.clientId}`}>
                           <Button variant="ghost" size="sm">
                             View Client
+                          </Button>
+                        </Link>
+                        <Link to={`/assessment/view/${assessment.id}`}>
+                          <Button variant="ghost" size="sm">
+                            View Assessment
                           </Button>
                         </Link>
                         <Button

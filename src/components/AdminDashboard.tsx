@@ -50,14 +50,21 @@ import {
   Calendar,
   Edit,
   Plus,
+  BarChart2,
+  Settings,
+  Award,
 } from "lucide-react";
 import { useUser } from "@/context/UserContext";
 import { User } from "@/types/admin";
 import BackButton from "./BackButton";
+import { Link as RouterLink } from "react-router-dom";
 import { Link } from "react-router-dom";
 import AdminPasswordReset from "./AdminPasswordReset";
 import { Textarea } from "@/components/ui/textarea";
 import Logo from "./Logo";
+import OrganizationDashboard from "./dashboard/OrganizationDashboard";
+import AreaBreakdown from "./dashboard/AreaBreakdown";
+import StaffMetrics from "./dashboard/StaffMetrics";
 
 interface Event {
   id: string;
@@ -76,13 +83,15 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const { user } = useUser();
   const { addNotification } = useNotifications();
-  const [activeTab, setActiveTab] = useState("users");
+  const [activeTab, setActiveTab] = useState("organization");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<any>(null);
+  const [showDeleteUserDialog, setShowDeleteUserDialog] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [showRoleDialog, setShowRoleDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedRole, setSelectedRole] = useState("support_worker");
@@ -174,8 +183,20 @@ const AdminDashboard = () => {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const tab = urlParams.get("tab");
-    if (tab && (tab === "users" || tab === "clients" || tab === "events")) {
+    if (
+      tab &&
+      (tab === "organization" ||
+        tab === "users" ||
+        tab === "clients" ||
+        tab === "events" ||
+        tab === "assessments" ||
+        tab === "staff" ||
+        tab === "impact")
+    ) {
       setActiveTab(tab);
+    } else {
+      // Default to organization tab if no valid tab is specified
+      setActiveTab("organization");
     }
   }, []);
 
@@ -243,15 +264,31 @@ const AdminDashboard = () => {
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >,
   ) => {
-    const { id, value } = e.target;
+    const { id, value, name } = e.target;
+    const fieldName = name || id;
     setEventFormData((prev) => ({
       ...prev,
-      [id]: value,
+      [fieldName]: value,
     }));
   };
 
   const handleEventFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Check if the selected date is in the future
+    const selectedDate = new Date(eventFormData.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day for fair comparison
+
+    if (selectedDate < today) {
+      addNotification({
+        type: "error",
+        title: "Invalid Date",
+        message: "Please select a future date for the event",
+        priority: "high",
+      });
+      return;
+    }
 
     if (editingEvent) {
       // Update existing event
@@ -346,6 +383,34 @@ const AdminDashboard = () => {
       localStorage.setItem("clients", JSON.stringify(updatedClients));
       setShowDeleteDialog(false);
       setClientToDelete(null);
+
+      addNotification({
+        type: "success",
+        title: "Client Deleted",
+        message: `${clientToDelete.name} has been deleted successfully`,
+        priority: "high",
+      });
+    }
+  };
+
+  const handleDeleteUser = (user: User) => {
+    setUserToDelete(user);
+    setShowDeleteUserDialog(true);
+  };
+
+  const confirmDeleteUser = () => {
+    if (userToDelete) {
+      const updatedUsers = users.filter((u) => u.id !== userToDelete.id);
+      setUsers(updatedUsers);
+      setShowDeleteUserDialog(false);
+      setUserToDelete(null);
+
+      addNotification({
+        type: "success",
+        title: "User Deleted",
+        message: `${userToDelete.name} has been deleted successfully`,
+        priority: "high",
+      });
     }
   };
 
@@ -437,6 +502,24 @@ const AdminDashboard = () => {
             Support
           </span>
         );
+      case "group_session":
+        return (
+          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-indigo-100 text-indigo-800">
+            Group Session
+          </span>
+        );
+      case "online":
+        return (
+          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-sky-100 text-sky-800">
+            Online Event
+          </span>
+        );
+      case "hybrid":
+        return (
+          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-800">
+            Hybrid Event
+          </span>
+        );
       default:
         return (
           <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-800">
@@ -450,12 +533,11 @@ const AdminDashboard = () => {
     return (
       <div className="min-h-screen bg-background">
         <header className="sticky top-0 z-10 border-b bg-background">
-          <div className="flex h-16 items-center px-4 md:px-6">
+          <div className="flex h-16 items-center justify-between px-4 md:px-6">
             <BackButton />
-            <Link to="/admin" className="ml-4">
+            <Link to="/admin">
               <Logo size="md" />
             </Link>
-            <h1 className="ml-4 text-3xl font-bold">Admin Dashboard</h1>
           </div>
         </header>
 
@@ -504,15 +586,10 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-10 border-b bg-background">
-        <div className="flex h-16 items-center px-4 md:px-6">
-          <BackButton />
-          <h1 className="ml-4 text-3xl font-bold">Admin Dashboard</h1>
-          <div className="ml-auto">
-            <Link to="/">
-              <Button variant="outline" className="flex items-center gap-2">
-                <Users className="h-4 w-4" /> Dashboard
-              </Button>
-            </Link>
+        <div className="flex h-16 items-center justify-between px-4 md:px-6">
+          <div className="flex items-center">
+            <Logo size="md" />
+            <BackButton className="ml-4" />
           </div>
         </div>
       </header>
@@ -543,255 +620,272 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        <Tabs
-          defaultValue={activeTab}
-          onValueChange={setActiveTab}
-          className="w-full"
-        >
-          <TabsList className="grid w-full max-w-md grid-cols-3">
-            <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="clients">Clients</TabsTrigger>
-            <TabsTrigger value="events">Events</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="users" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>User Management</CardTitle>
-                <CardDescription>
-                  Manage user accounts and permissions
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-md border">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b bg-muted/50 text-left">
-                        <th className="p-2 pl-4">Name</th>
-                        <th className="p-2">Email</th>
-                        <th className="p-2">Role</th>
-                        <th className="p-2">Status</th>
-                        <th className="p-2">Last Login</th>
-                        <th className="p-2 text-right pr-4">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredUsers.map((user) => (
-                        <tr key={user.id} className="border-b">
-                          <td className="p-2 pl-4 font-medium">{user.name}</td>
-                          <td className="p-2">{user.email}</td>
-                          <td className="p-2">
-                            <span
-                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${user.role === "admin" ? "bg-purple-100 text-purple-800" : user.role === "support_worker" ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"}`}
-                            >
-                              {user.role}
-                            </span>
-                          </td>
-                          <td className="p-2">
-                            <span
-                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${user.status === "active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
-                            >
-                              {user.status}
-                            </span>
-                          </td>
-                          <td className="p-2">
-                            {new Date(user.lastLogin).toLocaleDateString()}
-                          </td>
-                          <td className="p-2 text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleChangeRole(user)}
-                              >
-                                Change Role
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  handleResetPassword(
-                                    user.id,
-                                    user.email,
-                                    user.name,
-                                  )
-                                }
-                              >
-                                <KeyRound className="h-4 w-4 mr-1" /> Reset
-                                Password
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="clients" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Client Management</CardTitle>
-                <CardDescription>
-                  Manage client accounts and data
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-md border">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b bg-muted/50 text-left">
-                        <th className="p-2 pl-4">Name</th>
-                        <th className="p-2">Email</th>
-                        <th className="p-2">Status</th>
-                        <th className="p-2">Last Activity</th>
-                        <th className="p-2 text-right pr-4">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredClients.map((client) => (
-                        <tr key={client.id} className="border-b">
-                          <td className="p-2 pl-4 font-medium">
-                            {client.name}
-                          </td>
-                          <td className="p-2">{client.email}</td>
-                          <td className="p-2">
-                            <span
-                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${client.status === "Active" ? "bg-green-100 text-green-800" : client.status === "In Progress" ? "bg-yellow-100 text-yellow-800" : "bg-blue-100 text-blue-800"}`}
-                            >
-                              {client.status}
-                            </span>
-                          </td>
-                          <td className="p-2">
-                            {new Date(client.lastActivity).toLocaleDateString()}
-                          </td>
-                          <td className="p-2 text-right">
-                            <div className="flex justify-end gap-2">
-                              <Link to={`/client/${client.id}`}>
-                                <Button variant="ghost" size="sm">
-                                  View
-                                </Button>
-                              </Link>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  handleResetClientPassword(client)
-                                }
-                              >
-                                <KeyRound className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                onClick={() => handleDeleteClient(client)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="events" className="mt-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Event Management</CardTitle>
-                  <CardDescription>
-                    Manage organization events and activities
-                  </CardDescription>
-                </div>
-                <Button
-                  onClick={openNewEventForm}
-                  className="flex items-center gap-2"
+        <div className="flex gap-6">
+          {/* Left sidebar with vertical tabs */}
+          <div className="w-64 shrink-0">
+            <div className="bg-card rounded-lg border shadow-sm">
+              <div className="p-2">
+                <div
+                  className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "organization" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                  onClick={() => setActiveTab("organization")}
                 >
-                  <Plus className="h-4 w-4" /> Add Event
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-md border">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b bg-muted/50 text-left">
-                        <th className="p-2 pl-4">Name</th>
-                        <th className="p-2">Date & Time</th>
-                        <th className="p-2">Location</th>
-                        <th className="p-2">Type</th>
-                        <th className="p-2">Capacity</th>
-                        <th className="p-2 text-right pr-4">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredEvents.length > 0 ? (
-                        filteredEvents.map((event) => (
-                          <tr key={event.id} className="border-b">
+                  <BarChart2 className="h-4 w-4" />
+                  <span className="font-medium">Organization</span>
+                </div>
+                <div
+                  className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "areas" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                  onClick={() => setActiveTab("areas")}
+                >
+                  <BarChart2 className="h-4 w-4" />
+                  <span className="font-medium">Area</span>
+                </div>
+                <div
+                  className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "staff" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                  onClick={() => setActiveTab("staff")}
+                >
+                  <Users className="h-4 w-4" />
+                  <span className="font-medium">Staff</span>
+                </div>
+                <div
+                  className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "users" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                  onClick={() => setActiveTab("users")}
+                >
+                  <Users className="h-4 w-4" />
+                  <span className="font-medium">Users</span>
+                </div>
+                <div
+                  className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "clients" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                  onClick={() => setActiveTab("clients")}
+                >
+                  <UserPlus className="h-4 w-4" />
+                  <span className="font-medium">Clients</span>
+                </div>
+                <div
+                  className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "events" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                  onClick={() => setActiveTab("events")}
+                >
+                  <Calendar className="h-4 w-4" />
+                  <span className="font-medium">Events</span>
+                </div>
+                <div
+                  className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "assessments" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                  onClick={() => setActiveTab("assessments")}
+                >
+                  <Edit className="h-4 w-4" />
+                  <span className="font-medium">Assessments</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main content area */}
+          <div className="flex-1">
+            {activeTab === "organization" && (
+              <div>
+                <OrganizationDashboard />
+              </div>
+            )}
+
+            {activeTab === "areas" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Area</CardTitle>
+                  <CardDescription>
+                    Manage geographical areas for your organization
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <AreaBreakdown isManagementView={true} />
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === "staff" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Staff Performance</CardTitle>
+                  <CardDescription>
+                    Monitor staff activity and performance metrics
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <StaffMetrics />
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === "users" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>User Management</CardTitle>
+                  <CardDescription>
+                    Manage user accounts and permissions
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="rounded-md border">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/50 text-left">
+                          <th className="p-2 pl-4">Name</th>
+                          <th className="p-2">Email</th>
+                          <th className="p-2">Role</th>
+                          <th className="p-2">Status</th>
+                          <th className="p-2">Last Login</th>
+                          <th className="p-2 text-right pr-4">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredUsers.map((user) => (
+                          <tr key={user.id} className="border-b">
                             <td className="p-2 pl-4 font-medium">
-                              {event.name}
+                              {user.name}
+                            </td>
+                            <td className="p-2">{user.email}</td>
+                            <td className="p-2">
+                              <span
+                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${user.role === "admin" ? "bg-purple-100 text-purple-800" : user.role === "support_worker" ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"}`}
+                              >
+                                {user.role}
+                              </span>
                             </td>
                             <td className="p-2">
-                              {new Date(event.date).toLocaleDateString()} •{" "}
-                              {event.time}
+                              <span
+                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${user.status === "active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
+                              >
+                                {user.status}
+                              </span>
                             </td>
-                            <td className="p-2">{event.location}</td>
                             <td className="p-2">
-                              {getEventTypeBadge(event.type)}
+                              {new Date(user.lastLogin).toLocaleDateString()}
                             </td>
-                            <td className="p-2">{event.capacity}</td>
                             <td className="p-2 text-right">
                               <div className="flex justify-end gap-2">
-                                <Link to={`/events/attendance/${event.id}`}>
-                                  <Button variant="ghost" size="sm">
-                                    Attendees
-                                  </Button>
-                                </Link>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleEditEvent(event)}
+                                  onClick={() => handleChangeRole(user)}
                                 >
-                                  <Edit className="h-4 w-4" />
+                                  Change Role
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleResetPassword(
+                                      user.id,
+                                      user.email,
+                                      user.name,
+                                    )
+                                  }
+                                >
+                                  <KeyRound className="h-4 w-4 mr-1" /> Reset
+                                  Password
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                  onClick={() => handleDeleteEvent(event)}
+                                  onClick={() => handleDeleteUser(user)}
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
                             </td>
                           </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td
-                            colSpan={6}
-                            className="p-4 text-center text-muted-foreground"
-                          >
-                            No events found. Create your first event by clicking
-                            the "Add Event" button.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === "clients" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Client Management</CardTitle>
+                  <CardDescription>
+                    Manage client accounts and data
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex justify-center py-8">
+                    <Link to="/clients">
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-2"
+                      >
+                        <Users className="h-4 w-4" /> View All Clients
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === "events" && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Event Management</CardTitle>
+                    <CardDescription>
+                      Manage organization events and activities
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={openNewEventForm}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" /> Add Event
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex justify-center py-8">
+                    <Link to="/events">
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-2"
+                      >
+                        <Calendar className="h-4 w-4" /> View All Events
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === "assessments" && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Assessment Management</CardTitle>
+                    <CardDescription>
+                      Manage client assessments and evaluations
+                    </CardDescription>
+                  </div>
+                  <Link to="/assessment/new">
+                    <Button className="flex items-center gap-2">
+                      <Plus className="h-4 w-4" /> Create Assessment
+                    </Button>
+                  </Link>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex justify-center py-8">
+                    <Link to="/assessments">
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-2"
+                      >
+                        View All Assessments
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
       </main>
 
       {/* Change Role Dialog */}
@@ -895,6 +989,32 @@ const AdminDashboard = () => {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Delete User Confirmation Dialog */}
+      <AlertDialog
+        open={showDeleteUserDialog}
+        onOpenChange={setShowDeleteUserDialog}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {userToDelete?.name}? This action
+              cannot be undone and will permanently remove the user's account
+              and access.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteUser}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Password Reset Dialog */}
       {userToReset && (
         <AdminPasswordReset
@@ -942,16 +1062,20 @@ const AdminDashboard = () => {
                     value={eventFormData.date}
                     onChange={handleEventFormChange}
                     required
+                    name="date"
+                    min={new Date().toISOString().split("T")[0]}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="time">Time</Label>
                   <Input
                     id="time"
-                    type="time"
+                    type="text"
+                    placeholder="e.g. 2:00 PM"
                     value={eventFormData.time}
                     onChange={handleEventFormChange}
                     required
+                    name="time"
                   />
                 </div>
               </div>
@@ -984,6 +1108,9 @@ const AdminDashboard = () => {
                     <SelectItem value="training">Training</SelectItem>
                     <SelectItem value="community">Community Event</SelectItem>
                     <SelectItem value="support">Support Group</SelectItem>
+                    <SelectItem value="group_session">Group Session</SelectItem>
+                    <SelectItem value="online">Online Event</SelectItem>
+                    <SelectItem value="hybrid">Hybrid Event</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

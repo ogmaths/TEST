@@ -15,6 +15,7 @@ export interface Organization {
   primary_color?: string;
   secondary_color?: string;
   settings?: OrganizationSettings;
+  areas?: string[];
 }
 
 export interface OrganizationSettings {
@@ -26,4 +27,31 @@ export interface OrganizationSettings {
   customDomain?: string;
   journeyStages?: string[];
   features?: Record<string, boolean>;
+  areas?: string[];
+}
+
+export interface AssessmentTemplate {
+  id: string;
+  name: string;
+  description: string;
+  type: "introduction" | "progress" | "exit" | "custom";
+  defaultDueInDays: number;
+  isRequired: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  sections: AssessmentSection[];
+}
+
+export interface AssessmentSection {
+  title: string;
+  questions: AssessmentQuestion[];
+}
+
+export interface AssessmentQuestion {
+  id: string;
+  text: string;
+  type: "text" | "textarea" | "select" | "radio" | "checkbox" | "date";
+  required: boolean;
+  options: string[];
 }

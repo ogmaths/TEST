@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNotifications } from "@/context/NotificationContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -25,817 +25,646 @@ import {
   XIcon,
   KeyRound,
 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import AIClientInsights from "./AIClientInsights";
 import JourneyTimeline from "./JourneyTimeline";
-import AssessmentForm from "./AssessmentForm";
-import ImpactReport from "./ImpactReport";
-import AddInteractionForm from "./AddInteractionForm";
-import AdminPasswordReset from "./AdminPasswordReset";
-
-import { Link, useLocation } from "react-router-dom";
 
 interface ClientProfileProps {
   clientId?: string;
 }
 
-const ClientProfile = ({ clientId }: ClientProfileProps) => {
-  const location = useLocation();
-  // Extract clientId from URL if not provided as prop
-  const urlClientId = location.pathname.split("/").pop();
-  const effectiveClientId = clientId || urlClientId || "1";
-  const [showAssessment, setShowAssessment] = useState(false);
-  const [showAddInteraction, setShowAddInteraction] = useState(() => {
-    // Check if URL has showAddInteraction parameter
-    const params = new URLSearchParams(location.search);
-    return params.has("showAddInteraction");
-  });
-  const [assessmentType, setAssessmentType] = useState<
-    "introduction" | "exit" | "progress"
-  >("introduction");
-  const [showEditProfile, setShowEditProfile] = useState(false);
+const ClientProfile: React.FC<ClientProfileProps> = ({ clientId }) => {
+  const { addNotification } = useNotifications();
+  const [client, setClient] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [isEditing, setIsEditing] = useState(false);
   const [editedClient, setEditedClient] = useState<any>(null);
-  const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [interactions, setInteractions] = useState<any[]>([]);
+  const [assessments, setAssessments] = useState<any[]>([]);
 
-  // Load client data from localStorage or use mock data as fallback
-  const [client, setClient] = useState(() => {
-    // Try to find the client in localStorage
-    const savedClients = JSON.parse(localStorage.getItem("clients") || "[]");
-    const foundClient = savedClients.find(
-      (c: any) => c.id === effectiveClientId,
-    );
-
-    if (foundClient) {
-      return {
-        ...foundClient,
-        dateOfBirth: foundClient.dateOfBirth || "1985-06-15", // Default if not provided
-      };
-    }
-
-    // Fallback to mock data if client not found
-    return {
-      id: effectiveClientId,
-      name: "Jane Smith",
-      email: "jane.smith@example.com",
-      phone: "+44 7700 900000",
-      address: "123 High Street, London, SW1A 1AA",
-      dateOfBirth: "1985-06-15",
-      joinDate: "2023-03-10",
-      status: "Active",
-      caseWorker: "Michael Johnson",
-      profileImage: "https://api.dicebear.com/7.x/initials/svg?seed=JS",
-      notes: "Initial consultation needed",
-      assessmentDates: {
-        introduction: "2023-03-10",
-        progress: "2023-06-10",
-        exit: "2023-09-10",
-      },
-    };
-  });
-
-  // Mock visit history
+  // Sample visit history data
   const visitHistory = [
     {
-      id: "1",
-      date: "2023-03-10",
-      type: "Initial Meeting",
-      notes: "Introduction assessment completed",
+      id: "v1",
+      type: "Initial Assessment",
+      date: "2023-01-15",
+      notes: "First meeting with client to assess needs.",
     },
     {
-      id: "2",
-      date: "2023-03-24",
-      type: "Follow-up",
-      notes: "Discussed housing options",
+      id: "v2",
+      type: "Follow-up Meeting",
+      date: "2023-02-01",
+      notes: "Discussed progress and next steps.",
     },
     {
-      id: "3",
-      date: "2023-04-15",
-      type: "Workshop",
-      notes: "Attended CV writing workshop",
+      id: "v3",
+      type: "Workshop Attendance",
+      date: "2023-02-15",
+      notes: "Client attended the financial literacy workshop.",
     },
     {
-      id: "4",
-      date: "2023-05-02",
-      type: "Counseling",
-      notes: "Mental health support session",
+      id: "v4",
+      type: "Support Group",
+      date: "2023-03-01",
+      notes: "Client participated in the peer support group session.",
     },
     {
-      id: "5",
-      date: "2023-06-10",
+      id: "v5",
       type: "Progress Review",
-      notes: "Progress assessment completed",
-    },
-  ];
-
-  // Mock conversation history
-  const conversationHistory = [
-    {
-      id: "1",
-      date: "2023-03-10",
-      staff: "Michael Johnson",
-      summary: "Initial intake conversation",
-    },
-    {
-      id: "2",
-      date: "2023-03-24",
-      staff: "Sarah Williams",
-      summary: "Housing support discussion",
-    },
-    {
-      id: "3",
-      date: "2023-04-20",
-      staff: "Michael Johnson",
-      summary: "Employment opportunities",
-    },
-    {
-      id: "4",
-      date: "2023-05-15",
-      staff: "Lisa Chen",
-      summary: "Mental health check-in",
-    },
-  ];
-
-  // Mock event attendance
-  const eventAttendance = [
-    {
-      id: "1",
       date: "2023-03-15",
-      name: "Community Resource Fair",
-      location: "Community Center",
-    },
-    {
-      id: "2",
-      date: "2023-04-05",
-      name: "CV Writing Workshop",
-      location: "Main Office",
-    },
-    {
-      id: "3",
-      date: "2023-05-20",
-      name: "Job Interview Skills",
-      location: "Training Room B",
+      notes: "Reviewed progress on goals and adjusted plan.",
     },
   ];
 
-  // Load assessments from localStorage or use mock data
-  const [assessments, setAssessments] = useState(() => {
-    // Try to find assessments in localStorage
-    const savedAssessments = JSON.parse(
-      localStorage.getItem("assessments") || "[]",
-    );
-    const clientAssessments = savedAssessments.filter(
-      (a: any) => a.clientId === effectiveClientId,
-    );
+  // Get client ID from URL if not provided as prop
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlClientId = urlParams.get("id");
+  const effectiveClientId = clientId || urlClientId || "1";
 
-    if (clientAssessments.length > 0) {
-      return clientAssessments;
-    }
-
-    // Fallback to mock data if no assessments found
-    return [
-      {
-        id: "1",
-        clientId: effectiveClientId,
-        date: client.assessmentDates?.introduction || "2023-03-10",
-        type: "Introduction",
-        completedBy: client.caseWorker || "Michael Johnson",
-        status: "completed",
-      },
-      {
-        id: "2",
-        clientId: clientId,
-        date: client.assessmentDates?.progress || "2023-06-10",
-        type: "Progress",
-        completedBy: "",
-        status: "scheduled",
-      },
-      {
-        id: "3",
-        clientId: clientId,
-        date: client.assessmentDates?.exit || "2023-09-10",
-        type: "Exit",
-        completedBy: "",
-        status: "scheduled",
-      },
-    ];
-  });
-
-  const handleStartAssessment = (
-    type: "introduction" | "exit" | "progress",
-  ) => {
-    setAssessmentType(type);
-    setShowAssessment(true);
-  };
-
-  const handleEditProfile = () => {
-    setEditedClient({ ...client });
-    setShowEditProfile(true);
-  };
-
-  const { addNotification } = useNotifications();
-
-  const handleSaveProfile = () => {
-    if (editedClient) {
-      setClient(editedClient);
-
-      // Save to localStorage
-      const savedClients = JSON.parse(localStorage.getItem("clients") || "[]");
-      const clientIndex = savedClients.findIndex(
+  // Load client data
+  useEffect(() => {
+    const loadClient = () => {
+      setLoading(true);
+      // In a real app, this would be an API call
+      // For now, we'll use localStorage
+      const storedClients = JSON.parse(localStorage.getItem("clients") || "[]");
+      const foundClient = storedClients.find(
         (c: any) => c.id === effectiveClientId,
       );
 
-      if (clientIndex !== -1) {
-        savedClients[clientIndex] = {
-          ...savedClients[clientIndex],
-          ...editedClient,
-        };
+      if (foundClient) {
+        setClient(foundClient);
+        setEditedClient(foundClient);
       } else {
-        savedClients.push(editedClient);
+        // If client not found, create a dummy one
+        const dummyClient = {
+          id: effectiveClientId,
+          name: "Jane Smith",
+          email: "jane.smith@example.com",
+          phone: "(555) 123-4567",
+          address: "123 Main St, Anytown, USA",
+          dateOfBirth: "1985-06-15",
+          status: "active",
+          caseWorker: "John Doe",
+          joinDate: "2023-01-01",
+          notes:
+            "Jane has been making good progress with her financial goals. She recently completed the budgeting workshop and has started applying for jobs.",
+          tags: ["housing", "employment", "financial-support"],
+        };
+        setClient(dummyClient);
+        setEditedClient(dummyClient);
+
+        // Save to localStorage for future use
+        localStorage.setItem(
+          "clients",
+          JSON.stringify([...storedClients, dummyClient]),
+        );
       }
 
-      localStorage.setItem("clients", JSON.stringify(savedClients));
-      setShowEditProfile(false);
+      // Load interactions
+      const storedInteractions = JSON.parse(
+        localStorage.getItem(`interactions_${effectiveClientId}`) || "[]",
+      );
+      setInteractions(storedInteractions);
 
-      // Show notification
-      addNotification({
-        type: "success",
-        title: "Profile Updated",
-        message: "Client profile has been updated successfully",
-        priority: "medium",
-      });
-    }
-  };
+      // Load assessments
+      const allAssessments = JSON.parse(
+        localStorage.getItem("assessments") || "[]",
+      );
+      const clientAssessments = allAssessments.filter(
+        (a: any) => a.clientId === effectiveClientId,
+      );
+      setAssessments(clientAssessments);
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
-    const { name, value } = e.target;
-    setEditedClient((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
+      setLoading(false);
+    };
 
-  // Load interactions from localStorage
-  const [interactions, setInteractions] = useState(() => {
-    return JSON.parse(
-      localStorage.getItem(`interactions_${effectiveClientId}`) || "[]",
+    loadClient();
+  }, [effectiveClientId, window.location.pathname]);
+
+  const handleSaveChanges = () => {
+    // Update client in localStorage
+    const storedClients = JSON.parse(localStorage.getItem("clients") || "[]");
+    const updatedClients = storedClients.map((c: any) =>
+      c.id === effectiveClientId ? editedClient : c,
     );
-  });
+    localStorage.setItem("clients", JSON.stringify(updatedClients));
 
-  // Handle adding a new interaction
-  const handleAddInteraction = (interaction: any) => {
-    // Update the UI with the new interaction
-    setInteractions([interaction, ...interactions]);
-    setShowAddInteraction(false);
-
-    // Save interaction to localStorage
-    const savedInteractions = JSON.parse(
-      localStorage.getItem(`interactions_${effectiveClientId}`) || "[]",
-    );
-    savedInteractions.push(interaction);
-    localStorage.setItem(
-      `interactions_${effectiveClientId}`,
-      JSON.stringify(savedInteractions),
-    );
+    // Update state
+    setClient(editedClient);
+    setIsEditing(false);
 
     // Show notification
     addNotification({
       type: "success",
-      title: "Interaction Added",
-      message: "New interaction has been added successfully",
-      priority: "medium",
+      title: "Profile Updated",
+      message: "Client profile has been successfully updated.",
     });
   };
 
-  if (showAddInteraction) {
+  const handleCancelEdit = () => {
+    setEditedClient(client);
+    setIsEditing(false);
+  };
+
+  const handleAddInteraction = () => {
+    // Navigate to add interaction page with client ID in the URL
+    window.location.href = `/interaction/add/${effectiveClientId}`;
+  };
+
+  if (loading) {
     return (
-      <div className="bg-background p-6 rounded-lg">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold">Add New Interaction</h2>
-          <Button
-            variant="outline"
-            onClick={() => setShowAddInteraction(false)}
-          >
-            Back to Profile
-          </Button>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-gray-500">Loading client profile...</p>
         </div>
-        <AddInteractionForm
-          clientId={effectiveClientId}
-          onSubmit={handleAddInteraction}
-          onCancel={() => setShowAddInteraction(false)}
-        />
       </div>
     );
   }
 
-  if (showAssessment) {
+  if (!client) {
     return (
-      <div className="bg-background p-6 rounded-lg">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold">
-            {assessmentType.charAt(0).toUpperCase() + assessmentType.slice(1)}{" "}
-            Assessment
-          </h2>
-          <Button variant="outline" onClick={() => setShowAssessment(false)}>
-            Back to Profile
-          </Button>
-        </div>
-        <AssessmentForm
-          type={assessmentType}
-          clientId={effectiveClientId}
-          onComplete={() => setShowAssessment(false)}
-          onBack={() => setShowAssessment(false)}
-        />
+      <div className="text-center py-12">
+        <h2 className="text-2xl font-bold text-gray-800">Client Not Found</h2>
+        <p className="text-gray-500 mt-2">
+          The client you're looking for doesn't exist or has been removed.
+        </p>
+        <Button
+          className="mt-4"
+          variant="outline"
+          onClick={() => (window.location.href = "/clients")}
+        >
+          Back to Clients
+        </Button>
       </div>
     );
   }
 
   return (
-    <div className="bg-background p-6 rounded-lg">
-      <h1 className="text-3xl font-bold mb-6">Client Profile</h1>
-      <Dialog open={showEditProfile} onOpenChange={setShowEditProfile}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Edit Client Profile</DialogTitle>
-          </DialogHeader>
-          {editedClient && (
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">
-                  Name
-                </Label>
-                <Input
-                  id="name"
-                  name="name"
-                  value={editedClient.name}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="email" className="text-right">
-                  Email
-                </Label>
-                <Input
-                  id="email"
-                  name="email"
-                  value={editedClient.email}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="phone" className="text-right">
-                  Phone
-                </Label>
-                <Input
-                  id="phone"
-                  name="phone"
-                  value={editedClient.phone}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="address" className="text-right">
-                  Address
-                </Label>
-                <Input
-                  id="address"
-                  name="address"
-                  value={editedClient.address}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="dateOfBirth" className="text-right">
-                  Date of Birth
-                </Label>
-                <Input
-                  id="dateOfBirth"
-                  name="dateOfBirth"
-                  type="date"
-                  value={editedClient.dateOfBirth}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                />
-              </div>
-
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right font-medium">
-                  Assessment Dates
-                </Label>
-                <div className="col-span-3 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="introDate" className="w-24">
-                      Introduction:
-                    </Label>
-                    <Input
-                      id="introDate"
-                      name="assessmentDates.introduction"
-                      type="date"
-                      value={editedClient.assessmentDates?.introduction || ""}
-                      onChange={(e) => {
-                        setEditedClient({
-                          ...editedClient,
-                          assessmentDates: {
-                            ...editedClient.assessmentDates,
-                            introduction: e.target.value,
-                          },
-                        });
-                      }}
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="progressDate" className="w-24">
-                      Progress:
-                    </Label>
-                    <Input
-                      id="progressDate"
-                      name="assessmentDates.progress"
-                      type="date"
-                      value={editedClient.assessmentDates?.progress || ""}
-                      onChange={(e) => {
-                        setEditedClient({
-                          ...editedClient,
-                          assessmentDates: {
-                            ...editedClient.assessmentDates,
-                            progress: e.target.value,
-                          },
-                        });
-                      }}
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="exitDate" className="w-24">
-                      Exit:
-                    </Label>
-                    <Input
-                      id="exitDate"
-                      name="assessmentDates.exit"
-                      type="date"
-                      value={editedClient.assessmentDates?.exit || ""}
-                      onChange={(e) => {
-                        setEditedClient({
-                          ...editedClient,
-                          assessmentDates: {
-                            ...editedClient.assessmentDates,
-                            exit: e.target.value,
-                          },
-                        });
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="status" className="text-right">
-                  Status
-                </Label>
-                <Input
-                  id="status"
-                  name="status"
-                  value={editedClient.status}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="caseWorker" className="text-right">
-                  Case Worker
-                </Label>
-                <Input
-                  id="caseWorker"
-                  name="caseWorker"
-                  value={editedClient.caseWorker}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="notes" className="text-right">
-                  Notes
-                </Label>
-                <Textarea
-                  id="notes"
-                  name="notes"
-                  value={editedClient.notes}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                  rows={4}
-                />
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditProfile(false)}>
+    <div className="container mx-auto py-6 max-w-7xl">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2">
+          <BackButton />
+          <h1 className="text-2xl font-bold">Client Profile</h1>
+        </div>
+        {!isEditing ? (
+          <Button onClick={() => setIsEditing(true)}>
+            <Edit2Icon className="h-4 w-4 mr-2" /> Edit Profile
+          </Button>
+        ) : (
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleCancelEdit}>
               <XIcon className="h-4 w-4 mr-2" /> Cancel
             </Button>
-            <Button onClick={handleSaveProfile}>
+            <Button onClick={handleSaveChanges}>
               <SaveIcon className="h-4 w-4 mr-2" /> Save Changes
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <div className="flex justify-between items-center mb-4">
-        <BackButton />
-        <Link to="/assessments">
-          <Button variant="outline" className="flex items-center gap-2">
-            <FileTextIcon className="h-4 w-4" /> View Assessments
-          </Button>
-        </Link>
-      </div>
-      {/* Client Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <div className="flex items-center gap-4">
-          <Avatar className="h-20 w-20 border-2 border-primary">
-            <AvatarImage src={client.profileImage} alt={client.name} />
-            <AvatarFallback>
-              {client.name
-                .split(" ")
-                .map((n) => n[0])
-                .join("")}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <h1 className="text-3xl font-bold">{client.name}</h1>
-            <div className="flex items-center gap-2 mt-1">
-              <Badge
-                variant={client.status === "Active" ? "default" : "outline"}
-              >
-                {client.status}
-              </Badge>
-              <span className="text-muted-foreground">
-                Client since {new Date(client.joinDate).toLocaleDateString()}
-              </span>
-            </div>
           </div>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-1"
-            onClick={handleEditProfile}
-          >
-            <Edit2Icon className="h-4 w-4" /> Edit Profile
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-1"
-            onClick={() => setShowPasswordReset(true)}
-          >
-            <KeyRound className="h-4 w-4" /> Reset Password
-          </Button>
-        </div>
+        )}
       </div>
 
-      {/* Client Tabs */}
-      <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid grid-cols-4 mb-6">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="journey">Journey</TabsTrigger>
-          <TabsTrigger value="assessments">Assessments</TabsTrigger>
-          <TabsTrigger value="impact">Impact Report</TabsTrigger>
-        </TabsList>
+      <div className="grid grid-cols-1 gap-6">
+        <div className="w-full">
+          <Tabs
+            defaultValue="overview"
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="w-full"
+          >
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="journey">Journey</TabsTrigger>
+              <TabsTrigger value="assessments">Assessments</TabsTrigger>
+              <TabsTrigger value="documents">Documents</TabsTrigger>
+            </TabsList>
 
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <UserIcon className="h-5 w-5" /> Personal Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="grid grid-cols-3 gap-1">
-                  <span className="text-muted-foreground">Email:</span>
-                  <span className="col-span-2">{client.email}</span>
-                </div>
-                <div className="grid grid-cols-3 gap-1">
-                  <span className="text-muted-foreground">Phone:</span>
-                  <span className="col-span-2">{client.phone}</span>
-                </div>
-                <div className="grid grid-cols-3 gap-1">
-                  <span className="text-muted-foreground">Address:</span>
-                  <span className="col-span-2">{client.address}</span>
-                </div>
-                <div className="grid grid-cols-3 gap-1">
-                  <span className="text-muted-foreground">Date of Birth:</span>
-                  <span className="col-span-2">
-                    {new Date(client.dateOfBirth).toLocaleDateString()}
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 gap-1">
-                  <span className="text-muted-foreground">Case Worker:</span>
-                  <span className="col-span-2">{client.caseWorker}</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {interactions.length > 0
-                  ? interactions
-                      .sort(
-                        (a, b) =>
-                          new Date(b.date).getTime() -
-                          new Date(a.date).getTime(),
-                      )
-                      .slice(0, 3)
-                      .map((interaction) => (
-                        <div
-                          key={interaction.id}
-                          className="border-l-2 border-primary pl-4 py-1"
-                        >
-                          <p className="text-sm font-medium">
-                            {interaction.title ||
-                              (interaction.type
-                                ? interaction.type === "phone-call"
-                                  ? "Phone Call"
-                                  : interaction.type.charAt(0).toUpperCase() +
-                                    interaction.type.slice(1)
-                                : "Interaction")}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(interaction.date).toLocaleDateString()}
-                          </p>
-                        </div>
-                      ))
-                  : visitHistory.slice(0, 3).map((visit) => (
-                      <div
-                        key={visit.id}
-                        className="border-l-2 border-primary pl-4 py-1"
-                      >
-                        <p className="text-sm font-medium">{visit.type}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(visit.date).toLocaleDateString()}
-                        </p>
+            <div className="mt-6">
+              {isEditing ? (
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle>Edit Profile</CardTitle>
+                    <CardDescription>
+                      Update client's personal information
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label htmlFor="name" className="text-sm font-medium">
+                          Full Name
+                        </label>
+                        <input
+                          id="name"
+                          className="w-full p-2 border rounded-md"
+                          value={editedClient.name}
+                          onChange={(e) =>
+                            setEditedClient({
+                              ...editedClient,
+                              name: e.target.value,
+                            })
+                          }
+                        />
                       </div>
-                    ))}
-              </CardContent>
-            </Card>
+                      <div className="space-y-2">
+                        <label htmlFor="email" className="text-sm font-medium">
+                          Email
+                        </label>
+                        <input
+                          id="email"
+                          type="email"
+                          className="w-full p-2 border rounded-md"
+                          value={editedClient.email}
+                          onChange={(e) =>
+                            setEditedClient({
+                              ...editedClient,
+                              email: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label htmlFor="phone" className="text-sm font-medium">
+                          Phone
+                        </label>
+                        <input
+                          id="phone"
+                          className="w-full p-2 border rounded-md"
+                          value={editedClient.phone}
+                          onChange={(e) =>
+                            setEditedClient({
+                              ...editedClient,
+                              phone: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label
+                          htmlFor="address"
+                          className="text-sm font-medium"
+                        >
+                          Address
+                        </label>
+                        <input
+                          id="address"
+                          className="w-full p-2 border rounded-md"
+                          value={editedClient.address}
+                          onChange={(e) =>
+                            setEditedClient({
+                              ...editedClient,
+                              address: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label htmlFor="dob" className="text-sm font-medium">
+                          Date of Birth
+                        </label>
+                        <input
+                          id="dob"
+                          type="date"
+                          className="w-full p-2 border rounded-md"
+                          value={editedClient.dateOfBirth}
+                          onChange={(e) =>
+                            setEditedClient({
+                              ...editedClient,
+                              dateOfBirth: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label htmlFor="status" className="text-sm font-medium">
+                          Status
+                        </label>
+                        <select
+                          id="status"
+                          className="w-full p-2 border rounded-md"
+                          value={editedClient.status}
+                          onChange={(e) =>
+                            setEditedClient({
+                              ...editedClient,
+                              status: e.target.value,
+                            })
+                          }
+                        >
+                          <option value="active">Active</option>
+                          <option value="inactive">Inactive</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="notes" className="text-sm font-medium">
+                        Notes
+                      </label>
+                      <textarea
+                        id="notes"
+                        className="w-full p-2 border rounded-md"
+                        rows={4}
+                        value={editedClient.notes}
+                        onChange={(e) =>
+                          setEditedClient({
+                            ...editedClient,
+                            notes: e.target.value,
+                          })
+                        }
+                      ></textarea>
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="tags" className="text-sm font-medium">
+                        Tags (comma separated)
+                      </label>
+                      <input
+                        id="tags"
+                        className="w-full p-2 border rounded-md"
+                        value={editedClient.tags?.join(", ") || ""}
+                        onChange={(e) =>
+                          setEditedClient({
+                            ...editedClient,
+                            tags: e.target.value
+                              .split(",")
+                              .map((tag) => tag.trim())
+                              .filter((tag) => tag),
+                          })
+                        }
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : null}
+            </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageSquareIcon className="h-5 w-5" /> Notes
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm">{client.notes}</p>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
+            <TabsContent value="overview" className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <UserIcon className="h-5 w-5" /> Personal Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="grid grid-cols-3 gap-1">
+                      <span className="text-muted-foreground">Email:</span>
+                      <span className="col-span-2">{client.email}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1">
+                      <span className="text-muted-foreground">Phone:</span>
+                      <span className="col-span-2">{client.phone}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1">
+                      <span className="text-muted-foreground">Address:</span>
+                      <span className="col-span-2">{client.address}</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1">
+                      <span className="text-muted-foreground">
+                        Date of Birth:
+                      </span>
+                      <span className="col-span-2">
+                        {new Date(client.dateOfBirth).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1">
+                      <span className="text-muted-foreground">
+                        Case Worker:
+                      </span>
+                      <span className="col-span-2">{client.caseWorker}</span>
+                    </div>
+                  </CardContent>
+                </Card>
 
-        {/* Journey Tab */}
-        <TabsContent value="journey">
-          <Card>
-            <CardHeader>
-              <CardTitle>Client Journey Timeline</CardTitle>
-              <CardDescription>
-                Visual representation of client's progress through the program
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <JourneyTimeline clientId={effectiveClientId} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Assessments Tab */}
-        <TabsContent value="assessments">
-          <Card>
-            <CardHeader>
-              <CardTitle>Assessment History</CardTitle>
-              <CardDescription>
-                Record of all assessments conducted with this client
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-md border">
-                <table className="w-full table-fixed">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="p-2 text-left font-medium w-1/4">Date</th>
-                      <th className="p-2 text-left font-medium w-1/4">Type</th>
-                      <th className="p-2 text-left font-medium w-1/4">
-                        Completed By
-                      </th>
-                      <th className="p-2 text-left font-medium w-1/4">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {assessments.map((assessment) => (
-                      <tr key={assessment.id} className="border-b">
-                        <td className="p-2">
-                          {new Date(assessment.date).toLocaleDateString()}
-                        </td>
-                        <td className="p-2">
-                          <Badge
-                            variant={
-                              assessment.type === "Introduction"
-                                ? "default"
-                                : assessment.type === "Progress"
-                                  ? "secondary"
-                                  : "outline"
-                            }
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Recent Activity</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {interactions.length > 0
+                      ? interactions
+                          .sort(
+                            (a, b) =>
+                              new Date(b.date).getTime() -
+                              new Date(a.date).getTime(),
+                          )
+                          .slice(0, 3)
+                          .map((interaction) => (
+                            <div
+                              key={interaction.id}
+                              className="border-l-2 border-primary pl-4 py-1"
+                            >
+                              <p className="text-sm font-medium">
+                                {interaction.type
+                                  ? interaction.type === "phone_call"
+                                    ? "Phone Call"
+                                    : interaction.type.charAt(0).toUpperCase() +
+                                      interaction.type
+                                        .slice(1)
+                                        .replace("_", " ")
+                                  : "Interaction"}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(
+                                  interaction.date,
+                                ).toLocaleDateString()}
+                              </p>
+                            </div>
+                          ))
+                      : visitHistory.slice(0, 3).map((visit) => (
+                          <div
+                            key={visit.id}
+                            className="border-l-2 border-primary pl-4 py-1"
                           >
-                            {assessment.type}
-                          </Badge>
-                        </td>
-                        <td className="p-2">
-                          {assessment.status === "completed" ? (
-                            assessment.completedBy
-                          ) : (
-                            <span className="text-muted-foreground text-sm">
-                              {assessment.status === "scheduled"
-                                ? "Scheduled"
-                                : "Not assigned"}
-                            </span>
-                          )}
-                        </td>
-                        <td className="p-2">
-                          <div className="flex gap-2">
-                            {assessment.status === "completed" ? (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  handleStartAssessment(
-                                    assessment.type.toLowerCase() as any,
-                                  )
-                                }
-                              >
-                                View
-                              </Button>
-                            ) : (
+                            <p className="text-sm font-medium">{visit.type}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(visit.date).toLocaleDateString()}
+                            </p>
+                          </div>
+                        ))}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <MessageSquareIcon className="h-5 w-5" /> Notes
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm">{client.notes}</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* AI Client Insights */}
+              <AIClientInsights
+                clientId={effectiveClientId}
+                interactionData={interactions}
+                assessmentData={assessments}
+              />
+            </TabsContent>
+
+            <TabsContent value="journey">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Client Journey Timeline</CardTitle>
+                  <CardDescription>
+                    Track the client's progress and interactions over time
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <JourneyTimeline
+                    clientId={effectiveClientId}
+                    showDetails={true}
+                  />
+                </CardContent>
+                <CardFooter>
+                  <Button
+                    onClick={() =>
+                      window.open(
+                        `/journey?clientId=${effectiveClientId}`,
+                        "_blank",
+                      )
+                    }
+                    variant="outline"
+                  >
+                    Open in Full Page
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="assessments">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Assessments</CardTitle>
+                  <CardDescription>
+                    View and manage client assessments
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {assessments.length > 0 ? (
+                      assessments
+                        .sort(
+                          (a, b) =>
+                            new Date(b.date).getTime() -
+                            new Date(a.date).getTime(),
+                        )
+                        .map((assessment) => (
+                          <div
+                            key={assessment.id}
+                            className="border rounded-lg p-4"
+                          >
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <h3 className="font-medium">
+                                  {assessment.type.charAt(0).toUpperCase() +
+                                    assessment.type.slice(1)}{" "}
+                                  Assessment
+                                </h3>
+                                <p className="text-sm text-muted-foreground">
+                                  {new Date(
+                                    assessment.date,
+                                  ).toLocaleDateString()}
+                                  {assessment.score && (
+                                    <span className="ml-2 font-medium">
+                                      Score:{" "}
+                                      {Number(assessment.score).toFixed(1)}
+                                    </span>
+                                  )}
+                                </p>
+                              </div>
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() =>
-                                  handleStartAssessment(
-                                    assessment.type.toLowerCase() as any,
-                                  )
+                                  (window.location.href = `/assessment/view/${assessment.id}`)
                                 }
                               >
-                                Complete
+                                View Details
                               </Button>
-                            )}
+                            </div>
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                        ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">
+                          No assessments found for this client.
+                        </p>
+                        <Button
+                          className="mt-4"
+                          onClick={() =>
+                            (window.location.href = `/assessment?clientId=${effectiveClientId}`)
+                          }
+                        >
+                          Create Assessment
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-        {/* Impact Report Tab */}
-        <TabsContent value="impact">
-          <Card>
-            <CardHeader>
-              <CardTitle>Client Impact Report</CardTitle>
-              <CardDescription>
-                Visualization of client progress based on assessment data
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ImpactReport clientId={effectiveClientId} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            <TabsContent value="documents">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Documents</CardTitle>
+                  <CardDescription>
+                    Manage client documents and files
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h3 className="font-medium">Uploaded Documents</h3>
+                      <Button size="sm">
+                        <KeyRound className="h-4 w-4 mr-2" /> Upload Document
+                      </Button>
+                    </div>
 
-      {/* Password Reset Dialog */}
-      <AdminPasswordReset
-        open={showPasswordReset}
-        onOpenChange={setShowPasswordReset}
-        userId={client.id}
-        userEmail={client.email}
-        userName={client.name}
-        userType="client"
-      />
+                    <div className="border rounded-lg divide-y">
+                      <div className="p-4 flex justify-between items-center">
+                        <div>
+                          <p className="font-medium">Initial Assessment Form</p>
+                          <p className="text-sm text-muted-foreground">
+                            Uploaded on Jan 15, 2023
+                          </p>
+                        </div>
+                        <Button variant="ghost" size="sm">
+                          Download
+                        </Button>
+                      </div>
+                      <div className="p-4 flex justify-between items-center">
+                        <div>
+                          <p className="font-medium">Financial Support Plan</p>
+                          <p className="text-sm text-muted-foreground">
+                            Uploaded on Feb 3, 2023
+                          </p>
+                        </div>
+                        <Button variant="ghost" size="sm">
+                          Download
+                        </Button>
+                      </div>
+                      <div className="p-4 flex justify-between items-center">
+                        <div>
+                          <p className="font-medium">Progress Report</p>
+                          <p className="text-sm text-muted-foreground">
+                            Uploaded on Mar 20, 2023
+                          </p>
+                        </div>
+                        <Button variant="ghost" size="sm">
+                          Download
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
     </div>
   );
 };
