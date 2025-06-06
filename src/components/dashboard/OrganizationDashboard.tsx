@@ -28,8 +28,8 @@ import {
 
 import OrganizationMetrics from "./OrganizationMetrics";
 import AreaBreakdown from "./AreaBreakdown";
-import AIImpactReport from "./AIImpactReport";
 import StaffMetrics from "./StaffMetrics";
+import FeedbackMetrics from "./FeedbackMetrics";
 
 const OrganizationDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -129,6 +129,10 @@ const OrganizationDashboard: React.FC = () => {
           </div>
 
           <OrganizationMetrics dateRange={dateRange} filterArea={filterArea} />
+
+          <div className="mt-6">
+            <FeedbackMetrics dateRange={dateRange} filterArea={filterArea} />
+          </div>
         </TabsContent>
 
         <TabsContent value="areas" className="space-y-6 mt-6">

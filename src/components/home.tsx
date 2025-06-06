@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   Card,
   CardContent,
@@ -66,6 +67,7 @@ const Home = () => {
   const [selectedClient, setSelectedClient] = useState(null);
   const [selectedRole, setSelectedRole] = useState("staff");
   const { user } = useUser();
+  const { t } = useTranslation();
   const [newTask, setNewTask] = useState({
     title: "",
     dueDate: new Date().toISOString().split("T")[0],
@@ -242,17 +244,17 @@ const Home = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Main Content */}
-      <main className="container mx-auto p-4 md:p-6 pt-0">
+      <main className="container mx-auto p-4 md:p-6">
         {/* Removed empty div container */}
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
           {/* Page Title and Search */}
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
               <h2 className="text-2xl font-semibold tracking-tight">
-                Welcome back, {user?.name || "Guest"}!
+                {t("common.welcome", { name: user?.name || "Guest" })}
               </h2>
               <p className="text-muted-foreground">
-                Last login: {new Date().toLocaleString()}
+                {t("common.lastLogin", { date: new Date().toLocaleString() })}
               </p>
             </div>
             {(user?.role === "admin" || user?.isOrgAdmin) && (
@@ -272,7 +274,9 @@ const Home = () => {
                 <div className="flex flex-col items-center justify-center text-center space-y-2">
                   <Users className="h-8 w-8 text-primary" />
                   <h3 className="text-2xl font-bold">{metrics.totalClients}</h3>
-                  <p className="text-sm text-muted-foreground">Total Clients</p>
+                  <p className="text-sm text-muted-foreground">
+                    {t("dashboard.totalClients")}
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -285,7 +289,7 @@ const Home = () => {
                     {metrics.communityImpactScore.toFixed(1)}
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    Average Impact Score
+                    {t("dashboard.averageImpactScore")}
                   </p>
                 </div>
               </CardContent>
@@ -303,7 +307,7 @@ const Home = () => {
                     }
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    Exit Assessments
+                    {t("dashboard.exitAssessments")}
                   </p>
                 </div>
               </CardContent>
@@ -318,11 +322,9 @@ const Home = () => {
           <Card className="mb-4">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg font-bold">
-                Tasks & Assignments
+                {t("dashboard.tasksAssignments")}
               </CardTitle>
-              <CardDescription>
-                Your pending tasks and assignments
-              </CardDescription>
+              <CardDescription>{t("dashboard.pendingTasks")}</CardDescription>
             </CardHeader>
             <CardContent>
               {tasks.length > 0 ? (
@@ -381,7 +383,9 @@ const Home = () => {
               ) : (
                 <div className="flex flex-col items-center justify-center py-8 text-center">
                   <CheckCircle className="h-12 w-12 text-muted-foreground mb-2" />
-                  <p className="text-muted-foreground">No tasks assigned.</p>
+                  <p className="text-muted-foreground">
+                    {t("dashboard.noTasks")}
+                  </p>
                   <Button
                     variant="outline"
                     size="sm"
@@ -389,7 +393,7 @@ const Home = () => {
                     onClick={() => setShowAddTaskDialog(true)}
                   >
                     <Plus className="mr-2 h-4 w-4" />
-                    Add New Task
+                    {t("dashboard.addNewTask")}
                   </Button>
                 </div>
               )}
@@ -400,7 +404,7 @@ const Home = () => {
                 onClick={() => setShowAddTaskDialog(true)}
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Add Task
+                {t("dashboard.addTask")}
               </Button>
             </CardFooter>
           </Card>
@@ -413,9 +417,11 @@ const Home = () => {
       <Dialog open={showAddTaskDialog} onOpenChange={setShowAddTaskDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add New Task</DialogTitle>
+            <DialogTitle>{t("dashboard.addNewTask")}</DialogTitle>
             <DialogDescription>
-              Create a new task for yourself or your team.
+              {t("common.create")} {t("dashboard.addNewTask").toLowerCase()}{" "}
+              {t("common.for")} {t("common.yourself")} {t("common.or")}{" "}
+              {t("common.your")} {t("common.team")}.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">

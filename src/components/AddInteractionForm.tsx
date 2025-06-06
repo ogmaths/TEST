@@ -28,7 +28,8 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/context/UserContext";
 import { useNotifications } from "@/context/NotificationContext";
-import AISentimentAnalysis from "./AISentimentAnalysis";
+import BackButton from "@/components/BackButton";
+import { useNavigate } from "react-router-dom";
 
 interface AddInteractionFormProps {
   clientId?: string;
@@ -41,6 +42,7 @@ const AddInteractionForm: React.FC<AddInteractionFormProps> = ({
 }) => {
   const { user } = useUser();
   const { addNotification } = useNotifications();
+  const navigate = useNavigate();
   const [date, setDate] = useState<Date>(new Date());
   const [formData, setFormData] = useState({
     type: "",
@@ -104,11 +106,22 @@ const AddInteractionForm: React.FC<AddInteractionFormProps> = ({
       JSON.stringify([interaction, ...storedInteractions]),
     );
 
+    // Trigger a storage event to notify other components
+    window.dispatchEvent(
+      new StorageEvent("storage", {
+        key: `interactions_${effectiveClientId}`,
+        newValue: JSON.stringify([interaction, ...storedInteractions]),
+        oldValue: JSON.stringify(storedInteractions),
+      }),
+    );
+
     // Show notification
     addNotification({
       type: "success",
       title: "Interaction Added",
-      message: "The interaction has been successfully recorded.",
+      message:
+        "The interaction has been successfully recorded and added to the client's journey timeline.",
+      priority: "medium",
     });
 
     // Reset form
@@ -127,10 +140,16 @@ const AddInteractionForm: React.FC<AddInteractionFormProps> = ({
     if (onSuccess) {
       onSuccess();
     }
+
+    // Navigate to client profile with journey tab active
+    navigate(`/client/${effectiveClientId}?tab=journey`);
   };
 
   return (
     <div className="max-w-4xl mx-auto py-6">
+      <div className="mb-4">
+        <BackButton />
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>Add Interaction</CardTitle>
@@ -139,12 +158,7 @@ const AddInteractionForm: React.FC<AddInteractionFormProps> = ({
           <CardContent className="space-y-4">
             {client && (
               <div className="bg-muted/50 p-4 rounded-md">
-                <p className="font-medium">
-                  Client: {client.name}{" "}
-                  <span className="text-muted-foreground font-normal">
-                    ({client.email})
-                  </span>
-                </p>
+                <p className="font-medium">Client: {client.name}</p>
               </div>
             )}
 
@@ -286,17 +300,6 @@ const AddInteractionForm: React.FC<AddInteractionFormProps> = ({
                 </p>
               </div>
             )}
-
-            {/* AI Sentiment Analysis */}
-            <div className="pt-4">
-              <AISentimentAnalysis
-                defaultText={formData.description}
-                onAnalysisComplete={(result) => {
-                  // Optionally use the sentiment analysis results
-                  console.log("Sentiment analysis results:", result);
-                }}
-              />
-            </div>
           </CardContent>
           <CardFooter className="flex justify-between">
             <Button variant="outline" type="button" asChild>

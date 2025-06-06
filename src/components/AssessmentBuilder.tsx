@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,7 +40,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useNotifications } from "@/context/NotificationContext";
 import { Plus, Edit, Trash2, FileText, Copy } from "lucide-react";
-import { AssessmentTemplate } from "@/types/admin";
+import { AssessmentTemplate, AssessmentSection } from "@/types/admin";
 
 const AssessmentBuilder = () => {
   const { addNotification } = useNotifications();
@@ -304,7 +305,7 @@ const AssessmentBuilder = () => {
         ? editingTemplate.createdAt
         : new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      sections: templateFormData.sections,
+      sections: templateFormData.sections as AssessmentSection[],
     };
 
     let updatedTemplates;
@@ -435,7 +436,7 @@ const AssessmentBuilder = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-white">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
@@ -554,7 +555,7 @@ const AssessmentBuilder = () => {
 
       {/* Template Form Dialog */}
       <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>
               {editingTemplate
@@ -567,369 +568,354 @@ const AssessmentBuilder = () => {
                 : "Fill in the details to create a new assessment template"}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleTemplateFormSubmit}>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Template Name</Label>
-                <Input
-                  id="name"
-                  placeholder="Assessment name"
-                  value={templateFormData.name}
-                  onChange={handleFormChange}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Brief description of this assessment"
-                  rows={2}
-                  value={templateFormData.description}
-                  onChange={handleFormChange}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="type">Assessment Type</Label>
-                <Select
-                  value={templateFormData.type}
-                  onValueChange={(value) =>
-                    setTemplateFormData((prev) => ({ ...prev, type: value }))
-                  }
-                >
-                  <SelectTrigger id="type">
-                    <SelectValue placeholder="Select assessment type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="introduction">Introduction</SelectItem>
-                    <SelectItem value="progress">Progress</SelectItem>
-                    <SelectItem value="exit">Exit</SelectItem>
-                    <SelectItem value="custom">Custom</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="defaultDueInDays">Default Due (Days)</Label>
-                <Input
-                  id="defaultDueInDays"
-                  type="number"
-                  placeholder="Number of days until due"
-                  value={templateFormData.defaultDueInDays}
-                  onChange={handleFormChange}
-                  min="0"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Number of days from assignment until the assessment is due
-                </p>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="isRequired"
-                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                  checked={templateFormData.isRequired}
-                  onChange={(e) =>
-                    handleCheckboxChange("isRequired", e.target.checked)
-                  }
-                />
-                <Label htmlFor="isRequired">Required Assessment</Label>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="isActive"
-                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                  checked={templateFormData.isActive}
-                  onChange={(e) =>
-                    handleCheckboxChange("isActive", e.target.checked)
-                  }
-                />
-                <Label htmlFor="isActive">Active</Label>
-              </div>
-
-              <div className="space-y-4 border-t pt-4 mt-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-lg font-medium">
-                    Assessment Sections & Questions
-                  </Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setTemplateFormData((prev) => ({
-                        ...prev,
-                        sections: [
-                          ...prev.sections,
-                          {
-                            title: `Section ${prev.sections.length + 1}`,
-                            questions: [],
-                          },
-                        ],
-                      }));
-                    }}
-                  >
-                    <Plus className="h-4 w-4 mr-1" /> Add Section
-                  </Button>
+          <ScrollArea className="h-[calc(90vh-180px)]">
+            <form onSubmit={handleTemplateFormSubmit}>
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Template Name</Label>
+                  <Input
+                    id="name"
+                    placeholder="Assessment name"
+                    value={templateFormData.name}
+                    onChange={handleFormChange}
+                    required
+                  />
                 </div>
 
-                {templateFormData.sections.map((section, sectionIndex) => (
-                  <div
-                    key={sectionIndex}
-                    className="border rounded-md p-4 space-y-4"
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Brief description of this assessment"
+                    rows={2}
+                    value={templateFormData.description}
+                    onChange={handleFormChange}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="type">Assessment Type</Label>
+                  <Select
+                    value={templateFormData.type}
+                    onValueChange={(value) =>
+                      setTemplateFormData((prev) => ({ ...prev, type: value }))
+                    }
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-2 flex-1 mr-4">
-                        <Label htmlFor={`section-${sectionIndex}-title`}>
-                          Section Title
-                        </Label>
-                        <Input
-                          id={`section-${sectionIndex}-title`}
-                          value={section.title}
-                          onChange={(e) => {
-                            const newSections = [...templateFormData.sections];
-                            newSections[sectionIndex].title = e.target.value;
-                            setTemplateFormData((prev) => ({
-                              ...prev,
-                              sections: newSections,
-                            }));
-                          }}
-                        />
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const newSections = [...templateFormData.sections];
-                            newSections[sectionIndex].questions.push({
-                              id: `q-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                              text: "",
-                              type: "text",
-                              required: true,
-                              options: [],
-                            });
-                            setTemplateFormData((prev) => ({
-                              ...prev,
-                              sections: newSections,
-                            }));
-                          }}
-                        >
-                          <Plus className="h-4 w-4 mr-1" /> Add Question
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => {
-                            if (templateFormData.sections.length > 1) {
-                              const newSections =
-                                templateFormData.sections.filter(
-                                  (_, i) => i !== sectionIndex,
-                                );
+                    <SelectTrigger id="type">
+                      <SelectValue placeholder="Select assessment type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="introduction">Introduction</SelectItem>
+                      <SelectItem value="progress">Progress</SelectItem>
+                      <SelectItem value="exit">Exit</SelectItem>
+                      <SelectItem value="custom">Custom</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="defaultDueInDays">Default Due (Days)</Label>
+                  <Input
+                    id="defaultDueInDays"
+                    type="number"
+                    placeholder="Number of days until due"
+                    value={templateFormData.defaultDueInDays}
+                    onChange={handleFormChange}
+                    min="0"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Number of days from assignment until the assessment is due
+                  </p>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="isRequired"
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                    checked={templateFormData.isRequired}
+                    onChange={(e) =>
+                      handleCheckboxChange("isRequired", e.target.checked)
+                    }
+                  />
+                  <Label htmlFor="isRequired">Required Assessment</Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="isActive"
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                    checked={templateFormData.isActive}
+                    onChange={(e) =>
+                      handleCheckboxChange("isActive", e.target.checked)
+                    }
+                  />
+                  <Label htmlFor="isActive">Active</Label>
+                </div>
+
+                <div className="space-y-4 border-t pt-4 mt-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-lg font-medium">
+                      Assessment Sections & Questions
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setTemplateFormData((prev) => ({
+                          ...prev,
+                          sections: [
+                            ...prev.sections,
+                            {
+                              title: `Section ${prev.sections.length + 1}`,
+                              questions: [],
+                            },
+                          ],
+                        }));
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add Section
+                    </Button>
+                  </div>
+
+                  {templateFormData.sections.map((section, sectionIndex) => (
+                    <div
+                      key={sectionIndex}
+                      className="border rounded-md p-4 space-y-4"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-2 flex-1 mr-4">
+                          <Label htmlFor={`section-${sectionIndex}-title`}>
+                            Section Title
+                          </Label>
+                          <Input
+                            id={`section-${sectionIndex}-title`}
+                            value={section.title}
+                            onChange={(e) => {
+                              const newSections = [
+                                ...templateFormData.sections,
+                              ];
+                              newSections[sectionIndex].title = e.target.value;
                               setTemplateFormData((prev) => ({
                                 ...prev,
                                 sections: newSections,
                               }));
-                            } else {
-                              addNotification({
-                                type: "warning",
-                                title: "Cannot Remove Section",
-                                message:
-                                  "Assessment must have at least one section",
-                                priority: "medium",
+                            }}
+                          />
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const newSections = [
+                                ...templateFormData.sections,
+                              ];
+                              newSections[sectionIndex].questions.push({
+                                id: `q-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                                text: "",
+                                type: "text",
+                                required: true,
+                                options: [],
                               });
-                            }
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    {section.questions.length === 0 ? (
-                      <div className="text-center p-4 border border-dashed rounded-md">
-                        <p className="text-sm text-muted-foreground">
-                          No questions added yet. Click "Add Question" to create
-                          one.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {section.questions.map((question, questionIndex) => (
-                          <div
-                            key={question.id}
-                            className="border-l-4 border-l-primary/20 pl-4 py-2 space-y-4"
+                              setTemplateFormData((prev) => ({
+                                ...prev,
+                                sections: newSections,
+                              }));
+                            }}
                           >
-                            <div className="flex items-start justify-between">
-                              <div className="space-y-4 flex-1 mr-4">
-                                <div>
-                                  <Label
-                                    htmlFor={`question-${sectionIndex}-${questionIndex}-text`}
-                                  >
-                                    Question Text
-                                  </Label>
-                                  <Textarea
-                                    id={`question-${sectionIndex}-${questionIndex}-text`}
-                                    value={question.text}
-                                    placeholder="Enter question text"
-                                    onChange={(e) => {
-                                      const newSections = [
-                                        ...templateFormData.sections,
-                                      ];
-                                      newSections[sectionIndex].questions[
-                                        questionIndex
-                                      ].text = e.target.value;
-                                      setTemplateFormData((prev) => ({
-                                        ...prev,
-                                        sections: newSections,
-                                      }));
-                                    }}
-                                    className="mt-1"
-                                  />
-                                </div>
+                            <Plus className="h-4 w-4 mr-1" /> Add Question
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => {
+                              if (templateFormData.sections.length > 1) {
+                                const newSections =
+                                  templateFormData.sections.filter(
+                                    (_, i) => i !== sectionIndex,
+                                  );
+                                setTemplateFormData((prev) => ({
+                                  ...prev,
+                                  sections: newSections,
+                                }));
+                              } else {
+                                addNotification({
+                                  type: "system",
+                                  title: "Cannot Remove Section",
+                                  message:
+                                    "Assessment must have at least one section",
+                                  priority: "medium",
+                                });
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
 
-                                <div className="grid grid-cols-2 gap-4">
+                      {section.questions.length === 0 ? (
+                        <div className="text-center p-4 border border-dashed rounded-md">
+                          <p className="text-sm text-muted-foreground">
+                            No questions added yet. Click "Add Question" to
+                            create one.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {section.questions.map((question, questionIndex) => (
+                            <div
+                              key={question.id}
+                              className="border-l-4 border-l-primary/20 pl-4 py-2 space-y-4"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="space-y-4 flex-1 mr-4">
                                   <div>
                                     <Label
-                                      htmlFor={`question-${sectionIndex}-${questionIndex}-type`}
+                                      htmlFor={`question-${sectionIndex}-${questionIndex}-text`}
                                     >
-                                      Question Type
+                                      Question Text
                                     </Label>
-                                    <Select
-                                      value={question.type}
-                                      onValueChange={(value) => {
-                                        const newSections = [
-                                          ...templateFormData.sections,
-                                        ];
-                                        newSections[sectionIndex].questions[
-                                          questionIndex
-                                        ].type = value as any;
-                                        // Reset options if changing from a type that uses options to one that doesn't
-                                        if (
-                                          value !== "select" &&
-                                          value !== "radio" &&
-                                          value !== "checkbox"
-                                        ) {
-                                          newSections[sectionIndex].questions[
-                                            questionIndex
-                                          ].options = [];
-                                        } else if (
-                                          newSections[sectionIndex].questions[
-                                            questionIndex
-                                          ].options.length === 0
-                                        ) {
-                                          // Add default options if switching to a type that uses options
-                                          newSections[sectionIndex].questions[
-                                            questionIndex
-                                          ].options = ["Option 1", "Option 2"];
-                                        }
-                                        setTemplateFormData((prev) => ({
-                                          ...prev,
-                                          sections: newSections,
-                                        }));
-                                      }}
-                                    >
-                                      <SelectTrigger
-                                        id={`question-${sectionIndex}-${questionIndex}-type`}
-                                        className="mt-1"
-                                      >
-                                        <SelectValue placeholder="Select question type" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="text">
-                                          Short Text
-                                        </SelectItem>
-                                        <SelectItem value="textarea">
-                                          Long Text
-                                        </SelectItem>
-                                        <SelectItem value="select">
-                                          Dropdown
-                                        </SelectItem>
-                                        <SelectItem value="radio">
-                                          Single Choice
-                                        </SelectItem>
-                                        <SelectItem value="checkbox">
-                                          Multiple Choice
-                                        </SelectItem>
-                                        <SelectItem value="date">
-                                          Date
-                                        </SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-
-                                  <div className="flex items-center space-x-2 mt-6">
-                                    <input
-                                      type="checkbox"
-                                      id={`question-${sectionIndex}-${questionIndex}-required`}
-                                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                                      checked={question.required}
+                                    <Textarea
+                                      id={`question-${sectionIndex}-${questionIndex}-text`}
+                                      value={question.text}
+                                      placeholder="Enter question text"
                                       onChange={(e) => {
                                         const newSections = [
                                           ...templateFormData.sections,
                                         ];
                                         newSections[sectionIndex].questions[
                                           questionIndex
-                                        ].required = e.target.checked;
+                                        ].text = e.target.value;
                                         setTemplateFormData((prev) => ({
                                           ...prev,
                                           sections: newSections,
                                         }));
                                       }}
+                                      className="mt-1"
                                     />
-                                    <Label
-                                      htmlFor={`question-${sectionIndex}-${questionIndex}-required`}
-                                    >
-                                      Required
-                                    </Label>
                                   </div>
-                                </div>
 
-                                {(question.type === "select" ||
-                                  question.type === "radio" ||
-                                  question.type === "checkbox") && (
-                                  <div className="space-y-2">
-                                    <Label>Options</Label>
-                                    {question.options.map(
-                                      (option, optionIndex) => (
-                                        <div
-                                          key={optionIndex}
-                                          className="flex items-center space-x-2"
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <Label
+                                        htmlFor={`question-${sectionIndex}-${questionIndex}-type`}
+                                      >
+                                        Question Type
+                                      </Label>
+                                      <Select
+                                        value={question.type}
+                                        onValueChange={(value) => {
+                                          const newSections = [
+                                            ...templateFormData.sections,
+                                          ];
+                                          newSections[sectionIndex].questions[
+                                            questionIndex
+                                          ].type = value as any;
+                                          // Reset options if changing from a type that uses options to one that doesn't
+                                          if (
+                                            value !== "select" &&
+                                            value !== "radio" &&
+                                            value !== "checkbox"
+                                          ) {
+                                            newSections[sectionIndex].questions[
+                                              questionIndex
+                                            ].options = [];
+                                          } else if (
+                                            newSections[sectionIndex].questions[
+                                              questionIndex
+                                            ].options.length === 0
+                                          ) {
+                                            // Add default options if switching to a type that uses options
+                                            newSections[sectionIndex].questions[
+                                              questionIndex
+                                            ].options = [
+                                              "Option 1",
+                                              "Option 2",
+                                            ];
+                                          }
+                                          setTemplateFormData((prev) => ({
+                                            ...prev,
+                                            sections: newSections,
+                                          }));
+                                        }}
+                                      >
+                                        <SelectTrigger
+                                          id={`question-${sectionIndex}-${questionIndex}-type`}
+                                          className="mt-1"
                                         >
-                                          <Input
-                                            value={option}
-                                            onChange={(e) => {
-                                              const newSections = [
-                                                ...templateFormData.sections,
-                                              ];
-                                              newSections[
-                                                sectionIndex
-                                              ].questions[
-                                                questionIndex
-                                              ].options[optionIndex] =
-                                                e.target.value;
-                                              setTemplateFormData((prev) => ({
-                                                ...prev,
-                                                sections: newSections,
-                                              }));
-                                            }}
-                                            className="flex-1"
-                                          />
-                                          <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="sm"
-                                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                            onClick={() => {
-                                              if (question.options.length > 1) {
+                                          <SelectValue placeholder="Select question type" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="text">
+                                            Short Text
+                                          </SelectItem>
+                                          <SelectItem value="textarea">
+                                            Long Text
+                                          </SelectItem>
+                                          <SelectItem value="select">
+                                            Dropdown
+                                          </SelectItem>
+                                          <SelectItem value="radio">
+                                            Single Choice
+                                          </SelectItem>
+                                          <SelectItem value="checkbox">
+                                            Multiple Choice
+                                          </SelectItem>
+                                          <SelectItem value="date">
+                                            Date
+                                          </SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+
+                                    <div className="flex items-center space-x-2 mt-6">
+                                      <input
+                                        type="checkbox"
+                                        id={`question-${sectionIndex}-${questionIndex}-required`}
+                                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                        checked={question.required}
+                                        onChange={(e) => {
+                                          const newSections = [
+                                            ...templateFormData.sections,
+                                          ];
+                                          newSections[sectionIndex].questions[
+                                            questionIndex
+                                          ].required = e.target.checked;
+                                          setTemplateFormData((prev) => ({
+                                            ...prev,
+                                            sections: newSections,
+                                          }));
+                                        }}
+                                      />
+                                      <Label
+                                        htmlFor={`question-${sectionIndex}-${questionIndex}-required`}
+                                      >
+                                        Required
+                                      </Label>
+                                    </div>
+                                  </div>
+
+                                  {(question.type === "select" ||
+                                    question.type === "radio" ||
+                                    question.type === "checkbox") && (
+                                    <div className="space-y-2">
+                                      <Label>Options</Label>
+                                      {question.options.map(
+                                        (option, optionIndex) => (
+                                          <div
+                                            key={optionIndex}
+                                            className="flex items-center space-x-2"
+                                          >
+                                            <Input
+                                              value={option}
+                                              onChange={(e) => {
                                                 const newSections = [
                                                   ...templateFormData.sections,
                                                 ];
@@ -937,103 +923,134 @@ const AssessmentBuilder = () => {
                                                   sectionIndex
                                                 ].questions[
                                                   questionIndex
-                                                ].options = newSections[
-                                                  sectionIndex
-                                                ].questions[
-                                                  questionIndex
-                                                ].options.filter(
-                                                  (_, i) => i !== optionIndex,
-                                                );
+                                                ].options[optionIndex] =
+                                                  e.target.value;
                                                 setTemplateFormData((prev) => ({
                                                   ...prev,
                                                   sections: newSections,
                                                 }));
-                                              } else {
-                                                addNotification({
-                                                  type: "warning",
-                                                  title: "Cannot Remove Option",
-                                                  message:
-                                                    "Question must have at least one option",
-                                                  priority: "medium",
-                                                });
-                                              }
-                                            }}
-                                          >
-                                            <Trash2 className="h-4 w-4" />
-                                          </Button>
-                                        </div>
-                                      ),
-                                    )}
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      className="mt-2"
-                                      onClick={() => {
-                                        const newSections = [
-                                          ...templateFormData.sections,
-                                        ];
-                                        newSections[sectionIndex].questions[
-                                          questionIndex
-                                        ].options.push(
-                                          `Option ${question.options.length + 1}`,
-                                        );
-                                        setTemplateFormData((prev) => ({
-                                          ...prev,
-                                          sections: newSections,
-                                        }));
-                                      }}
-                                    >
-                                      <Plus className="h-4 w-4 mr-1" /> Add
-                                      Option
-                                    </Button>
-                                  </div>
-                                )}
-                              </div>
+                                              }}
+                                              className="flex-1"
+                                            />
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="sm"
+                                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                              onClick={() => {
+                                                if (
+                                                  question.options.length > 1
+                                                ) {
+                                                  const newSections = [
+                                                    ...templateFormData.sections,
+                                                  ];
+                                                  newSections[
+                                                    sectionIndex
+                                                  ].questions[
+                                                    questionIndex
+                                                  ].options = newSections[
+                                                    sectionIndex
+                                                  ].questions[
+                                                    questionIndex
+                                                  ].options.filter(
+                                                    (_, i) => i !== optionIndex,
+                                                  );
+                                                  setTemplateFormData(
+                                                    (prev) => ({
+                                                      ...prev,
+                                                      sections: newSections,
+                                                    }),
+                                                  );
+                                                } else {
+                                                  addNotification({
+                                                    type: "system",
+                                                    title:
+                                                      "Cannot Remove Option",
+                                                    message:
+                                                      "Question must have at least one option",
+                                                    priority: "medium",
+                                                  });
+                                                }
+                                              }}
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                          </div>
+                                        ),
+                                      )}
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="mt-2"
+                                        onClick={() => {
+                                          const newSections = [
+                                            ...templateFormData.sections,
+                                          ];
+                                          newSections[sectionIndex].questions[
+                                            questionIndex
+                                          ].options.push(
+                                            `Option ${question.options.length + 1}`,
+                                          );
+                                          setTemplateFormData((prev) => ({
+                                            ...prev,
+                                            sections: newSections,
+                                          }));
+                                        }}
+                                      >
+                                        <Plus className="h-4 w-4 mr-1" /> Add
+                                        Option
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
 
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                onClick={() => {
-                                  const newSections = [
-                                    ...templateFormData.sections,
-                                  ];
-                                  newSections[sectionIndex].questions =
-                                    newSections[sectionIndex].questions.filter(
-                                      (_, i) => i !== questionIndex,
-                                    );
-                                  setTemplateFormData((prev) => ({
-                                    ...prev,
-                                    sections: newSections,
-                                  }));
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                  onClick={() => {
+                                    const newSections = [
+                                      ...templateFormData.sections,
+                                    ];
+                                    newSections[sectionIndex].questions =
+                                      newSections[
+                                        sectionIndex
+                                      ].questions.filter(
+                                        (_, i) => i !== questionIndex,
+                                      );
+                                    setTemplateFormData((prev) => ({
+                                      ...prev,
+                                      sections: newSections,
+                                    }));
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowTemplateDialog(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit">
-                {editingTemplate ? "Update Template" : "Create Template"}
-              </Button>
-            </DialogFooter>
-          </form>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowTemplateDialog(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  {editingTemplate ? "Update Template" : "Create Template"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
 

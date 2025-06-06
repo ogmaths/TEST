@@ -7,6 +7,7 @@ export interface User {
   status: string;
   organizationId: string;
   area?: string;
+  phone?: string;
 }
 
 export interface Organization {

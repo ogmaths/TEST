@@ -25,7 +25,6 @@ import {
   XIcon,
   KeyRound,
 } from "lucide-react";
-import AIClientInsights from "./AIClientInsights";
 import JourneyTimeline from "./JourneyTimeline";
 
 interface ClientProfileProps {
@@ -37,6 +36,15 @@ const ClientProfile: React.FC<ClientProfileProps> = ({ clientId }) => {
   const [client, setClient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
+
+  // Check for tab parameter in URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get("tab");
+    if (tabParam && ["overview", "journey", "documents"].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, []);
   const [isEditing, setIsEditing] = useState(false);
   const [editedClient, setEditedClient] = useState<any>(null);
   const [interactions, setInteractions] = useState<any[]>([]);
@@ -140,6 +148,31 @@ const ClientProfile: React.FC<ClientProfileProps> = ({ clientId }) => {
     };
 
     loadClient();
+
+    // Add event listener for storage changes to refresh data when interactions are added
+    const handleStorageChange = (e: StorageEvent) => {
+      if (
+        e.key === `interactions_${effectiveClientId}` ||
+        e.key === "clients" ||
+        e.key === "assessments"
+      ) {
+        loadClient();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    // Also listen for focus events to refresh data when returning to the page
+    const handleFocus = () => {
+      loadClient();
+    };
+
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, [effectiveClientId, window.location.pathname]);
 
   const handleSaveChanges = () => {
@@ -232,10 +265,9 @@ const ClientProfile: React.FC<ClientProfileProps> = ({ clientId }) => {
             onValueChange={setActiveTab}
             className="w-full"
           >
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="journey">Journey</TabsTrigger>
-              <TabsTrigger value="assessments">Assessments</TabsTrigger>
               <TabsTrigger value="documents">Documents</TabsTrigger>
             </TabsList>
 
@@ -494,13 +526,6 @@ const ClientProfile: React.FC<ClientProfileProps> = ({ clientId }) => {
                   </CardContent>
                 </Card>
               </div>
-
-              {/* AI Client Insights */}
-              <AIClientInsights
-                clientId={effectiveClientId}
-                interactionData={interactions}
-                assessmentData={assessments}
-              />
             </TabsContent>
 
             <TabsContent value="journey">
@@ -530,79 +555,6 @@ const ClientProfile: React.FC<ClientProfileProps> = ({ clientId }) => {
                     Open in Full Page
                   </Button>
                 </CardFooter>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="assessments">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Assessments</CardTitle>
-                  <CardDescription>
-                    View and manage client assessments
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {assessments.length > 0 ? (
-                      assessments
-                        .sort(
-                          (a, b) =>
-                            new Date(b.date).getTime() -
-                            new Date(a.date).getTime(),
-                        )
-                        .map((assessment) => (
-                          <div
-                            key={assessment.id}
-                            className="border rounded-lg p-4"
-                          >
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <h3 className="font-medium">
-                                  {assessment.type.charAt(0).toUpperCase() +
-                                    assessment.type.slice(1)}{" "}
-                                  Assessment
-                                </h3>
-                                <p className="text-sm text-muted-foreground">
-                                  {new Date(
-                                    assessment.date,
-                                  ).toLocaleDateString()}
-                                  {assessment.score && (
-                                    <span className="ml-2 font-medium">
-                                      Score:{" "}
-                                      {Number(assessment.score).toFixed(1)}
-                                    </span>
-                                  )}
-                                </p>
-                              </div>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  (window.location.href = `/assessment/view/${assessment.id}`)
-                                }
-                              >
-                                View Details
-                              </Button>
-                            </div>
-                          </div>
-                        ))
-                    ) : (
-                      <div className="text-center py-8">
-                        <p className="text-muted-foreground">
-                          No assessments found for this client.
-                        </p>
-                        <Button
-                          className="mt-4"
-                          onClick={() =>
-                            (window.location.href = `/assessment?clientId=${effectiveClientId}`)
-                          }
-                        >
-                          Create Assessment
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
               </Card>
             </TabsContent>
 

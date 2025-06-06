@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useNotifications } from "@/context/NotificationContext";
+// import { useNotifications } from "@/context/NotificationContext";
 import { useUser } from "@/context/UserContext";
 import {
   Card,
@@ -43,6 +43,9 @@ const NewClientForm = () => {
   const navigate = useNavigate();
   const { user } = useUser();
   const [showSuccess, setShowSuccess] = useState(false);
+  const [availableAreas, setAvailableAreas] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -63,6 +66,38 @@ const NewClientForm = () => {
       dueDate: new Date(),
     },
   ]);
+
+  // Load areas from localStorage
+  useEffect(() => {
+    const savedAreas = localStorage.getItem("areas");
+    if (savedAreas) {
+      try {
+        const areas = JSON.parse(savedAreas);
+        setAvailableAreas(
+          areas.map((area: any) => ({ id: area.id, name: area.name })),
+        );
+      } catch (error) {
+        console.error("Failed to parse saved areas", error);
+        // Fallback to default areas if parsing fails
+        setAvailableAreas([
+          { id: "north", name: "North District" },
+          { id: "south", name: "South District" },
+          { id: "east", name: "East District" },
+          { id: "west", name: "West District" },
+          { id: "central", name: "Central District" },
+        ]);
+      }
+    } else {
+      // Default areas if none are saved
+      setAvailableAreas([
+        { id: "north", name: "North District" },
+        { id: "south", name: "South District" },
+        { id: "east", name: "East District" },
+        { id: "west", name: "West District" },
+        { id: "central", name: "Central District" },
+      ]);
+    }
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -156,7 +191,7 @@ const NewClientForm = () => {
             ? "Active"
             : "Inactive",
       joinDate: today.toISOString().split("T")[0],
-      caseWorker: formData.caseWorker || "Unassigned",
+      caseWorker: user?.name || formData.caseWorker || "Unassigned",
       profileImage: `https://api.dicebear.com/7.x/initials/svg?seed=${formData.firstName.charAt(0)}${formData.lastName.charAt(0)}`,
       lastActivity: today.toISOString().split("T")[0],
       email: formData.email,
@@ -202,14 +237,8 @@ const NewClientForm = () => {
       JSON.stringify([...existingClients, newClient]),
     );
 
-    // Show notification instead of alert
-    const { addNotification } = useNotifications();
-    addNotification({
-      type: "success",
-      title: "Client Created",
-      message: "New client has been added successfully",
-      priority: "high",
-    });
+    // Show success message
+    setShowSuccess(true);
 
     // Clear form data to prevent duplicate submissions
     setFormData({
@@ -262,6 +291,7 @@ const NewClientForm = () => {
 
     // Navigate after showing success message
     setTimeout(() => {
+      setShowSuccess(false);
       navigate("/clients");
     }, 2000);
   };
@@ -355,11 +385,19 @@ const NewClientForm = () => {
                     <SelectValue placeholder="Select area" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="north">North District</SelectItem>
-                    <SelectItem value="south">South District</SelectItem>
-                    <SelectItem value="east">East District</SelectItem>
-                    <SelectItem value="west">West District</SelectItem>
-                    <SelectItem value="central">Central District</SelectItem>
+                    {availableAreas.map((area) => (
+                      <SelectItem
+                        key={area.id}
+                        value={area.name.toLowerCase().replace(/\s+/g, "-")}
+                      >
+                        {area.name}
+                      </SelectItem>
+                    ))}
+                    {availableAreas.length === 0 && (
+                      <SelectItem value="" disabled>
+                        No areas available
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -374,16 +412,27 @@ const NewClientForm = () => {
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select case worker" />
+                    <SelectValue
+                      placeholder={
+                        user?.name
+                          ? `Assign to ${user.name}`
+                          : "Select case worker"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="michael-johnson">
+                    {user && (
+                      <SelectItem value={user.name}>
+                        {user.name} (You)
+                      </SelectItem>
+                    )}
+                    <SelectItem value="Michael Johnson">
                       Michael Johnson
                     </SelectItem>
-                    <SelectItem value="sarah-williams">
+                    <SelectItem value="Sarah Williams">
                       Sarah Williams
                     </SelectItem>
-                    <SelectItem value="lisa-chen">Lisa Chen</SelectItem>
+                    <SelectItem value="Lisa Chen">Lisa Chen</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

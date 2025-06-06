@@ -10,7 +10,17 @@ module.exports = {
   prefix: "",
   theme: {
     fontFamily: {
-      sans: ["Heebo", "sans-serif"],
+      sans: [
+        "Inter",
+        "system-ui",
+        "-apple-system",
+        "BlinkMacSystemFont",
+        "Segoe UI",
+        "Roboto",
+        "Helvetica Neue",
+        "Arial",
+        "sans-serif",
+      ],
     },
     container: {
       center: true,

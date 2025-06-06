@@ -9,6 +9,99 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      form_responses: {
+        Row: {
+          client_id: string
+          created_at: string | null
+          data: Json
+          id: string
+          submitted_at: string | null
+          type: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string | null
+          data: Json
+          id?: string
+          submitted_at?: string | null
+          type: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string | null
+          data?: Json
+          id?: string
+          submitted_at?: string | null
+          type?: string
+        }
+        Relationships: []
+      }
+      form_sends: {
+        Row: {
+          client_email: string
+          client_id: string
+          created_at: string | null
+          email_id: string | null
+          form_type: string
+          id: string
+          sent_timestamp: string | null
+          updated_at: string | null
+          worker_id: string
+        }
+        Insert: {
+          client_email: string
+          client_id: string
+          created_at?: string | null
+          email_id?: string | null
+          form_type: string
+          id?: string
+          sent_timestamp?: string | null
+          updated_at?: string | null
+          worker_id: string
+        }
+        Update: {
+          client_email?: string
+          client_id?: string
+          created_at?: string | null
+          email_id?: string | null
+          form_type?: string
+          id?: string
+          sent_timestamp?: string | null
+          updated_at?: string | null
+          worker_id?: string
+        }
+        Relationships: []
+      }
+      organizations: {
+        Row: {
+          created_at: string | null
+          id: string
+          logo_url: string | null
+          name: string
+          primary_color: string | null
+          slug: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          logo_url?: string | null
+          name: string
+          primary_color?: string | null
+          slug: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          logo_url?: string | null
+          name?: string
+          primary_color?: string | null
+          slug?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string | null
@@ -16,6 +109,7 @@ export type Database = {
           first_name: string | null
           id: string
           last_name: string | null
+          organization_id: string | null
           role: string
           status: string
           tenant_id: string
@@ -27,6 +121,7 @@ export type Database = {
           first_name?: string | null
           id: string
           last_name?: string | null
+          organization_id?: string | null
           role: string
           status?: string
           tenant_id: string
@@ -38,19 +133,77 @@ export type Database = {
           first_name?: string | null
           id?: string
           last_name?: string | null
+          organization_id?: string | null
           role?: string
           status?: string
           tenant_id?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
-      [_ in never]: never
+      profiles_with_org: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          first_name: string | null
+          id: string | null
+          last_name: string | null
+          organization_color: string | null
+          organization_id: string | null
+          organization_logo: string | null
+          organization_name: string | null
+          organization_slug: string | null
+          role: string | null
+          status: string | null
+          tenant_id: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
-      [_ in never]: never
+      clear_organization_id: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      clear_tenant_id: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      get_current_organization_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_current_tenant_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      set_tenant_and_org_id: {
+        Args: { tenant_id: string; org_id: string }
+        Returns: undefined
+      }
+      set_tenant_id: {
+        Args: { tenant_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

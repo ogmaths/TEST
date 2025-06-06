@@ -82,7 +82,7 @@ interface Event {
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const { user } = useUser();
+  const { user, setUser } = useUser();
   const { addNotification } = useNotifications();
   const [activeTab, setActiveTab] = useState("organization");
   const [manageSectionOpen, setManageSectionOpen] = useState(true);
@@ -573,6 +573,11 @@ const AdminDashboard = () => {
     setShowPasswordReset(true);
   };
 
+  const handleSignOut = () => {
+    setUser(null);
+    navigate("/login");
+  };
+
   const confirmChangeRole = () => {
     if (selectedUser) {
       const updatedUsers = users.map((u) =>
@@ -675,6 +680,16 @@ const AdminDashboard = () => {
         </header>
 
         <main className="container mx-auto p-4 md:p-6">
+          <div className="flex justify-end mb-4">
+            <Button
+              variant="outline"
+              onClick={handleSignOut}
+              className="flex items-center gap-2"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign Out
+            </Button>
+          </div>
           <Card className="max-w-md mx-auto mt-8">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -719,6 +734,16 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <main className="container mx-auto p-4 md:p-6">
+        <div className="flex justify-end mb-4">
+          <Button
+            variant="outline"
+            onClick={handleSignOut}
+            className="flex items-center gap-2"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign Out
+          </Button>
+        </div>
         <div className="flex gap-6">
           {/* Left sidebar with vertical tabs */}
           <div className="w-64 shrink-0">
@@ -963,18 +988,16 @@ const AdminDashboard = () => {
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
                     <CardTitle>Assessment Management</CardTitle>
-                    <CardDescription>
-                      Manage client assessments and evaluations
-                    </CardDescription>
                   </div>
-                  <Link to="/assessment/new">
-                    <Button className="flex items-center gap-2">
-                      <Plus className="h-4 w-4" /> Create Assessment
-                    </Button>
-                  </Link>
+                  <Button
+                    className="flex items-center gap-2"
+                    onClick={() => window.open("/assessment-builder", "_blank")}
+                  >
+                    <Plus className="h-4 w-4" /> Manage Assessment Templates
+                  </Button>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex justify-center py-8">
+                  <div className="flex justify-center gap-4 py-8">
                     <Link to="/assessments">
                       <Button
                         variant="outline"
@@ -983,6 +1006,15 @@ const AdminDashboard = () => {
                         View All Assessments
                       </Button>
                     </Link>
+                    <Button
+                      variant="outline"
+                      className="flex items-center gap-2"
+                      onClick={() =>
+                        window.open("/assessment-builder", "_blank")
+                      }
+                    >
+                      Manage Assessment Templates
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

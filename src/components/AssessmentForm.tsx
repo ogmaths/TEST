@@ -109,12 +109,15 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({
         if (
           existingAssessment.completedBy &&
           existingAssessment.completedBy !== user?.name &&
-          existingAssessment.status === "completed"
+          existingAssessment.status === "completed" &&
+          user?.role !== "admin" && // Allow admins to edit any assessment
+          existingAssessment.assignedTo !== user?.id // Allow assigned workers to edit
         ) {
           addNotification({
             type: "error",
             title: "Access Denied",
-            message: "You can only edit assessments that you created",
+            message:
+              "You can only edit assessments that you created or are assigned to you",
             priority: "high",
           });
           navigate(`/assessment/view/${assessmentId}`);
@@ -366,6 +369,7 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({
       type: type.charAt(0).toUpperCase() + type.slice(1),
       date: new Date().toISOString().split("T")[0],
       completedBy: user?.name || "Anonymous User",
+      assignedTo: user?.id, // Track which worker the assessment is assigned to
       status,
       answers: processedAnswers,
       recommendations,

@@ -8,9 +8,11 @@ import {
   useLocation,
 } from "react-router-dom";
 import LoginPage from "./components/LoginPage";
+import LandingPage from "./components/LandingPage";
 import Home from "./components/home";
 import ClientsPage from "./components/ClientsPage";
 import AssessmentsPage from "./components/AssessmentsPage";
+import WorkerAssessments from "./components/WorkerAssessments";
 import EventsPage from "./components/EventsPage";
 import ClientProfile from "./components/ClientProfile";
 import EventAttendanceRegister from "./components/EventAttendanceRegister";
@@ -23,7 +25,7 @@ import AddInteractionPage from "./components/AddInteractionPage";
 import routes from "tempo-routes";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUser } from "./context/UserContext";
-import Logo from "./components/Logo";
+
 import { NotificationProvider } from "./context/NotificationContext";
 import { TenantProvider } from "./context/TenantContext";
 import UserHeader from "./components/UserHeader";
@@ -33,6 +35,9 @@ import OrganizationSwitcher from "./components/OrganizationSwitcher";
 import SuperAdminDashboard from "./components/SuperAdminDashboard";
 import ViewAssessment from "./components/ViewAssessment";
 import AssessmentForm from "./components/AssessmentForm";
+import AssessmentBuilderPage from "./components/AssessmentBuilderPage";
+import ConfidentialityAgreement from "./components/ConfidentialityAgreement";
+
 import {
   NavigationMenu,
   NavigationMenuList,
@@ -58,19 +63,34 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const isDashboardRoute = location.pathname === "/dashboard";
+  const isLandingPage = location.pathname === "/";
+  const isLoginPage = location.pathname === "/login";
+  const isAdminDashboard = location.pathname === "/admin";
+  const isSuperAdminDashboard = location.pathname === "/super-admin";
 
-  // Close sidebar when navigating away from dashboard
+  // Hide header on these specific pages
+  const shouldHideHeader =
+    isLandingPage || isLoginPage || isAdminDashboard || isSuperAdminDashboard;
+
+  // Show sidebar for all logged-in users except on specific pages
+  const shouldShowSidebar = isLoggedIn && !shouldHideHeader;
+
+  // Keep sidebar state persistent across navigation
   useEffect(() => {
-    if (!isDashboardRoute) {
-      setSidebarOpen(false);
-    }
-  }, [location.pathname, isDashboardRoute]);
+    // Don't auto-close sidebar when navigating
+  }, [location.pathname]);
 
   // Protected route component
   const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     if (!isLoggedIn) {
       return <Navigate to="/login" replace />;
     }
+
+    // Check if user has accepted confidentiality agreement
+    if (isLoggedIn && user && !user.hasAcceptedConfidentiality) {
+      return <Navigate to="/confidentiality-agreement" replace />;
+    }
+
     return <>{children}</>;
   };
 
@@ -79,88 +99,101 @@ function App() {
       <NotificationProvider>
         <Suspense fallback={<p>Loading...</p>}>
           <div className="flex flex-col min-h-screen">
-            {/* Header with navigation menu */}
-            <header className="bg-background border-b sticky top-0 z-10">
-              <div className="container mx-auto px-4 py-2 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  {isLoggedIn && !isDashboardRoute && (
-                    <Logo size="sm" variant="default" />
-                  )}
-                  {isLoggedIn && isDashboardRoute && (
-                    <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-                      <SheetTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <Menu className="h-5 w-5" />
-                        </Button>
-                      </SheetTrigger>
-                      <SheetContent side="left" className="w-64 p-0">
-                        <div className="flex flex-col h-full">
-                          <div className="p-4 border-b">
-                            <Logo size="md" variant="default" />
+            {/* Header with navigation menu - hidden on specific pages */}
+            {!shouldHideHeader && (
+              <header className="bg-background border-b sticky top-0 z-10">
+                <div className="container mx-auto px-4 py-2 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    {shouldShowSidebar && (
+                      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+                        <SheetTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <Menu className="h-5 w-5" />
+                          </Button>
+                        </SheetTrigger>
+                        <SheetContent side="left" className="w-64 p-0">
+                          <div className="flex flex-col h-full">
+                            <div className="p-4 border-b">
+                              <div className="text-lg font-semibold">
+                                CRM System
+                              </div>
+                            </div>
+                            <div className="flex-1 py-4">
+                              <nav className="space-y-1 px-2">
+                                <Link
+                                  to="/dashboard"
+                                  onClick={() => setSidebarOpen(false)}
+                                >
+                                  <Button
+                                    variant="ghost"
+                                    className="w-full justify-start"
+                                  >
+                                    <HomeIcon className="mr-2 h-4 w-4" />
+                                    Dashboard
+                                  </Button>
+                                </Link>
+                                <Link
+                                  to="/clients"
+                                  onClick={() => setSidebarOpen(false)}
+                                >
+                                  <Button
+                                    variant="ghost"
+                                    className="w-full justify-start"
+                                  >
+                                    <Users className="mr-2 h-4 w-4" />
+                                    Clients
+                                  </Button>
+                                </Link>
+                                <Link
+                                  to="/events"
+                                  onClick={() => setSidebarOpen(false)}
+                                >
+                                  <Button
+                                    variant="ghost"
+                                    className="w-full justify-start"
+                                  >
+                                    <Calendar className="mr-2 h-4 w-4" />
+                                    Events
+                                  </Button>
+                                </Link>
+                                <Link
+                                  to="/assessments"
+                                  onClick={() => setSidebarOpen(false)}
+                                >
+                                  <Button
+                                    variant="ghost"
+                                    className="w-full justify-start"
+                                  >
+                                    <FileText className="mr-2 h-4 w-4" />
+                                    Assessments
+                                  </Button>
+                                </Link>
+                              </nav>
+                            </div>
+                            <div className="p-4 border-t">
+                              <UserHeader />
+                            </div>
                           </div>
-                          <div className="flex-1 py-4">
-                            <nav className="space-y-1 px-2">
-                              <Link to="/dashboard">
-                                <Button
-                                  variant="ghost"
-                                  className="w-full justify-start"
-                                >
-                                  <HomeIcon className="mr-2 h-4 w-4" />
-                                  Dashboard
-                                </Button>
-                              </Link>
-                              <Link to="/clients">
-                                <Button
-                                  variant="ghost"
-                                  className="w-full justify-start"
-                                >
-                                  <Users className="mr-2 h-4 w-4" />
-                                  Clients
-                                </Button>
-                              </Link>
-                              <Link to="/events">
-                                <Button
-                                  variant="ghost"
-                                  className="w-full justify-start"
-                                >
-                                  <Calendar className="mr-2 h-4 w-4" />
-                                  Events
-                                </Button>
-                              </Link>
-                              <Link to="/assessments">
-                                <Button
-                                  variant="ghost"
-                                  className="w-full justify-start"
-                                >
-                                  <FileText className="mr-2 h-4 w-4" />
-                                  Assessments
-                                </Button>
-                              </Link>
-                            </nav>
-                          </div>
-                          <div className="p-4 border-t">
-                            <UserHeader />
-                          </div>
-                        </div>
-                      </SheetContent>
-                    </Sheet>
-                  )}
-                  {isLoggedIn && isDashboardRoute && (
-                    <Logo size="sm" variant="default" className="ml-2" />
-                  )}
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    {isLoggedIn && <NotificationCenter />}
-                    {isLoggedIn && !isDashboardRoute && <UserHeader />}
-                    {isLoggedIn && user?.role === "super_admin" && (
-                      <OrganizationSwitcher />
+                        </SheetContent>
+                      </Sheet>
+                    )}
+                    {shouldShowSidebar && (
+                      <div className="text-lg font-semibold ml-2">CRM</div>
                     )}
                   </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      {isLoggedIn && <NotificationCenter />}
+                      {isLoggedIn && !shouldShowSidebar && <UserHeader />}
+                      {isLoggedIn && user?.role === "super_admin" && (
+                        <OrganizationSwitcher />
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </header>
+              </header>
+            )}
 
             {/* Main content */}
             <main className="flex-1">
@@ -168,17 +201,19 @@ function App() {
               {import.meta.env.VITE_TEMPO === "true" && useRoutes(routes)}
 
               <Routes>
+                <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route
-                  path="/"
+                  path="/confidentiality-agreement"
                   element={
                     isLoggedIn ? (
-                      <Navigate to="/dashboard" replace />
+                      <ConfidentialityAgreement />
                     ) : (
                       <Navigate to="/login" replace />
                     )
                   }
                 />
+
                 <Route
                   path="/dashboard"
                   element={
@@ -273,6 +308,14 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="/assessment-builder"
+                  element={
+                    <ProtectedRoute>
+                      <AssessmentBuilderPage />
+                    </ProtectedRoute>
+                  }
+                />
 
                 <Route
                   path="/super-admin"
@@ -316,14 +359,19 @@ function App() {
                 )}
 
                 <Route
-                  path="*"
+                  path="/assessments"
                   element={
-                    <Navigate
-                      to={isLoggedIn ? "/dashboard" : "/login"}
-                      replace
-                    />
+                    <ProtectedRoute>
+                      {user?.role === "admin" ? (
+                        <AssessmentsPage />
+                      ) : (
+                        <WorkerAssessments />
+                      )}
+                    </ProtectedRoute>
                   }
                 />
+
+                <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </main>
           </div>

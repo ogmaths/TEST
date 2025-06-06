@@ -333,6 +333,7 @@ const JourneyTimeline: React.FC<JourneyTimelineProps> = ({
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [comments, setComments] = useState<{ [key: string]: Comment[] }>({});
   const [refreshKey, setRefreshKey] = useState(0);
+  const [client, setClient] = useState<any>(null);
   const { user } = useUser();
   const { addNotification } = useNotifications();
   const navigate = useNavigate();
@@ -372,6 +373,13 @@ const JourneyTimeline: React.FC<JourneyTimelineProps> = ({
     // Load journey data from localStorage or use calculated data based on client
     const loadJourneyData = () => {
       try {
+        // Load client data first
+        const savedClients = JSON.parse(
+          localStorage.getItem("clients") || "[]",
+        );
+        const clientData = savedClients.find((c: any) => c.id === clientId);
+        setClient(clientData);
+
         // First check for interactions
         const savedInteractions = JSON.parse(
           localStorage.getItem("interactions_" + clientId) || "[]",
@@ -417,13 +425,7 @@ const JourneyTimeline: React.FC<JourneyTimelineProps> = ({
           return;
         }
 
-        // Get client data to base journey on
-        const savedClients = JSON.parse(
-          localStorage.getItem("clients") || "[]",
-        );
-        const client = savedClients.find((c: any) => c.id === clientId);
-
-        if (client) {
+        if (clientData) {
           // Create journey based on client data
           const journeyEvents = [
             {
@@ -432,7 +434,7 @@ const JourneyTimeline: React.FC<JourneyTimelineProps> = ({
               type: "assessment",
               title: "Initial Assessment",
               date: new Date(
-                client.assessmentDates?.introduction || client.joinDate,
+                clientData.assessmentDates?.introduction || clientData.joinDate,
               ),
               description:
                 "Completed introduction assessment and identified key needs.",
@@ -443,11 +445,13 @@ const JourneyTimeline: React.FC<JourneyTimelineProps> = ({
               clientId,
               type: "assessment",
               title: "Progress Review",
-              date: new Date(client.assessmentDates?.progress || new Date()),
+              date: new Date(
+                clientData.assessmentDates?.progress || new Date(),
+              ),
               description:
                 "Progress assessment to evaluate improvement in key areas.",
               status:
-                new Date() >= new Date(client.assessmentDates?.progress)
+                new Date() >= new Date(clientData.assessmentDates?.progress)
                   ? "pending"
                   : "upcoming",
             },
@@ -456,7 +460,7 @@ const JourneyTimeline: React.FC<JourneyTimelineProps> = ({
               clientId,
               type: "assessment",
               title: "Final Assessment",
-              date: new Date(client.assessmentDates?.exit || new Date()),
+              date: new Date(clientData.assessmentDates?.exit || new Date()),
               description: "Exit assessment and transition planning.",
               status: "upcoming",
             },
@@ -478,6 +482,27 @@ const JourneyTimeline: React.FC<JourneyTimelineProps> = ({
     };
 
     loadJourneyData();
+
+    // Add event listener for storage changes to refresh data when interactions are added
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === `interactions_${clientId}` || e.key === "journeys") {
+        loadJourneyData();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    // Also listen for focus events to refresh data when returning to the page
+    const handleFocus = () => {
+      loadJourneyData();
+    };
+
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, [clientId, addNotification, user]);
 
   const formatDate = (date: Date) => {
@@ -488,202 +513,376 @@ const JourneyTimeline: React.FC<JourneyTimelineProps> = ({
     });
   };
 
+  const formatRelativeTime = (date: Date) => {
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return "Just now";
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400)
+      return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    if (diffInSeconds < 604800)
+      return `${Math.floor(diffInSeconds / 86400)}d ago`;
+    if (diffInSeconds < 2592000)
+      return `${Math.floor(diffInSeconds / 604800)}w ago`;
+    return formatDate(date);
+  };
+
+  // Get all comments for recent comments section
+  const getAllRecentComments = () => {
+    const allComments: (Comment & { eventTitle: string })[] = [];
+
+    Object.entries(comments).forEach(([eventId, eventComments]) => {
+      const event = events.find((e) => e.id === eventId);
+      if (event && eventComments.length > 0) {
+        eventComments.forEach((comment) => {
+          allComments.push({
+            ...comment,
+            eventTitle: event.title,
+          });
+        });
+      }
+    });
+
+    return allComments
+      .sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+      )
+      .slice(0, 5); // Show only 5 most recent comments
+  };
+
+  const getTagColor = (topic: string) => {
+    const colors = {
+      housing: "bg-blue-100 text-blue-800",
+      employment: "bg-green-100 text-green-800",
+      financial: "bg-yellow-100 text-yellow-800",
+      health: "bg-red-100 text-red-800",
+      education: "bg-purple-100 text-purple-800",
+      support: "bg-indigo-100 text-indigo-800",
+      default: "bg-gray-100 text-gray-800",
+    };
+    return colors[topic.toLowerCase() as keyof typeof colors] || colors.default;
+  };
+
   if (events.length === 0) {
     return (
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>Client Journey</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center py-8">
-            <p className="text-muted-foreground">
-              No journey events found for this client.
-            </p>
-            {!compact && (
+      <div className="w-full space-y-6">
+        {/* Header Section */}
+        {client && (
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <Avatar className="h-12 w-12">
+                  <AvatarImage
+                    src={`https://api.dicebear.com/7.x/initials/svg?seed=${client.name}`}
+                  />
+                  <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                    {client.name
+                      ?.split(" ")
+                      .map((n: string) => n[0])
+                      .join("") || "CL"}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">
+                    {client.name || "Client"}
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    {client.supportProgram || "Housing Support Program"}
+                  </p>
+                </div>
+              </div>
               <Button
-                variant="outline"
-                className="mt-4"
                 onClick={handleAddInteraction}
+                className="rounded-full px-6 py-2 bg-primary hover:bg-primary/90"
               >
                 <PlusCircle className="mr-2 h-4 w-4" />
-                Add First Interaction
+                Add Interaction
               </Button>
-            )}
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        )}
+
+        <Card className="w-full">
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center justify-center py-8">
+              <p className="text-muted-foreground">
+                No journey events found for this client.
+              </p>
+              {!compact && (
+                <Button
+                  variant="outline"
+                  className="mt-4"
+                  onClick={handleAddInteraction}
+                >
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add First Interaction
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <Card className="w-full">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Client Journey</CardTitle>
-        <Button variant="outline" size="sm" onClick={handleAddInteraction}>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Add Interaction
-        </Button>
-      </CardHeader>
-      <CardContent>
-        {/* AI Recommendation Engine */}
-        <div className="mb-6">
-          <AIRecommendationEngine
-            clientId={clientId}
-            interactionData={events.filter(
-              (e) => e.type === "check-in" || e.type === "meeting",
-            )}
-            onRecommendationSelect={(recommendation) => {
-              // Handle recommendation selection
-              console.log("Selected recommendation:", recommendation);
-              // Could navigate to add interaction with pre-filled data
-              // or show a notification with the recommendation
-              addNotification({
-                type: "info",
-                title: "AI Recommendation",
-                message: recommendation,
-                priority: "medium",
-              });
-            }}
-          />
-        </div>
-
-        <div className="space-y-6">
-          {events.map((event, index) => (
-            <div key={event.id} className="relative pl-6 pb-6">
-              {/* Timeline connector */}
-              {index < events.length - 1 && (
-                <div className="absolute left-2 top-3 bottom-0 w-0.5 bg-muted-foreground/20" />
-              )}
-
-              {/* Event marker */}
-              <div className="absolute left-0 top-1.5 rounded-full bg-primary p-1">
-                {event.type === "assessment" && (
-                  <CheckCircle className="h-3 w-3 text-primary-foreground" />
-                )}
-                {event.type === "registration" && (
-                  <PlusCircle className="h-3 w-3 text-primary-foreground" />
-                )}
-                {(event.type === "check-in" || event.type === "meeting") && (
-                  <MessageSquare className="h-3 w-3 text-primary-foreground" />
-                )}
-                {event.type !== "assessment" &&
-                  event.type !== "registration" &&
-                  event.type !== "check-in" &&
-                  event.type !== "meeting" && (
-                    <Calendar className="h-3 w-3 text-primary-foreground" />
-                  )}
+    <div className="w-full space-y-6">
+      {/* Header Section */}
+      {client && (
+        <div className="bg-white rounded-lg shadow-sm border p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Avatar className="h-12 w-12">
+                <AvatarImage
+                  src={`https://api.dicebear.com/7.x/initials/svg?seed=${client.name}`}
+                />
+                <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                  {client.name
+                    ?.split(" ")
+                    .map((n: string) => n[0])
+                    .join("") || "CL"}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  {client.name || "Client"}
+                </h2>
+                <p className="text-sm text-gray-500">
+                  {client.supportProgram || "Housing Support Program"}
+                </p>
               </div>
+            </div>
+            <Button
+              onClick={handleAddInteraction}
+              className="rounded-full px-6 py-2 bg-primary hover:bg-primary/90"
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Add Interaction
+            </Button>
+          </div>
+        </div>
+      )}
 
-              {/* Event content */}
-              <div className="flex flex-col space-y-1">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium">{event.title}</h4>
-                    {event.topics && event.topics.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {event.topics.map((topic, i) => (
-                          <span
-                            key={i}
-                            className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full"
-                          >
-                            {topic}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    {formatDate(event.date)}
-                  </span>
+      {/* AI Recommendation Engine */}
+      <div>
+        <AIRecommendationEngine
+          clientId={clientId}
+          interactionData={events.filter(
+            (e) => e.type === "check-in" || e.type === "meeting",
+          )}
+          onRecommendationSelect={(recommendation) => {
+            console.log("Selected recommendation:", recommendation);
+            addNotification({
+              type: "info",
+              title: "AI Recommendation",
+              message: recommendation,
+              priority: "medium",
+            });
+          }}
+        />
+      </div>
+
+      {/* Interaction List */}
+      <div className="bg-white rounded-lg shadow-sm border">
+        <div className="p-6 border-b">
+          <h3 className="text-lg font-semibold text-gray-900">
+            Recent Interactions
+          </h3>
+        </div>
+        <div className="divide-y">
+          {events.map((event) => (
+            <div
+              key={event.id}
+              className="p-6 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-start space-x-4">
+                {/* Green status dot */}
+                <div className="flex-shrink-0 mt-2">
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                 </div>
 
-                {showDetails && event.description && (
-                  <p className="text-sm text-muted-foreground">
-                    {event.description}
-                  </p>
-                )}
-
-                {!compact && (
-                  <div className="mt-2">
-                    {/* Display existing comments */}
-                    {comments[event.id] && comments[event.id].length > 0 && (
-                      <div className="space-y-2 mb-3 bg-muted/20 p-2 rounded-md">
-                        <h5 className="text-xs font-medium flex items-center gap-1">
-                          <MessageCircle className="h-3 w-3" /> Comments
-                        </h5>
-                        {comments[event.id].map((comment) => (
-                          <div
-                            key={comment.id}
-                            className="flex items-start gap-2"
-                          >
-                            <Avatar className="h-6 w-6">
-                              <AvatarImage
-                                src={`https://api.dicebear.com/7.x/initials/svg?seed=${comment.author
-                                  .split(" ")
-                                  .map((n) => n[0])
-                                  .join("")}`}
-                              />
-                              <AvatarFallback>
-                                {comment.author.charAt(0)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1">
-                              <div className="flex justify-between items-center">
-                                <p className="text-xs font-medium">
-                                  {comment.author}
-                                </p>
-                                <span className="text-xs text-muted-foreground">
-                                  {new Date(
-                                    comment.timestamp,
-                                  ).toLocaleTimeString([], {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })}
-                                </span>
-                              </div>
-                              <p className="text-xs">
-                                {comment.mentions &&
-                                comment.mentions.length > 0 ? (
-                                  <>
-                                    {comment.text
-                                      .split(/(@[\w\s]+)/)
-                                      .map((part, i) => {
-                                        const mentionMatch =
-                                          part.match(/@([\w\s]+)/);
-                                        if (mentionMatch) {
-                                          return (
-                                            <span
-                                              key={i}
-                                              className="bg-primary/20 text-primary font-medium rounded px-1"
-                                            >
-                                              {part}
-                                            </span>
-                                          );
-                                        }
-                                        return part;
-                                      })}
-                                  </>
-                                ) : (
-                                  comment.text
-                                )}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <AddCommentForm
-                      eventId={event.id}
-                      onCommentAdded={() => setRefreshKey((prev) => prev + 1)}
-                    />
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h4 className="text-base font-semibold text-gray-900 mb-1">
+                        {event.title}
+                      </h4>
+                      {showDetails && event.description && (
+                        <p className="text-sm text-gray-600 mb-3">
+                          {event.description}
+                        </p>
+                      )}
+                      {event.topics && event.topics.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {event.topics.map((topic, i) => (
+                            <span
+                              key={i}
+                              className={`px-3 py-1 text-xs font-medium rounded-full ${getTagColor(topic)}`}
+                            >
+                              {topic}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-shrink-0 ml-4">
+                      <span className="text-sm text-gray-500">
+                        {formatRelativeTime(event.date)}
+                      </span>
+                    </div>
                   </div>
-                )}
+
+                  {!compact && (
+                    <div className="mt-4">
+                      {/* Display existing comments */}
+                      {comments[event.id] && comments[event.id].length > 0 && (
+                        <div className="space-y-3 mb-4 bg-gray-50 p-4 rounded-lg">
+                          <h5 className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                            <MessageCircle className="h-4 w-4" /> Comments
+                          </h5>
+                          {comments[event.id].map((comment) => (
+                            <div
+                              key={comment.id}
+                              className="flex items-start gap-3"
+                            >
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage
+                                  src={`https://api.dicebear.com/7.x/initials/svg?seed=${comment.author
+                                    .split(" ")
+                                    .map((n) => n[0])
+                                    .join("")}`}
+                                />
+                                <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                                  {comment.author.charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <p className="text-sm font-medium text-gray-900">
+                                    {comment.author}
+                                  </p>
+                                  <span className="text-xs text-gray-500">
+                                    {formatRelativeTime(
+                                      new Date(comment.timestamp),
+                                    )}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-gray-700">
+                                  {comment.mentions &&
+                                  comment.mentions.length > 0 ? (
+                                    <>
+                                      {comment.text
+                                        .split(/(@[\w\s]+)/)
+                                        .map((part, i) => {
+                                          const mentionMatch =
+                                            part.match(/@([\w\s]+)/);
+                                          if (mentionMatch) {
+                                            return (
+                                              <span
+                                                key={i}
+                                                className="bg-blue-100 text-blue-800 font-medium rounded px-1"
+                                              >
+                                                {part}
+                                              </span>
+                                            );
+                                          }
+                                          return part;
+                                        })}
+                                    </>
+                                  ) : (
+                                    comment.text
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <AddCommentForm
+                        eventId={event.id}
+                        onCommentAdded={() => setRefreshKey((prev) => prev + 1)}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ))}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+
+      {/* Recent Comments Section */}
+      {!compact && getAllRecentComments().length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border">
+          <div className="p-6 border-b">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Recent Comments
+            </h3>
+          </div>
+          <div className="divide-y">
+            {getAllRecentComments().map((comment) => (
+              <div
+                key={`${comment.id}-recent`}
+                className="p-6 hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-start space-x-4">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage
+                      src={`https://api.dicebear.com/7.x/initials/svg?seed=${comment.author
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}`}
+                    />
+                    <AvatarFallback className="bg-primary/10 text-primary">
+                      {comment.author.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-sm font-semibold text-gray-900">
+                        {comment.author}
+                      </p>
+                      <span className="text-xs text-gray-500">
+                        {formatRelativeTime(new Date(comment.timestamp))}
+                      </span>
+                      <span className="text-xs text-gray-400">•</span>
+                      <span className="text-xs text-gray-500">
+                        on {comment.eventTitle}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-700">
+                      {comment.mentions && comment.mentions.length > 0 ? (
+                        <>
+                          {comment.text.split(/(@[\w\s]+)/).map((part, i) => {
+                            const mentionMatch = part.match(/@([\w\s]+)/);
+                            if (mentionMatch) {
+                              return (
+                                <span
+                                  key={i}
+                                  className="bg-blue-100 text-blue-800 font-medium rounded px-1"
+                                >
+                                  {part}
+                                </span>
+                              );
+                            }
+                            return part;
+                          })}
+                        </>
+                      ) : (
+                        comment.text
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

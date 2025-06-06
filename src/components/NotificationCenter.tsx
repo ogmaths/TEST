@@ -43,7 +43,8 @@ export type NotificationType =
   | "system"
   | "success"
   | "error"
-  | "info";
+  | "info"
+  | "warning";
 
 export type DeliveryMethod = "in_app" | "email" | "sms";
 

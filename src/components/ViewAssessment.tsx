@@ -13,7 +13,21 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Edit, AlertCircle } from "lucide-react";
+import { ArrowLeft, Edit, AlertCircle, Mail, Download } from "lucide-react";
+import { generateAssessmentPDF } from "@/utils/pdfGenerator";
+import { emailAssessmentToClient } from "@/utils/emailService";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 
 interface ViewAssessmentProps {
@@ -37,6 +51,10 @@ const ViewAssessment: React.FC<ViewAssessmentProps> = ({
   const [loading, setLoading] = useState(true);
   const [canEdit, setCanEdit] = useState(false);
   const [averageScore, setAverageScore] = useState<number | null>(null);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [clientEmail, setClientEmail] = useState("");
+  const [includePdfResults, setIncludePdfResults] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   useEffect(() => {
     if (!assessmentId) {
@@ -109,6 +127,91 @@ const ViewAssessment: React.FC<ViewAssessmentProps> = ({
     } else {
       // If accessed via route
       navigate(-1);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (assessment) {
+      try {
+        // Add client name to assessment for PDF generation
+        const assessmentWithClientName = {
+          ...assessment,
+          clientName: assessment.clientName || "Client",
+          score: averageScore || 0,
+        };
+        await generateAssessmentPDF(assessmentWithClientName);
+
+        addNotification({
+          type: "success",
+          title: "PDF Generated",
+          message: "Assessment PDF has been downloaded",
+          priority: "high",
+        });
+      } catch (error) {
+        console.error("Error generating PDF:", error);
+        addNotification({
+          type: "error",
+          title: "PDF Generation Failed",
+          message: "There was an error generating the PDF",
+          priority: "high",
+        });
+      }
+    }
+  };
+
+  const handleSendEmail = async () => {
+    if (!clientEmail) {
+      addNotification({
+        type: "error",
+        title: "Email Required",
+        message: "Please enter a client email address",
+        priority: "high",
+      });
+      return;
+    }
+
+    setIsSendingEmail(true);
+
+    try {
+      // Add client name to assessment for PDF generation
+      const assessmentWithClientName = {
+        ...assessment,
+        clientName: assessment.clientName || "Client",
+        score: averageScore || 0,
+      };
+
+      const result = await emailAssessmentToClient(
+        clientEmail,
+        assessmentWithClientName,
+        includePdfResults,
+      );
+
+      if (result.success) {
+        addNotification({
+          type: "success",
+          title: "Email Sent",
+          message: result.message,
+          priority: "high",
+        });
+        setEmailDialogOpen(false);
+      } else {
+        addNotification({
+          type: "error",
+          title: "Email Failed",
+          message: result.message,
+          priority: "high",
+        });
+      }
+    } catch (error) {
+      console.error("Error sending email:", error);
+      addNotification({
+        type: "error",
+        title: "Email Failed",
+        message: "There was an error sending the email",
+        priority: "high",
+      });
+    } finally {
+      setIsSendingEmail(false);
     }
   };
 
@@ -280,7 +383,66 @@ const ViewAssessment: React.FC<ViewAssessmentProps> = ({
           </div>
         </CardContent>
 
-        <CardFooter>
+        <CardFooter className="flex flex-col gap-4">
+          <div className="flex gap-2 w-full">
+            <Button
+              variant="outline"
+              onClick={handleDownloadPdf}
+              className="flex-1"
+            >
+              <Download className="mr-2 h-4 w-4" /> Download PDF
+            </Button>
+            <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="default" className="flex-1">
+                  <Mail className="mr-2 h-4 w-4" /> Email Assessment
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Email Assessment</DialogTitle>
+                  <DialogDescription>
+                    Send this assessment to the client via email.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="client-email">Client Email</Label>
+                    <Input
+                      id="client-email"
+                      type="email"
+                      placeholder="client@example.com"
+                      value={clientEmail}
+                      onChange={(e) => setClientEmail(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="include-results"
+                      checked={includePdfResults}
+                      onCheckedChange={(checked) =>
+                        setIncludePdfResults(!!checked)
+                      }
+                    />
+                    <Label htmlFor="include-results">
+                      Include PDF results with email
+                    </Label>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setEmailDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button onClick={handleSendEmail} disabled={isSendingEmail}>
+                    {isSendingEmail ? "Sending..." : "Send Email"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
           <Button variant="outline" onClick={handleBack} className="w-full">
             Close
           </Button>

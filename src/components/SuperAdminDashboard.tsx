@@ -169,6 +169,7 @@ const SuperAdminDashboard = () => {
           title: "Error",
           message: "Failed to load tenants. Please try again.",
           type: "error",
+          priority: "high",
         });
       } else if (data && data.length > 0) {
         // If we have data from the database, use it
@@ -185,6 +186,7 @@ const SuperAdminDashboard = () => {
         title: "Error",
         message: "Failed to load tenants. Please try again.",
         type: "error",
+        priority: "high",
       });
     } finally {
       setIsLoading(false);
@@ -222,12 +224,14 @@ const SuperAdminDashboard = () => {
             title: "Error",
             message: "Failed to archive tenant. Please try again.",
             type: "error",
+            priority: "high",
           });
         } else {
           addNotification({
             title: "Success",
             message: `Tenant ${tenantToDelete.name} has been archived.`,
             type: "success",
+            priority: "medium",
           });
           setSuccessMessage(
             `Tenant ${tenantToDelete.name} has been archived successfully`,
@@ -240,6 +244,7 @@ const SuperAdminDashboard = () => {
           title: "Error",
           message: "Failed to archive tenant. Please try again.",
           type: "error",
+          priority: "high",
         });
       } finally {
         setShowDeleteDialog(false);
@@ -302,12 +307,14 @@ const SuperAdminDashboard = () => {
           title: "Error",
           message: "Failed to update tenant. Please try again.",
           type: "error",
+          priority: "high",
         });
       } else {
         addNotification({
           title: "Success",
           message: `Tenant ${selectedTenant.name} has been updated.`,
           type: "success",
+          priority: "medium",
         });
         setSuccessMessage(
           `Tenant ${selectedTenant.name} has been updated successfully`,
@@ -321,6 +328,7 @@ const SuperAdminDashboard = () => {
         title: "Error",
         message: "Failed to update tenant. Please try again.",
         type: "error",
+        priority: "high",
       });
     }
   };
@@ -356,6 +364,7 @@ const SuperAdminDashboard = () => {
           title: "Error",
           message: "Failed to create tenant. Please try again.",
           type: "error",
+          priority: "high",
         });
         return;
       }
@@ -364,6 +373,7 @@ const SuperAdminDashboard = () => {
         title: "Success",
         message: `Tenant ${newTenant.name} has been created.`,
         type: "success",
+        priority: "medium",
       });
 
       setSuccessMessage(
@@ -391,6 +401,7 @@ const SuperAdminDashboard = () => {
         title: "Error",
         message: "Failed to create tenant. Please try again.",
         type: "error",
+        priority: "high",
       });
     }
   };
@@ -401,6 +412,7 @@ const SuperAdminDashboard = () => {
         title: "Error",
         message: "This tenant does not have a valid tenant ID.",
         type: "error",
+        priority: "high",
       });
       return;
     }
@@ -427,7 +439,7 @@ const SuperAdminDashboard = () => {
         title: "Impersonation Active",
         message: `You are now viewing as ${tenant.name}. Click your profile to exit impersonation mode.`,
         type: "info",
-        duration: 10000,
+        priority: "medium",
       });
 
       setSuccessMessage(`Successfully logged in as ${tenant.name}`);
@@ -440,6 +452,7 @@ const SuperAdminDashboard = () => {
         title: "Error",
         message: "Failed to impersonate tenant. Please try again.",
         type: "error",
+        priority: "high",
       });
     }
   };

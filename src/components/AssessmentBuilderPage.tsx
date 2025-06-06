@@ -15,7 +15,7 @@ const AssessmentBuilderPage = () => {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate(-1)}
+            onClick={() => window.close()}
             className="mr-2"
           >
             <ArrowLeft className="h-5 w-5" />

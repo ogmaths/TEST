@@ -2,20 +2,33 @@ import React from "react";
 import { useUser } from "@/context/UserContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut, Globe } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface UserHeaderProps {}
 
 const UserHeader: React.FC<UserHeaderProps> = () => {
-  const { user, setUser } = useUser();
+  const { user, setUser, changeLanguage } = useUser();
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
 
   if (!user) return null;
 
   const handleSignOut = () => {
     setUser(null);
     navigate("/login");
+  };
+
+  const handleLanguageChange = (language: string) => {
+    i18n.changeLanguage(language);
+    changeLanguage(language);
   };
 
   return (
@@ -45,14 +58,38 @@ const UserHeader: React.FC<UserHeaderProps> = () => {
           </div>
         </div>
       </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={handleSignOut}
-        title="Sign out"
-      >
-        <LogOut className="h-4 w-4" />
-      </Button>
+      <div className="flex items-center gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              title={t("language.selectLanguage")}
+            >
+              <Globe className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => handleLanguageChange("en")}>
+              {t("language.english")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleLanguageChange("es")}>
+              {t("language.spanish")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleLanguageChange("fr")}>
+              {t("language.french")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleSignOut}
+          title={t("common.signOut")}
+        >
+          <LogOut className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 };

@@ -1,24 +1,18 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useUser } from "@/context/UserContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Logo from "@/components/Logo";
+import { AlertCircle, Eye, EyeOff, ArrowLeft } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const { setUser } = useUser();
 
   // For demo purposes, we'll use a simple mock login
@@ -152,47 +146,135 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <Card className="w-full max-w-md">
-        <form onSubmit={handleLogin} className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="staff@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          <Button type="submit" className="w-full">
-            Login
-          </Button>
-        </form>
-      </Card>
-      <CardFooter className="flex flex-col items-center space-y-2">
-        <p className="text-sm text-gray-500 font-semibold">
-          Use demo accounts like admin@example.com/admin123 or
-          staff@example.com/staff123
-        </p>
-      </CardFooter>
+    <div className="min-h-screen bg-gradient-to-b from-blue-50/50 to-white flex flex-col">
+      {/* Header */}
+      <header className="px-6 lg:px-8 h-16 flex items-center justify-between border-b border-gray-100">
+        <div className="flex items-center">
+          <Logo size="md" variant="default" />
+        </div>
+        <Link
+          to="/"
+          className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Home
+        </Link>
+      </header>
+
+      {/* Main Content */}
+      <div className="flex-1 flex items-center justify-center p-6">
+        <div className="w-full max-w-md">
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="text-center pb-6">
+              <h2 className="text-xl font-semibold text-gray-800 mb-2">
+                Welcome back
+              </h2>
+              <p className="text-gray-600">
+                Sign in to your account to continue
+              </p>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {/* Error Alert */}
+              {error && (
+                <Alert variant="destructive" className="mb-6">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              {/* Login Form */}
+              <form onSubmit={handleLogin} className="space-y-6">
+                <div className="space-y-2">
+                  <label
+                    htmlFor="email"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Email address
+                  </label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="h-11 px-4 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label
+                    htmlFor="password"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter your password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      className="h-11 px-4 pr-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-5 w-5" />
+                      ) : (
+                        <Eye className="h-5 w-5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="text-sm">
+                    <a
+                      href="#"
+                      className="text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                      Forgot your password?
+                    </a>
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors"
+                >
+                  Sign in
+                </Button>
+              </form>
+
+              {/* Demo Accounts Info */}
+              <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-100">
+                <p className="text-sm text-blue-800 text-center font-medium mb-2">
+                  Demo Accounts
+                </p>
+                <div className="text-xs text-blue-700 space-y-1">
+                  <div>Admin: admin@example.com / admin123</div>
+                  <div>Staff: staff@example.com / staff123</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <footer className="border-t border-gray-100 py-6">
+        <div className="text-center">
+          <p className="text-sm text-gray-500">
+            © 2024 Impact CRM. All rights reserved.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }

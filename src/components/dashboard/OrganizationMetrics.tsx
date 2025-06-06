@@ -320,27 +320,6 @@ const OrganizationMetrics: React.FC<OrganizationMetricsProps> = ({
                 Calculated from client outcomes and feedback
               </p>
             </div>
-
-            <div className="grid grid-cols-2 gap-2 pt-2">
-              <div className="bg-muted/50 p-3 rounded-md">
-                <div className="text-sm font-medium">Peer Support Groups</div>
-                <div className="text-2xl font-bold">
-                  {metrics.peerSupportGroups}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Active groups
-                </div>
-              </div>
-              <div className="bg-muted/50 p-3 rounded-md">
-                <div className="text-sm font-medium">Group Sessions</div>
-                <div className="text-2xl font-bold">
-                  {metrics.groupSessions}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Total sessions
-                </div>
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>

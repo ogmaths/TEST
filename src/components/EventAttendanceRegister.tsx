@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import { useNotifications } from "@/context/NotificationContext";
 import { useUser } from "@/context/UserContext";
 import { Button } from "@/components/ui/button";
@@ -85,7 +85,7 @@ const EventAttendanceRegister: React.FC<EventAttendanceRegisterProps> = ({
     type: "",
   });
 
-  // Load event data
+  // Load event data and pre-selected attendees
   useEffect(() => {
     const loadEventData = () => {
       try {
@@ -109,17 +109,14 @@ const EventAttendanceRegister: React.FC<EventAttendanceRegisterProps> = ({
 
           // If the event has attendees, pre-select them
           if (foundEvent.attendees && Array.isArray(foundEvent.attendees)) {
+            console.log("Loading saved attendees:", foundEvent.attendees);
             setSelectedClients(foundEvent.attendees);
-            setAttendanceCount({
-              total: clients.length,
-              present: foundEvent.attendees.length,
-            });
           }
         } else {
           console.error("Event not found with ID:", effectiveEventId);
           // If event not found, show notification
           addNotification({
-            type: "warning",
+            type: "system",
             title: "Event Not Found",
             message: "The requested event could not be found.",
             priority: "medium",
@@ -146,34 +143,51 @@ const EventAttendanceRegister: React.FC<EventAttendanceRegisterProps> = ({
     const fetchClients = async () => {
       setIsLoading(true);
       try {
-        // If we have a user with an organization
-        if (user?.tenantId) {
+        console.log("Fetching clients, user:", user);
+
+        // First try to get clients from localStorage (same as ClientsPage)
+        const savedClients = localStorage.getItem("clients");
+        if (savedClients) {
+          const parsedClients = JSON.parse(savedClients);
+          console.log("Found clients in localStorage:", parsedClients);
+          setClients(parsedClients);
+          setAttendanceCount({
+            total: parsedClients.length,
+            present: selectedClients.length,
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        // If we have a user with an organization, try Supabase
+        if (user?.tenantId && user.tenantId !== "3") {
           // Set the tenant ID for RLS
-          await setTenantAndOrgId(user.tenantId, user.organizationId);
+          await setTenantAndOrgId(user.tenantId, user.organizationId || "");
 
           // Fetch clients from Supabase - only from the same organization
           const { data, error } = await supabase
             .from("profiles")
             .select("*")
             .eq("tenant_id", user.tenantId)
-            .eq("organization_id", user.organizationId)
+            .eq("organization_id", user.organizationId || "")
             .eq("status", "active")
             .eq("role", "client");
 
           if (error) {
+            console.error("Supabase error:", error);
             throw error;
           }
 
-          if (data) {
+          if (data && data.length > 0) {
             console.log(
-              `Fetched ${data.length} clients for tenant ${user.tenantId} and organization ${user.organizationId}`,
+              `Fetched ${data.length} clients for tenant ${user.tenantId} and organization ${user.organizationId || ""}`,
             );
             // Transform the data to match our Client interface
             const formattedClients: Client[] = data.map((client) => ({
               id: client.id,
               name: `${client.first_name || ""} ${client.last_name || ""}`.trim(),
               profileImage: `https://api.dicebear.com/7.x/avataaars/svg?seed=${client.id}`,
-              caseWorker: client.case_worker_id
+              caseWorker: (client as any).case_worker_id
                 ? "Assigned Case Worker"
                 : "Unassigned",
               status: client.status,
@@ -184,9 +198,16 @@ const EventAttendanceRegister: React.FC<EventAttendanceRegisterProps> = ({
               total: formattedClients.length,
               present: selectedClients.length,
             });
+            setIsLoading(false);
+            return;
           }
-        } else if (user?.tenantId === import.meta.env.VITE_DEMO_TENANT_ID) {
-          // For demo tenant, only show Moyo Oshoko
+        }
+
+        // For demo tenant or fallback, use demo/mock data
+        if (
+          user?.tenantId === "3" ||
+          user?.tenantId === import.meta.env.VITE_DEMO_TENANT_ID
+        ) {
           console.log("Using demo tenant data");
           const demoClients = [
             {
@@ -223,48 +244,43 @@ const EventAttendanceRegister: React.FC<EventAttendanceRegisterProps> = ({
             present: selectedClients.length,
           });
         } else {
-          console.log("No tenant ID found, using mock data");
-          // Fallback to mock data if no organization
+          console.log("No tenant ID found or no data, using mock data");
+          // Fallback to mock data - same as ClientsPage
           const mockClients = [
             {
               id: "1",
               name: "Jane Smith",
-              profileImage:
-                "https://api.dicebear.com/7.x/avataaars/svg?seed=jane",
+              profileImage: "https://api.dicebear.com/7.x/initials/svg?seed=JS",
               caseWorker: "Michael Johnson",
-              status: "active",
+              status: "Active",
             },
             {
               id: "2",
               name: "Robert Chen",
-              profileImage:
-                "https://api.dicebear.com/7.x/avataaars/svg?seed=robert",
+              profileImage: "https://api.dicebear.com/7.x/initials/svg?seed=RC",
               caseWorker: "Sarah Williams",
-              status: "active",
+              status: "Active",
             },
             {
               id: "3",
               name: "Maria Garcia",
-              profileImage:
-                "https://api.dicebear.com/7.x/avataaars/svg?seed=maria",
+              profileImage: "https://api.dicebear.com/7.x/initials/svg?seed=MG",
               caseWorker: "Michael Johnson",
-              status: "active",
+              status: "Inactive",
             },
             {
               id: "4",
               name: "David Wilson",
-              profileImage:
-                "https://api.dicebear.com/7.x/avataaars/svg?seed=david",
+              profileImage: "https://api.dicebear.com/7.x/initials/svg?seed=DW",
               caseWorker: "Lisa Chen",
-              status: "active",
+              status: "Active",
             },
             {
               id: "5",
               name: "Aisha Patel",
-              profileImage:
-                "https://api.dicebear.com/7.x/avataaars/svg?seed=aisha",
+              profileImage: "https://api.dicebear.com/7.x/initials/svg?seed=AP",
               caseWorker: "Sarah Williams",
-              status: "active",
+              status: "Active",
             },
           ];
           setClients(mockClients);
@@ -275,11 +291,37 @@ const EventAttendanceRegister: React.FC<EventAttendanceRegisterProps> = ({
         }
       } catch (error) {
         console.error("Error fetching clients:", error);
+        // Even if there's an error, provide fallback data
+        const fallbackClients = [
+          {
+            id: "fallback-1",
+            name: "Demo Client 1",
+            profileImage:
+              "https://api.dicebear.com/7.x/avataaars/svg?seed=demo1",
+            caseWorker: "Demo Case Worker",
+            status: "active",
+          },
+          {
+            id: "fallback-2",
+            name: "Demo Client 2",
+            profileImage:
+              "https://api.dicebear.com/7.x/avataaars/svg?seed=demo2",
+            caseWorker: "Demo Case Worker",
+            status: "active",
+          },
+        ];
+        setClients(fallbackClients);
+        setAttendanceCount({
+          total: fallbackClients.length,
+          present: selectedClients.length,
+        });
+
         addNotification({
-          type: "error",
-          title: "Error",
-          message: "Failed to load clients. Please try again.",
-          priority: "high",
+          type: "warning",
+          title: "Using Demo Data",
+          message:
+            "Could not load client data, using demo clients for testing.",
+          priority: "medium",
         });
       } finally {
         setIsLoading(false);
@@ -287,7 +329,7 @@ const EventAttendanceRegister: React.FC<EventAttendanceRegisterProps> = ({
     };
 
     fetchClients();
-  }, [user, addNotification]);
+  }, [user, addNotification, selectedClients.length]);
 
   // Update attendance count when clients or selected clients change
   useEffect(() => {
@@ -305,23 +347,60 @@ const EventAttendanceRegister: React.FC<EventAttendanceRegisterProps> = ({
 
   const handleToggleClient = (clientId: string) => {
     setIsSaved(false);
-    setSelectedClients((prev) =>
-      prev.includes(clientId)
-        ? prev.filter((id) => id !== clientId)
-        : [...prev, clientId],
-    );
+    const newSelectedClients = selectedClients.includes(clientId)
+      ? selectedClients.filter((id) => id !== clientId)
+      : [...selectedClients, clientId];
+
+    setSelectedClients(newSelectedClients);
+
+    // Auto-save to localStorage immediately
+    try {
+      const allEvents = JSON.parse(localStorage.getItem("events") || "[]");
+      const eventIndex = allEvents.findIndex(
+        (e: any) => e.id === effectiveEventId,
+      );
+
+      if (eventIndex !== -1) {
+        allEvents[eventIndex].attendees = newSelectedClients;
+        localStorage.setItem("events", JSON.stringify(allEvents));
+        console.log("Auto-saved attendance:", newSelectedClients);
+      } else {
+        console.error("Event not found for auto-save:", effectiveEventId);
+      }
+    } catch (error) {
+      console.error("Error auto-saving attendance:", error);
+    }
   };
 
   const handleSelectAll = () => {
     setIsSaved(false);
-    if (selectedClients.length === filteredClients.length) {
-      setSelectedClients([]);
-    } else {
-      setSelectedClients(filteredClients.map((client) => client.id));
+    const newSelectedClients =
+      selectedClients.length === filteredClients.length
+        ? []
+        : filteredClients.map((client) => client.id);
+
+    setSelectedClients(newSelectedClients);
+
+    // Auto-save to localStorage immediately
+    try {
+      const allEvents = JSON.parse(localStorage.getItem("events") || "[]");
+      const eventIndex = allEvents.findIndex(
+        (e: any) => e.id === effectiveEventId,
+      );
+
+      if (eventIndex !== -1) {
+        allEvents[eventIndex].attendees = newSelectedClients;
+        localStorage.setItem("events", JSON.stringify(allEvents));
+        console.log("Auto-saved attendance (select all):", newSelectedClients);
+      } else {
+        console.error("Event not found for auto-save:", effectiveEventId);
+      }
+    } catch (error) {
+      console.error("Error auto-saving attendance:", error);
     }
   };
 
-  const handleSaveAttendance = () => {
+  const handleSaveAttendance = async () => {
     setIsSaving(true);
 
     try {
@@ -333,45 +412,61 @@ const EventAttendanceRegister: React.FC<EventAttendanceRegisterProps> = ({
 
       if (eventIndex !== -1) {
         // Update the event with selected attendees
-        allEvents[eventIndex].attendees = selectedClients;
+        allEvents[eventIndex].attendees = [...selectedClients];
         localStorage.setItem("events", JSON.stringify(allEvents));
         console.log(
-          `Updated event ${effectiveEventId} with ${selectedClients.length} attendees`,
+          `Saved event ${effectiveEventId} with ${selectedClients.length} attendees:`,
+          selectedClients,
         );
+
+        // Verify the save worked by reading back from localStorage
+        const verifyEvents = JSON.parse(localStorage.getItem("events") || "[]");
+        const verifyEvent = verifyEvents.find(
+          (e: any) => e.id === effectiveEventId,
+        );
+        console.log("Verified saved attendees:", verifyEvent?.attendees);
+
+        // Call the onSave callback if provided
+        if (onSave) {
+          onSave(selectedClients);
+        }
+
+        // Show success notification
+        addNotification({
+          type: "success",
+          title: "Attendance Successfully Saved!",
+          message: `Attendance recorded for ${selectedClients.length} client${selectedClients.length !== 1 ? "s" : ""}. Data will persist on page refresh.`,
+          priority: "high",
+        });
+
+        setIsSaved(true);
+
+        // Reset the saved state after 5 seconds
+        setTimeout(() => {
+          setIsSaved(false);
+        }, 5000);
       } else {
         console.error(
           `Could not find event with ID ${effectiveEventId} to save attendees`,
         );
         addNotification({
-          type: "warning",
-          title: "Event Not Found",
-          message: "Could not find the event to save attendance.",
-          priority: "medium",
+          type: "error",
+          title: "Save Failed",
+          message:
+            "Could not find the event to save attendance. Please try refreshing the page.",
+          priority: "high",
         });
       }
-
-      // Simulate API call
-      setTimeout(() => {
-        onSave(selectedClients);
-        setIsSaving(false);
-        setIsSaved(true);
-
-        // Show notification
-        addNotification({
-          type: "success",
-          title: "Attendance Saved",
-          message: `Attendance recorded for ${selectedClients.length} clients`,
-          priority: "medium",
-        });
-      }, 1000);
     } catch (error) {
       console.error("Error saving attendance:", error);
       addNotification({
         type: "error",
         title: "Error Saving Attendance",
-        message: "There was a problem saving the attendance data.",
+        message:
+          "There was a problem saving the attendance data. Please try again.",
         priority: "high",
       });
+    } finally {
       setIsSaving(false);
     }
   };
@@ -381,12 +476,12 @@ const EventAttendanceRegister: React.FC<EventAttendanceRegisterProps> = ({
     try {
       // Re-fetch clients
       if (user?.tenantId) {
-        await setTenantAndOrgId(user.tenantId, user.organizationId);
+        await setTenantAndOrgId(user.tenantId, user.organizationId || "");
         const { data, error } = await supabase
           .from("profiles")
           .select("*")
           .eq("tenant_id", user.tenantId)
-          .eq("organization_id", user.organizationId)
+          .eq("organization_id", user.organizationId || "")
           .eq("status", "active")
           .eq("role", "client");
 
@@ -397,7 +492,7 @@ const EventAttendanceRegister: React.FC<EventAttendanceRegisterProps> = ({
             id: client.id,
             name: `${client.first_name || ""} ${client.last_name || ""}`.trim(),
             profileImage: `https://api.dicebear.com/7.x/avataaars/svg?seed=${client.id}`,
-            caseWorker: client.case_worker_id
+            caseWorker: (client as any).case_worker_id
               ? "Assigned Case Worker"
               : "Unassigned",
             status: client.status,
@@ -445,7 +540,7 @@ const EventAttendanceRegister: React.FC<EventAttendanceRegisterProps> = ({
   };
 
   return (
-    <div className="p-6 bg-background">
+    <div className="min-h-screen bg-white p-6">
       <div className="flex items-center justify-between mb-4">
         <BackButton />
         <Button
@@ -459,7 +554,7 @@ const EventAttendanceRegister: React.FC<EventAttendanceRegisterProps> = ({
         </Button>
       </div>
 
-      <Card className="w-full">
+      <Card className="w-full bg-white shadow-sm border-gray-100">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -480,7 +575,7 @@ const EventAttendanceRegister: React.FC<EventAttendanceRegisterProps> = ({
         <CardContent>
           <div className="space-y-6">
             {/* Event Details */}
-            <div className="p-4 bg-muted/50 rounded-md">
+            <div className="p-4 bg-white rounded-lg border border-gray-100 shadow-sm">
               <h3 className="text-lg font-medium">{event.name}</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2 text-sm">
                 <div className="flex items-center gap-2">
@@ -548,8 +643,8 @@ const EventAttendanceRegister: React.FC<EventAttendanceRegisterProps> = ({
                 </div>
               </div>
 
-              <div className="border rounded-md overflow-hidden">
-                <div className="grid grid-cols-[auto_1fr_auto] gap-4 p-4 border-b font-medium bg-muted/30">
+              <div className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
+                <div className="grid grid-cols-[auto_1fr_auto] gap-4 p-4 border-b border-gray-100 font-medium bg-gray-50 text-gray-700">
                   <div>Attended</div>
                   <div>Client</div>
                   <div>Case Worker</div>
@@ -567,7 +662,7 @@ const EventAttendanceRegister: React.FC<EventAttendanceRegisterProps> = ({
                     {filteredClients.map((client) => (
                       <div
                         key={client.id}
-                        className="grid grid-cols-[auto_1fr_auto] gap-4 p-4 border-b items-center hover:bg-muted/20 transition-colors"
+                        className="grid grid-cols-[auto_1fr_auto] gap-4 p-4 border-b border-gray-50 items-center hover:bg-gray-25 transition-colors"
                       >
                         <Checkbox
                           checked={selectedClients.includes(client.id)}
@@ -575,21 +670,29 @@ const EventAttendanceRegister: React.FC<EventAttendanceRegisterProps> = ({
                           id={`client-${client.id}`}
                         />
                         <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarImage
-                              src={client.profileImage}
-                              alt={client.name}
-                            />
-                            <AvatarFallback>
-                              {client.name
-                                .split(" ")
-                                .map((n) => n[0])
-                                .join("")}
-                            </AvatarFallback>
-                          </Avatar>
+                          <Link
+                            to={`/client?id=${client.id}`}
+                            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                          >
+                            <Avatar>
+                              <AvatarImage
+                                src={client.profileImage}
+                                alt={client.name}
+                              />
+                              <AvatarFallback>
+                                {client.name
+                                  .split(" ")
+                                  .map((n) => n[0])
+                                  .join("")}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium text-primary hover:underline">
+                              {client.name}
+                            </span>
+                          </Link>
                           <Label
                             htmlFor={`client-${client.id}`}
-                            className="font-medium cursor-pointer"
+                            className="sr-only"
                           >
                             {client.name}
                           </Label>
@@ -631,7 +734,28 @@ const EventAttendanceRegister: React.FC<EventAttendanceRegisterProps> = ({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setSelectedClients([])}
+                    onClick={() => {
+                      setSelectedClients([]);
+                      setIsSaved(false);
+                      // Auto-save the cleared selection
+                      try {
+                        const allEvents = JSON.parse(
+                          localStorage.getItem("events") || "[]",
+                        );
+                        const eventIndex = allEvents.findIndex(
+                          (e: any) => e.id === effectiveEventId,
+                        );
+                        if (eventIndex !== -1) {
+                          allEvents[eventIndex].attendees = [];
+                          localStorage.setItem(
+                            "events",
+                            JSON.stringify(allEvents),
+                          );
+                        }
+                      } catch (error) {
+                        console.error("Error clearing selection:", error);
+                      }
+                    }}
                   >
                     Clear Selection
                   </Button>
