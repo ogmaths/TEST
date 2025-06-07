@@ -193,7 +193,8 @@ function App() {
     isLoginPage ||
     isAdminDashboard ||
     isSuperAdminDashboard ||
-    isDebugAdmin;
+    isDebugAdmin ||
+    location.pathname === "/confidentiality-agreement";
 
   // Show sidebar for all logged-in users except on specific pages
   const shouldShowSidebar = isLoggedIn && !shouldHideHeader;
