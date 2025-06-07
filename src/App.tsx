@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import {
   useRoutes,
   Routes,
@@ -30,7 +30,6 @@ import { NotificationProvider } from "./context/NotificationContext";
 import { TenantProvider } from "./context/TenantContext";
 import UserHeader from "./components/UserHeader";
 import NotificationCenter from "./components/NotificationCenter";
-import { useState, useEffect } from "react";
 import OrganizationSwitcher from "./components/OrganizationSwitcher";
 import SuperAdminDashboard from "./components/SuperAdminDashboard";
 import ViewAssessment from "./components/ViewAssessment";
@@ -67,10 +66,23 @@ function App() {
   const isLoginPage = location.pathname === "/login";
   const isAdminDashboard = location.pathname === "/admin";
   const isSuperAdminDashboard = location.pathname === "/super-admin";
+  const isDebugAdmin = location.pathname === "/debug-admin";
+
+  // Debug logging for user state
+  useEffect(() => {
+    console.log("🔍 App Debug - Current user:", user);
+    console.log("🔍 App Debug - Is logged in:", isLoggedIn);
+    console.log("🔍 App Debug - Current location:", location.pathname);
+    console.log("🔍 App Debug - User role:", user?.role);
+  }, [user, isLoggedIn, location.pathname]);
 
   // Hide header on these specific pages
   const shouldHideHeader =
-    isLandingPage || isLoginPage || isAdminDashboard || isSuperAdminDashboard;
+    isLandingPage ||
+    isLoginPage ||
+    isAdminDashboard ||
+    isSuperAdminDashboard ||
+    isDebugAdmin;
 
   // Show sidebar for all logged-in users except on specific pages
   const shouldShowSidebar = isLoggedIn && !shouldHideHeader;
@@ -82,15 +94,64 @@ function App() {
 
   // Protected route component
   const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+    console.log("🔍 ProtectedRoute - isLoggedIn:", isLoggedIn);
+    console.log("🔍 ProtectedRoute - user:", user);
+
     if (!isLoggedIn) {
+      console.log("🔍 ProtectedRoute - Redirecting to login (not logged in)");
       return <Navigate to="/login" replace />;
     }
 
     // Check if user has accepted confidentiality agreement
     if (isLoggedIn && user && !user.hasAcceptedConfidentiality) {
+      console.log(
+        "🔍 ProtectedRoute - Redirecting to confidentiality agreement",
+      );
       return <Navigate to="/confidentiality-agreement" replace />;
     }
 
+    console.log("🔍 ProtectedRoute - Rendering protected content");
+    return <>{children}</>;
+  };
+
+  // Admin route component with enhanced debugging
+  const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+    console.log("🔍 AdminRoute - user:", user);
+    console.log("🔍 AdminRoute - user role:", user?.role);
+    console.log("🔍 AdminRoute - isLoggedIn:", isLoggedIn);
+
+    if (!isLoggedIn) {
+      console.log("🔍 AdminRoute - Redirecting to login (not logged in)");
+      return <Navigate to="/login" replace />;
+    }
+
+    if (!user) {
+      console.log("🔍 AdminRoute - No user object, showing loading...");
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p>Loading user data...</p>
+          </div>
+        </div>
+      );
+    }
+
+    // Check if user has accepted confidentiality agreement
+    if (!user.hasAcceptedConfidentiality) {
+      console.log("🔍 AdminRoute - Redirecting to confidentiality agreement");
+      return <Navigate to="/confidentiality-agreement" replace />;
+    }
+
+    const isAdmin = user.role === "admin" || user.role === "super_admin";
+    console.log("🔍 AdminRoute - Is admin check:", isAdmin);
+
+    if (!isAdmin) {
+      console.log("🔍 AdminRoute - Access denied, redirecting to dashboard");
+      return <Navigate to="/dashboard" replace />;
+    }
+
+    console.log("🔍 AdminRoute - Rendering admin content");
     return <>{children}</>;
   };
 
@@ -303,8 +364,54 @@ function App() {
                 <Route
                   path="/admin"
                   element={
+                    <AdminRoute>
+                      <Suspense
+                        fallback={
+                          <div className="min-h-screen flex items-center justify-center">
+                            <div className="text-center">
+                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                              <p>Loading admin dashboard...</p>
+                            </div>
+                          </div>
+                        }
+                      >
+                        <AdminDashboard />
+                      </Suspense>
+                    </AdminRoute>
+                  }
+                />
+
+                {/* Debug route for admin dashboard */}
+                <Route
+                  path="/debug-admin"
+                  element={
                     <ProtectedRoute>
-                      <AdminDashboard />
+                      <Suspense
+                        fallback={
+                          <div className="min-h-screen flex items-center justify-center">
+                            <div className="text-center">
+                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                              <p>Loading debug admin dashboard...</p>
+                            </div>
+                          </div>
+                        }
+                      >
+                        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
+                          <h2 className="text-lg font-semibold text-yellow-800 mb-2">
+                            🐛 Debug Admin Route
+                          </h2>
+                          <p className="text-yellow-700 mb-2">
+                            This route bypasses role checks for debugging.
+                          </p>
+                          <div className="text-sm text-yellow-600">
+                            <p>User: {user?.name || "No user"}</p>
+                            <p>Role: {user?.role || "No role"}</p>
+                            <p>Email: {user?.email || "No email"}</p>
+                            <p>Logged in: {isLoggedIn ? "Yes" : "No"}</p>
+                          </div>
+                        </div>
+                        <AdminDashboard />
+                      </Suspense>
                     </ProtectedRoute>
                   }
                 />

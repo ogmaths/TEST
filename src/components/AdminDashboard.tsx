@@ -84,6 +84,31 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const { user, setUser } = useUser();
   const { addNotification } = useNotifications();
+
+  // Debug logging for AdminDashboard
+  console.log("🔍 AdminDashboard - Component rendering");
+  console.log("🔍 AdminDashboard - User:", user);
+  console.log("🔍 AdminDashboard - User role:", user?.role);
+
+  // Early return with error boundary if no user
+  if (!user) {
+    console.log("🔍 AdminDashboard - No user found, showing error");
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center p-8">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">
+            Authentication Error
+          </h1>
+          <p className="text-gray-600 mb-4">
+            No user session found. Please log in again.
+          </p>
+          <Button onClick={() => navigate("/login")}>Go to Login</Button>
+        </div>
+      </div>
+    );
+  }
+
+  console.log("🔍 AdminDashboard - User found, continuing with render");
   const [activeTab, setActiveTab] = useState("organization");
   const [manageSectionOpen, setManageSectionOpen] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);

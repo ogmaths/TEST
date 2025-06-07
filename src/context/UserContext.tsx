@@ -60,6 +60,12 @@ export const UserProvider: React.FC<UserProviderProps> = ({
     const savedUser = localStorage.getItem("user");
     const parsedUser = savedUser ? JSON.parse(savedUser) : initialUser;
 
+    // Debug logging for user initialization
+    console.log(
+      "🔍 UserContext - Initializing user from localStorage:",
+      parsedUser,
+    );
+
     // Ensure user has language property if logged in
     if (parsedUser && !parsedUser.language) {
       parsedUser.language = getSavedLanguage();
@@ -73,8 +79,10 @@ export const UserProvider: React.FC<UserProviderProps> = ({
 
   // Update localStorage when user changes
   useEffect(() => {
+    console.log("🔍 UserContext - User state changed:", user);
     if (user) {
       localStorage.setItem("user", JSON.stringify(user));
+      console.log("🔍 UserContext - User saved to localStorage");
       // Ensure language is set in localStorage
       if (user.language) {
         localStorage.setItem("i18nextLng", user.language);
@@ -84,6 +92,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({
       }
     } else {
       localStorage.removeItem("user");
+      console.log("🔍 UserContext - User removed from localStorage");
     }
   }, [user]);
 
