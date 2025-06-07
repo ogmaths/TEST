@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "@/context/UserContext";
 import {
@@ -15,9 +15,49 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 export default function ConfidentialityAgreement() {
   const { user, setUser } = useUser();
   const navigate = useNavigate();
+  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
+  const scrollViewportRef = useRef<HTMLDivElement>(null);
+
+  const handleScroll = (event: Event) => {
+    const target = event.target as HTMLDivElement;
+    if (target) {
+      const { scrollTop, scrollHeight, clientHeight } = target;
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10; // 10px tolerance
+      console.log("Scroll values:", {
+        scrollTop,
+        scrollHeight,
+        clientHeight,
+        isAtBottom,
+      });
+      setHasScrolledToBottom(isAtBottom);
+    }
+  };
+
+  useEffect(() => {
+    const scrollViewport = scrollViewportRef.current;
+    if (scrollViewport) {
+      // Find the actual scrollable viewport element
+      const viewport = scrollViewport.querySelector(
+        "[data-radix-scroll-area-viewport]",
+      );
+      if (viewport) {
+        viewport.addEventListener("scroll", handleScroll);
+
+        // Check initial scroll position
+        const { scrollTop, scrollHeight, clientHeight } =
+          viewport as HTMLDivElement;
+        const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
+        setHasScrolledToBottom(isAtBottom);
+
+        return () => {
+          viewport.removeEventListener("scroll", handleScroll);
+        };
+      }
+    }
+  }, []);
 
   const handleAgree = () => {
-    if (user) {
+    if (user && hasScrolledToBottom) {
       // Update user with agreement acceptance
       setUser({
         ...user,
@@ -39,7 +79,10 @@ export default function ConfidentialityAgreement() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="h-[400px] rounded-md border p-4">
+          <ScrollArea
+            ref={scrollViewportRef}
+            className="h-[400px] rounded-md border p-4"
+          >
             <div className="space-y-4 text-sm">
               <p>
                 By clicking "I Agree," you ("User") acknowledge and agree to the
@@ -131,8 +174,18 @@ export default function ConfidentialityAgreement() {
             </div>
           </ScrollArea>
         </CardContent>
-        <CardFooter className="flex justify-center">
-          <Button onClick={handleAgree} size="lg" className="w-full max-w-xs">
+        <CardFooter className="flex flex-col items-center space-y-3">
+          {!hasScrolledToBottom && (
+            <p className="text-sm text-muted-foreground text-center">
+              Please scroll to the bottom to read the complete agreement
+            </p>
+          )}
+          <Button
+            onClick={handleAgree}
+            size="lg"
+            className="w-full max-w-xs"
+            disabled={!hasScrolledToBottom}
+          >
             I AGREE
           </Button>
         </CardFooter>
