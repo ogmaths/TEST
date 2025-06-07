@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import i18n from "../i18n";
+import { supabase } from "@/lib/supabase";
 
 export interface User {
   id: string;
@@ -23,6 +24,8 @@ interface UserContextType {
   isLoggedIn: boolean;
   changeLanguage: (language: string) => void;
   currentLanguage: string;
+  isLoadingRole: boolean;
+  fetchUserRole: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -76,6 +79,118 @@ export const UserProvider: React.FC<UserProviderProps> = ({
 
   const [currentLanguage, setCurrentLanguage] =
     useState<string>(getSavedLanguage());
+  const [isLoadingRole, setIsLoadingRole] = useState(false);
+
+  // Function to fetch user role from Supabase
+  const fetchUserRole = async (): Promise<void> => {
+    try {
+      setIsLoadingRole(true);
+
+      // Get current authenticated user
+      const {
+        data: { user: authUser },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError) {
+        console.error("🔍 UserContext - Auth error:", authError);
+        return;
+      }
+
+      if (!authUser) {
+        console.log("🔍 UserContext - No authenticated user found");
+        return;
+      }
+
+      console.log("🔍 UserContext - Fetching role for user:", authUser.id);
+
+      // First try to get role from user metadata
+      let userRole = authUser.user_metadata?.role;
+      let tenantId = authUser.user_metadata?.tenant_id;
+      let organizationId = authUser.user_metadata?.organization_id;
+      let organizationSlug = authUser.user_metadata?.organization_slug;
+      let organizationName = authUser.user_metadata?.organization_name;
+      let organizationColor = authUser.user_metadata?.organization_color;
+
+      // If no role in metadata, fetch from profiles table
+      if (!userRole) {
+        console.log(
+          "🔍 UserContext - No role in metadata, fetching from profiles table",
+        );
+
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select(
+            `
+            role,
+            tenant_id,
+            organization_id,
+            first_name,
+            last_name,
+            organizations (
+              name,
+              slug,
+              primary_color
+            )
+          `,
+          )
+          .eq("id", authUser.id)
+          .single();
+
+        if (profileError) {
+          console.error("🔍 UserContext - Profile fetch error:", profileError);
+          return;
+        }
+
+        if (profile) {
+          userRole = profile.role;
+          tenantId = profile.tenant_id;
+          organizationId = profile.organization_id;
+          organizationSlug = profile.organizations?.slug;
+          organizationName = profile.organizations?.name;
+          organizationColor = profile.organizations?.primary_color;
+
+          console.log("🔍 UserContext - Profile data:", profile);
+        }
+      }
+
+      // Handle super admin case (tenant_id = "0" or null)
+      if (tenantId === "0" || tenantId === null) {
+        userRole = "super_admin";
+        tenantId = "0";
+      }
+
+      // Update user context with role and organization info
+      if (userRole) {
+        const updatedUser: User = {
+          id: authUser.id,
+          name:
+            authUser.user_metadata?.full_name ||
+            authUser.user_metadata?.name ||
+            `${authUser.user_metadata?.first_name || ""} ${authUser.user_metadata?.last_name || ""}`.trim() ||
+            authUser.email?.split("@")[0] ||
+            "User",
+          email: authUser.email || "",
+          role: userRole,
+          tenantId: tenantId,
+          organizationId: organizationId,
+          organizationSlug: organizationSlug,
+          organizationName: organizationName,
+          organizationColor: organizationColor,
+          hasAcceptedConfidentiality:
+            authUser.user_metadata?.hasAcceptedConfidentiality || false,
+          language: getSavedLanguage(),
+        };
+
+        console.log("🔍 UserContext - Setting updated user:", updatedUser);
+        setUser(updatedUser);
+      }
+    } catch (error) {
+      console.error("🔍 UserContext - Error fetching user role:", error);
+    } finally {
+      setIsLoadingRole(false);
+    }
+  };
 
   // Update localStorage when user changes
   useEffect(() => {
@@ -125,7 +240,15 @@ export const UserProvider: React.FC<UserProviderProps> = ({
 
   return (
     <UserContext.Provider
-      value={{ user, setUser, isLoggedIn, changeLanguage, currentLanguage }}
+      value={{
+        user,
+        setUser,
+        isLoggedIn,
+        changeLanguage,
+        currentLanguage,
+        isLoadingRole,
+        fetchUserRole,
+      }}
     >
       {children}
     </UserContext.Provider>

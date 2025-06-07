@@ -6,7 +6,9 @@ import {
   Link,
   Navigate,
   useLocation,
+  useNavigate,
 } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
 import LoginPage from "./components/LoginPage";
 import LandingPage from "./components/LandingPage";
 import Home from "./components/home";
@@ -58,9 +60,11 @@ import {
 } from "lucide-react";
 
 function App() {
-  const { user, isLoggedIn } = useUser();
+  const { user, isLoggedIn, isLoadingRole, fetchUserRole } = useUser();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
   const location = useLocation();
+  const navigate = useNavigate();
   const isDashboardRoute = location.pathname === "/dashboard";
   const isLandingPage = location.pathname === "/";
   const isLoginPage = location.pathname === "/login";
@@ -68,13 +72,120 @@ function App() {
   const isSuperAdminDashboard = location.pathname === "/super-admin";
   const isDebugAdmin = location.pathname === "/debug-admin";
 
+  // Initialize app and handle authentication state
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        console.log("🔍 App - Initializing app...");
+
+        // Check if user is already authenticated
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+
+        if (error) {
+          console.error("🔍 App - Session error:", error);
+          setIsInitializing(false);
+          return;
+        }
+
+        if (session?.user) {
+          console.log("🔍 App - Found existing session, fetching user role...");
+          await fetchUserRole();
+        }
+
+        setIsInitializing(false);
+      } catch (error) {
+        console.error("🔍 App - Initialization error:", error);
+        setIsInitializing(false);
+      }
+    };
+
+    initializeApp();
+
+    // Listen for auth state changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("🔍 App - Auth state changed:", event, session?.user?.id);
+
+      if (event === "SIGNED_IN" && session?.user) {
+        console.log("🔍 App - User signed in, fetching role...");
+        await fetchUserRole();
+      } else if (event === "SIGNED_OUT") {
+        console.log("🔍 App - User signed out");
+        // Clear user context is handled by UserContext
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [fetchUserRole]);
+
+  // Role-based redirection logic
+  useEffect(() => {
+    if (!isInitializing && !isLoadingRole && isLoggedIn && user?.role) {
+      const currentPath = location.pathname;
+
+      console.log("🔍 App - Role-based redirect check:", {
+        role: user.role,
+        currentPath,
+        tenantId: user.tenantId,
+      });
+
+      // Skip redirection if user is on login, landing, or confidentiality agreement pages
+      if (
+        currentPath === "/login" ||
+        currentPath === "/" ||
+        currentPath === "/confidentiality-agreement"
+      ) {
+        return;
+      }
+
+      // Determine correct dashboard based on role
+      let targetPath = "/dashboard"; // default for support workers
+
+      if (user.role === "super_admin" || user.tenantId === "0") {
+        targetPath = "/super-admin";
+      } else if (user.role === "admin" || user.role === "org_admin") {
+        targetPath = "/admin";
+      }
+
+      console.log(
+        "🔍 App - Target path for role:",
+        user.role,
+        "is:",
+        targetPath,
+      );
+
+      // Only redirect if user is not already on the correct dashboard
+      if (currentPath !== targetPath) {
+        console.log(
+          `🔍 App - Redirecting ${user.role} from ${currentPath} to ${targetPath}`,
+        );
+        navigate(targetPath, { replace: true });
+      }
+    }
+  }, [
+    isInitializing,
+    isLoadingRole,
+    isLoggedIn,
+    user,
+    location.pathname,
+    navigate,
+  ]);
+
   // Debug logging for user state
   useEffect(() => {
     console.log("🔍 App Debug - Current user:", user);
     console.log("🔍 App Debug - Is logged in:", isLoggedIn);
     console.log("🔍 App Debug - Current location:", location.pathname);
     console.log("🔍 App Debug - User role:", user?.role);
-  }, [user, isLoggedIn, location.pathname]);
+    console.log("🔍 App Debug - Is initializing:", isInitializing);
+    console.log("🔍 App Debug - Is loading role:", isLoadingRole);
+  }, [user, isLoggedIn, location.pathname, isInitializing, isLoadingRole]);
 
   // Hide header on these specific pages
   const shouldHideHeader =
@@ -91,6 +202,25 @@ function App() {
   useEffect(() => {
     // Don't auto-close sidebar when navigating
   }, [location.pathname]);
+
+  // Show loading screen while initializing or loading role
+  if (isInitializing || (isLoggedIn && isLoadingRole)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <div className="space-y-2">
+            <p className="text-lg font-medium">Loading...</p>
+            <p className="text-sm text-muted-foreground">
+              {isInitializing
+                ? "Initializing application"
+                : "Determining user permissions"}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Protected route component
   const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {

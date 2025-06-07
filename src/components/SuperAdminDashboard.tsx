@@ -52,6 +52,7 @@ import {
   Upload,
   RefreshCw,
   LogIn,
+  LogOut,
   CheckCircle2,
   XCircle,
   Clock,
@@ -406,6 +407,22 @@ const SuperAdminDashboard = () => {
     }
   };
 
+  const handleLogout = () => {
+    // Clear user data
+    setUser(null);
+    // Clear any stored data
+    localStorage.removeItem("user");
+    localStorage.removeItem("superAdminUser");
+    // Navigate to login page
+    navigate("/login");
+    addNotification({
+      title: "Logged Out",
+      message: "You have been successfully logged out.",
+      type: "success",
+      priority: "medium",
+    });
+  };
+
   const impersonateTenant = async (tenant: Organization) => {
     if (!tenant.tenant_id) {
       addNotification({
@@ -531,12 +548,14 @@ const SuperAdminDashboard = () => {
       <header className="sticky top-0 z-10 border-b bg-background">
         <div className="flex h-16 items-center px-4 md:px-6">
           <BackButton />
-          <div className="ml-auto">
-            <Link to="/">
-              <Button variant="outline" className="flex items-center gap-2">
-                <Users className="h-4 w-4" /> Dashboard
-              </Button>
-            </Link>
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-4 w-4" /> Log Out
+            </Button>
           </div>
         </div>
       </header>
