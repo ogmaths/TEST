@@ -34,6 +34,7 @@ export default function LoginPage() {
       { email: "parents1stadmin@example.com", password: "parents1stadmin" },
       { email: "demoadmin@example.com", password: "demoadmin" },
       { email: "staff@example.com", password: "staff123" },
+      { email: "sales@example.com", password: "sales123" },
     ];
 
     const isValidCredential = validCredentials.some(
@@ -127,6 +128,14 @@ export default function LoginPage() {
           organizationName: "Demo Organization",
           organizationColor: "#8b5cf6",
           isOrgAdmin: true,
+        });
+      } else if (email === "sales@example.com") {
+        setUser({
+          id: "9",
+          name: "Sales Manager",
+          email: email,
+          role: "sales",
+          tenantId: "4", // Sales tenant ID
         });
       } else {
         setUser({
@@ -260,6 +269,7 @@ export default function LoginPage() {
                 <div className="text-xs text-blue-700 space-y-1">
                   <div>Admin: admin@example.com / admin123</div>
                   <div>Staff: staff@example.com / staff123</div>
+                  <div>Sales: sales@example.com / sales123</div>
                 </div>
               </div>
             </CardContent>

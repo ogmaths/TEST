@@ -34,6 +34,7 @@ import UserHeader from "./components/UserHeader";
 import NotificationCenter from "./components/NotificationCenter";
 import OrganizationSwitcher from "./components/OrganizationSwitcher";
 import SuperAdminDashboard from "./components/SuperAdminDashboard";
+import SalesDashboard from "./components/SalesDashboard";
 import ViewAssessment from "./components/ViewAssessment";
 import AssessmentForm from "./components/AssessmentForm";
 import AssessmentBuilderPage from "./components/AssessmentBuilderPage";
@@ -145,12 +146,16 @@ function App() {
       }
 
       // Determine correct dashboard based on role
-      let targetPath = "/dashboard"; // default for support workers
+      let targetPath = "/support-dashboard"; // default for support workers
 
       if (user.role === "super_admin" || user.tenantId === "0") {
-        targetPath = "/super-admin";
+        targetPath = "/super-admin-dashboard";
       } else if (user.role === "admin" || user.role === "org_admin") {
         targetPath = "/admin";
+      } else if (user.role === "sales") {
+        targetPath = "/sales-dashboard";
+      } else if (user.role === "support_worker") {
+        targetPath = "/support-dashboard";
       }
 
       console.log(
@@ -278,11 +283,92 @@ function App() {
     console.log("🔍 AdminRoute - Is admin check:", isAdmin);
 
     if (!isAdmin) {
-      console.log("🔍 AdminRoute - Access denied, redirecting to dashboard");
-      return <Navigate to="/dashboard" replace />;
+      console.log(
+        "🔍 AdminRoute - Access denied, redirecting to appropriate dashboard",
+      );
+      // Redirect to appropriate dashboard based on role
+      if (user.role === "sales") {
+        return <Navigate to="/sales-dashboard" replace />;
+      } else if (user.role === "support_worker") {
+        return <Navigate to="/support-dashboard" replace />;
+      } else {
+        return <Navigate to="/support-dashboard" replace />;
+      }
     }
 
     console.log("🔍 AdminRoute - Rendering admin content");
+    return <>{children}</>;
+  };
+
+  // Role-specific route protection components
+  const SalesRoute = ({ children }: { children: React.ReactNode }) => {
+    if (!isLoggedIn) {
+      return <Navigate to="/login" replace />;
+    }
+
+    if (!user?.hasAcceptedConfidentiality) {
+      return <Navigate to="/confidentiality-agreement" replace />;
+    }
+
+    if (user?.role !== "sales") {
+      // Redirect to appropriate dashboard based on role
+      if (user?.role === "super_admin" || user?.tenantId === "0") {
+        return <Navigate to="/super-admin-dashboard" replace />;
+      } else if (user?.role === "admin" || user?.role === "org_admin") {
+        return <Navigate to="/admin" replace />;
+      } else {
+        return <Navigate to="/support-dashboard" replace />;
+      }
+    }
+
+    return <>{children}</>;
+  };
+
+  const SupportWorkerRoute = ({ children }: { children: React.ReactNode }) => {
+    if (!isLoggedIn) {
+      return <Navigate to="/login" replace />;
+    }
+
+    if (!user?.hasAcceptedConfidentiality) {
+      return <Navigate to="/confidentiality-agreement" replace />;
+    }
+
+    if (user?.role !== "support_worker") {
+      // Redirect to appropriate dashboard based on role
+      if (user?.role === "super_admin" || user?.tenantId === "0") {
+        return <Navigate to="/super-admin-dashboard" replace />;
+      } else if (user?.role === "admin" || user?.role === "org_admin") {
+        return <Navigate to="/admin" replace />;
+      } else if (user?.role === "sales") {
+        return <Navigate to="/sales-dashboard" replace />;
+      } else {
+        return <Navigate to="/support-dashboard" replace />;
+      }
+    }
+
+    return <>{children}</>;
+  };
+
+  const SuperAdminRoute = ({ children }: { children: React.ReactNode }) => {
+    if (!isLoggedIn) {
+      return <Navigate to="/login" replace />;
+    }
+
+    if (!user?.hasAcceptedConfidentiality) {
+      return <Navigate to="/confidentiality-agreement" replace />;
+    }
+
+    if (user?.role !== "super_admin" && user?.tenantId !== "0") {
+      // Redirect to appropriate dashboard based on role
+      if (user?.role === "admin" || user?.role === "org_admin") {
+        return <Navigate to="/admin" replace />;
+      } else if (user?.role === "sales") {
+        return <Navigate to="/sales-dashboard" replace />;
+      } else {
+        return <Navigate to="/support-dashboard" replace />;
+      }
+    }
+
     return <>{children}</>;
   };
 
@@ -312,54 +398,109 @@ function App() {
                             </div>
                             <div className="flex-1 py-4">
                               <nav className="space-y-1 px-2">
-                                <Link
-                                  to="/dashboard"
-                                  onClick={() => setSidebarOpen(false)}
-                                >
-                                  <Button
-                                    variant="ghost"
-                                    className="w-full justify-start"
+                                {/* Sales Dashboard - Only for sales role */}
+                                {user?.role === "sales" && (
+                                  <Link
+                                    to="/sales-dashboard"
+                                    onClick={() => setSidebarOpen(false)}
                                   >
-                                    <HomeIcon className="mr-2 h-4 w-4" />
-                                    Dashboard
-                                  </Button>
-                                </Link>
-                                <Link
-                                  to="/clients"
-                                  onClick={() => setSidebarOpen(false)}
-                                >
-                                  <Button
-                                    variant="ghost"
-                                    className="w-full justify-start"
+                                    <Button
+                                      variant="ghost"
+                                      className="w-full justify-start"
+                                    >
+                                      <BarChart2 className="mr-2 h-4 w-4" />
+                                      Sales Dashboard
+                                    </Button>
+                                  </Link>
+                                )}
+
+                                {/* Support Worker Dashboard - Only for support_worker role */}
+                                {user?.role === "support_worker" && (
+                                  <>
+                                    <Link
+                                      to="/support-dashboard"
+                                      onClick={() => setSidebarOpen(false)}
+                                    >
+                                      <Button
+                                        variant="ghost"
+                                        className="w-full justify-start"
+                                      >
+                                        <HomeIcon className="mr-2 h-4 w-4" />
+                                        Support Dashboard
+                                      </Button>
+                                    </Link>
+                                    <Link
+                                      to="/clients"
+                                      onClick={() => setSidebarOpen(false)}
+                                    >
+                                      <Button
+                                        variant="ghost"
+                                        className="w-full justify-start"
+                                      >
+                                        <Users className="mr-2 h-4 w-4" />
+                                        Clients
+                                      </Button>
+                                    </Link>
+                                    <Link
+                                      to="/events"
+                                      onClick={() => setSidebarOpen(false)}
+                                    >
+                                      <Button
+                                        variant="ghost"
+                                        className="w-full justify-start"
+                                      >
+                                        <Calendar className="mr-2 h-4 w-4" />
+                                        Events
+                                      </Button>
+                                    </Link>
+                                    <Link
+                                      to="/assessments"
+                                      onClick={() => setSidebarOpen(false)}
+                                    >
+                                      <Button
+                                        variant="ghost"
+                                        className="w-full justify-start"
+                                      >
+                                        <FileText className="mr-2 h-4 w-4" />
+                                        Assessments
+                                      </Button>
+                                    </Link>
+                                  </>
+                                )}
+
+                                {/* Super Admin Dashboard - Only for super_admin role */}
+                                {(user?.role === "super_admin" ||
+                                  user?.tenantId === "0") && (
+                                  <Link
+                                    to="/super-admin-dashboard"
+                                    onClick={() => setSidebarOpen(false)}
                                   >
-                                    <Users className="mr-2 h-4 w-4" />
-                                    Clients
-                                  </Button>
-                                </Link>
-                                <Link
-                                  to="/events"
-                                  onClick={() => setSidebarOpen(false)}
-                                >
-                                  <Button
-                                    variant="ghost"
-                                    className="w-full justify-start"
+                                    <Button
+                                      variant="ghost"
+                                      className="w-full justify-start"
+                                    >
+                                      <Settings className="mr-2 h-4 w-4" />
+                                      Super Admin
+                                    </Button>
+                                  </Link>
+                                )}
+
+                                {/* Admin Dashboard - Only for admin/org_admin roles */}
+                                {(user?.role === "admin" ||
+                                  user?.role === "org_admin") && (
+                                  <Link
+                                    to="/admin"
+                                    onClick={() => setSidebarOpen(false)}
                                   >
-                                    <Calendar className="mr-2 h-4 w-4" />
-                                    Events
-                                  </Button>
-                                </Link>
-                                <Link
-                                  to="/assessments"
-                                  onClick={() => setSidebarOpen(false)}
-                                >
-                                  <Button
-                                    variant="ghost"
-                                    className="w-full justify-start"
-                                  >
-                                    <FileText className="mr-2 h-4 w-4" />
-                                    Assessments
-                                  </Button>
-                                </Link>
+                                    <Button
+                                      variant="ghost"
+                                      className="w-full justify-start"
+                                    >
+                                      <Settings className="mr-2 h-4 w-4" />
+                                      Admin Dashboard
+                                    </Button>
+                                  </Link>
+                                )}
                               </nav>
                             </div>
                             <div className="p-4 border-t">
@@ -406,28 +547,59 @@ function App() {
                   }
                 />
 
+                {/* Sales Dashboard Route */}
+                <Route
+                  path="/sales-dashboard"
+                  element={
+                    <SalesRoute>
+                      <SalesDashboard />
+                    </SalesRoute>
+                  }
+                />
+
+                {/* Support Worker Dashboard Route */}
+                <Route
+                  path="/support-dashboard"
+                  element={
+                    <SupportWorkerRoute>
+                      <Home />
+                    </SupportWorkerRoute>
+                  }
+                />
+
+                {/* Legacy dashboard route - redirect based on role */}
                 <Route
                   path="/dashboard"
                   element={
                     <ProtectedRoute>
-                      <Home />
+                      {user?.role === "sales" ? (
+                        <Navigate to="/sales-dashboard" replace />
+                      ) : user?.role === "super_admin" ||
+                        user?.tenantId === "0" ? (
+                        <Navigate to="/super-admin-dashboard" replace />
+                      ) : user?.role === "admin" ||
+                        user?.role === "org_admin" ? (
+                        <Navigate to="/admin" replace />
+                      ) : (
+                        <Navigate to="/support-dashboard" replace />
+                      )}
                     </ProtectedRoute>
                   }
                 />
                 <Route
                   path="/clients"
                   element={
-                    <ProtectedRoute>
+                    <SupportWorkerRoute>
                       <ClientsPage />
-                    </ProtectedRoute>
+                    </SupportWorkerRoute>
                   }
                 />
                 <Route
                   path="/clients/new"
                   element={
-                    <ProtectedRoute>
+                    <SupportWorkerRoute>
                       <NewClientForm />
-                    </ProtectedRoute>
+                    </SupportWorkerRoute>
                   }
                 />
 
@@ -450,17 +622,17 @@ function App() {
                 <Route
                   path="/events"
                   element={
-                    <ProtectedRoute>
+                    <SupportWorkerRoute>
                       <EventsPage />
-                    </ProtectedRoute>
+                    </SupportWorkerRoute>
                   }
                 />
                 <Route
                   path="/events/new"
                   element={
-                    <ProtectedRoute>
+                    <SupportWorkerRoute>
                       <NewEventForm />
-                    </ProtectedRoute>
+                    </SupportWorkerRoute>
                   }
                 />
                 <Route
@@ -558,9 +730,18 @@ function App() {
                 <Route
                   path="/super-admin"
                   element={
-                    <ProtectedRoute>
+                    <SuperAdminRoute>
                       <SuperAdminDashboard />
-                    </ProtectedRoute>
+                    </SuperAdminRoute>
+                  }
+                />
+
+                <Route
+                  path="/super-admin-dashboard"
+                  element={
+                    <SuperAdminRoute>
+                      <SuperAdminDashboard />
+                    </SuperAdminRoute>
                   }
                 />
 
@@ -599,13 +780,13 @@ function App() {
                 <Route
                   path="/assessments"
                   element={
-                    <ProtectedRoute>
+                    <SupportWorkerRoute>
                       {user?.role === "admin" ? (
                         <AssessmentsPage />
                       ) : (
                         <WorkerAssessments />
                       )}
-                    </ProtectedRoute>
+                    </SupportWorkerRoute>
                   }
                 />
 
