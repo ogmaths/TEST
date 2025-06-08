@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";
 import {
   Card,
@@ -26,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   TrendingUp,
   Users,
@@ -40,12 +40,15 @@ import {
   Building2,
   User,
   BarChart3,
+  Clock,
+  Award,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useUser } from "@/context/UserContext";
 import { cn } from "@/lib/utils";
+import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 
 interface Lead {
   id: number;
@@ -60,6 +63,7 @@ interface Lead {
   value: number;
   assigned_to: string;
   created_at: string;
+  source: string;
 }
 
 const STAGES = {
@@ -72,6 +76,18 @@ const STAGES = {
   },
   closed_won: { label: "Closed-Won", color: "bg-green-100 text-green-800" },
   closed_lost: { label: "Closed-Lost", color: "bg-red-100 text-red-800" },
+};
+
+const SOURCES = {
+  linkedin: { label: "LinkedIn" },
+  companies_house: {
+    label: "Companies House",
+  },
+  directory: { label: "Directory" },
+  google: { label: "Google" },
+  chatgpt: { label: "ChatGPT" },
+  referral: { label: "Referral" },
+  website_form: { label: "Website Form" },
 };
 
 const SalesDashboard = () => {
@@ -90,6 +106,7 @@ const SalesDashboard = () => {
     next_action_date: "",
     notes: "",
     value: 0,
+    source: "linkedin",
   });
 
   // Sample leads data - in a real app, this would come from Supabase
@@ -107,6 +124,7 @@ const SalesDashboard = () => {
       value: 15000,
       assigned_to: user?.id || "current_user",
       created_at: "2024-01-15T10:00:00Z",
+      source: "linkedin",
     },
     {
       id: 2,
@@ -121,6 +139,7 @@ const SalesDashboard = () => {
       value: 8500,
       assigned_to: user?.id || "current_user",
       created_at: "2024-01-14T14:30:00Z",
+      source: "referral",
     },
     {
       id: 3,
@@ -135,6 +154,7 @@ const SalesDashboard = () => {
       value: 25000,
       assigned_to: user?.id || "current_user",
       created_at: "2024-01-13T09:15:00Z",
+      source: "google",
     },
     {
       id: 4,
@@ -149,6 +169,7 @@ const SalesDashboard = () => {
       value: 12000,
       assigned_to: user?.id || "current_user",
       created_at: "2024-01-16T16:45:00Z",
+      source: "website_form",
     },
     {
       id: 5,
@@ -163,45 +184,9 @@ const SalesDashboard = () => {
       value: 18000,
       assigned_to: user?.id || "current_user",
       created_at: "2024-01-10T11:20:00Z",
+      source: "directory",
     },
   ]);
-
-  const handleDragEnd = (result: any) => {
-    if (!result.destination) return;
-
-    const { source, destination, draggableId } = result;
-
-    // Only return early if dropped in the exact same position
-    if (
-      source.droppableId === destination.droppableId &&
-      source.index === destination.index
-    ) {
-      return;
-    }
-
-    const leadId = parseInt(draggableId);
-    const newStage = destination.droppableId;
-
-    // Update the lead's stage
-    setLeads((prevLeads) => {
-      const updatedLeads = [...prevLeads];
-      const leadIndex = updatedLeads.findIndex((lead) => lead.id === leadId);
-
-      if (leadIndex !== -1) {
-        // Update the stage
-        updatedLeads[leadIndex] = {
-          ...updatedLeads[leadIndex],
-          stage: newStage,
-        };
-      }
-
-      return updatedLeads;
-    });
-
-    // In a real application, you would also update the database here
-    // Example: await updateLeadStage(leadId, newStage);
-    console.log(`Lead ${leadId} moved to stage: ${newStage}`);
-  };
 
   const handleAddLead = () => {
     if (!newLead.lead_name || !newLead.email) return;
@@ -224,6 +209,7 @@ const SalesDashboard = () => {
       next_action_date: "",
       notes: "",
       value: 0,
+      source: "linkedin",
     });
     setShowAddLeadDialog(false);
   };
@@ -253,11 +239,67 @@ const SalesDashboard = () => {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat("en-GB", {
       style: "currency",
-      currency: "USD",
+      currency: "GBP",
       minimumFractionDigits: 0,
     }).format(amount);
+  };
+
+  const handleDragEnd = (result: any) => {
+    if (!result.destination) return;
+
+    const { source, destination, draggableId } = result;
+
+    if (source.droppableId === destination.droppableId) return;
+
+    const leadId = parseInt(draggableId);
+    const newStage = destination.droppableId;
+
+    setLeads((prevLeads) =>
+      prevLeads.map((lead) =>
+        lead.id === leadId ? { ...lead, stage: newStage } : lead,
+      ),
+    );
+  };
+
+  const getTopSource = () => {
+    const closedWonLeads = leads.filter((lead) => lead.stage === "closed_won");
+    if (closedWonLeads.length === 0) return { source: "N/A", count: 0 };
+
+    const sourceCounts = closedWonLeads.reduce(
+      (acc, lead) => {
+        acc[lead.source] = (acc[lead.source] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+
+    const topSource = Object.entries(sourceCounts).reduce((a, b) =>
+      sourceCounts[a[0]] > sourceCounts[b[0]] ? a : b,
+    );
+
+    return {
+      source:
+        SOURCES[topSource[0] as keyof typeof SOURCES]?.label || topSource[0],
+      count: topSource[1],
+    };
+  };
+
+  const getAverageTimeToClose = () => {
+    const closedWonLeads = leads.filter((lead) => lead.stage === "closed_won");
+    if (closedWonLeads.length === 0) return 0;
+
+    const totalDays = closedWonLeads.reduce((sum, lead) => {
+      const createdDate = new Date(lead.created_at);
+      const closedDate = new Date(); // In real app, this would be the actual close date
+      const daysDiff = Math.floor(
+        (closedDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      return sum + daysDiff;
+    }, 0);
+
+    return Math.round(totalDays / closedWonLeads.length);
   };
 
   const LeadCard = ({ lead, index }: { lead: Lead; index: number }) => (
@@ -267,12 +309,14 @@ const SalesDashboard = () => {
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={cn(
-            "mb-3 transition-all duration-200",
-            snapshot.isDragging && "rotate-2 shadow-lg",
-          )}
+          className="mb-3"
         >
-          <Card className="hover:shadow-md transition-shadow cursor-move bg-white">
+          <Card
+            className={cn(
+              "hover:shadow-md transition-shadow bg-white",
+              snapshot.isDragging && "shadow-lg rotate-2",
+            )}
+          >
             <CardContent className="p-4">
               <div className="space-y-3">
                 {/* Header with name and status */}
@@ -308,12 +352,17 @@ const SalesDashboard = () => {
                   </div>
                 </div>
 
-                {/* Value */}
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-3 w-3 text-green-600" />
-                  <span className="text-sm font-medium text-green-600">
-                    {formatCurrency(lead.value)}
-                  </span>
+                {/* Value and Source */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="h-3 w-3 text-green-600" />
+                    <span className="text-sm font-medium text-green-600">
+                      {formatCurrency(lead.value)}
+                    </span>
+                  </div>
+                  <Badge className="text-xs">
+                    {SOURCES[lead.source as keyof typeof SOURCES]?.label}
+                  </Badge>
                 </div>
 
                 {/* Notes */}
@@ -387,22 +436,11 @@ const SalesDashboard = () => {
           <div className="space-y-2">
             <Button
               variant="ghost"
-              className="w-full justify-start text-left font-medium bg-primary/10 text-primary"
-            >
-              <Users className="mr-3 h-4 w-4" />
-              My Leads
-            </Button>
-            <Button
-              variant="ghost"
               className="w-full justify-start text-left"
               onClick={() => setShowAddLeadDialog(true)}
             >
               <Plus className="mr-3 h-4 w-4" />
               Add Lead
-            </Button>
-            <Button variant="ghost" className="w-full justify-start text-left">
-              <TrendingUp className="mr-3 h-4 w-4" />
-              Performance
             </Button>
           </div>
         </nav>
@@ -456,54 +494,285 @@ const SalesDashboard = () => {
             </div>
           </div>
 
-          {/* Kanban Board */}
-          <div className="flex-1 overflow-x-auto p-6">
-            <DragDropContext onDragEnd={handleDragEnd}>
-              <div className="flex gap-6 min-w-max">
-                {Object.entries(STAGES).map(([stageKey, stageInfo]) => {
-                  const stageLeads = getLeadsByStage(stageKey);
-                  return (
-                    <div key={stageKey} className="w-80 flex-shrink-0">
-                      <div className="bg-muted/30 rounded-lg p-4 h-full">
-                        {/* Column Header */}
-                        <div className="flex items-center justify-between mb-4">
-                          <h3 className="font-semibold text-sm">
-                            {stageInfo.label}
-                          </h3>
-                          <Badge variant="secondary" className="text-xs">
-                            {stageLeads.length}
-                          </Badge>
-                        </div>
+          {/* Main Content Tabs */}
+          <div className="flex-1 overflow-hidden p-6">
+            <Tabs defaultValue="pipeline" className="h-full flex flex-col">
+              <TabsList className="grid w-full grid-cols-2 max-w-md">
+                <TabsTrigger
+                  value="pipeline"
+                  className="flex items-center gap-2"
+                >
+                  <Users className="h-4 w-4" />
+                  My Leads
+                </TabsTrigger>
+                <TabsTrigger
+                  value="performance"
+                  className="flex items-center gap-2"
+                >
+                  <TrendingUp className="h-4 w-4" />
+                  Performance
+                </TabsTrigger>
+              </TabsList>
 
-                        {/* Droppable Area */}
-                        <Droppable droppableId={stageKey}>
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.droppableProps}
-                              className={cn(
-                                "min-h-[200px] transition-colors",
-                                snapshot.isDraggingOver &&
-                                  "bg-primary/5 rounded-lg",
-                              )}
-                            >
-                              {stageLeads.map((lead, index) => (
-                                <LeadCard
-                                  key={lead.id}
-                                  lead={lead}
-                                  index={index}
-                                />
-                              ))}
-                              {provided.placeholder}
+              <TabsContent
+                value="pipeline"
+                className="flex-1 overflow-x-auto mt-6"
+              >
+                <DragDropContext onDragEnd={handleDragEnd}>
+                  <div className="flex gap-6 min-w-max">
+                    {Object.entries(STAGES).map(([stageKey, stageInfo]) => {
+                      const stageLeads = getLeadsByStage(stageKey);
+                      return (
+                        <div key={stageKey} className="w-80 flex-shrink-0">
+                          <div className="bg-muted/30 rounded-lg p-4 h-full">
+                            {/* Column Header */}
+                            <div className="flex items-center justify-between mb-4">
+                              <h3 className="font-semibold text-sm">
+                                {stageInfo.label}
+                              </h3>
+                              <Badge variant="secondary" className="text-xs">
+                                {stageLeads.length}
+                              </Badge>
                             </div>
-                          )}
-                        </Droppable>
+
+                            {/* Leads List */}
+                            <Droppable droppableId={stageKey}>
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.droppableProps}
+                                  className={cn(
+                                    "min-h-[200px] transition-colors",
+                                    snapshot.isDraggingOver &&
+                                      "bg-muted/50 rounded-md",
+                                  )}
+                                >
+                                  {stageLeads.map((lead, index) => (
+                                    <LeadCard
+                                      key={lead.id}
+                                      lead={lead}
+                                      index={index}
+                                    />
+                                  ))}
+                                  {provided.placeholder}
+                                </div>
+                              )}
+                            </Droppable>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </DragDropContext>
+              </TabsContent>
+
+              <TabsContent value="performance" className="flex-1 mt-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                  {/* Top Source */}
+                  <Card className="bg-white">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-blue-100 rounded-lg">
+                          <Award className="h-6 w-6 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">
+                            Top Source
+                          </p>
+                          <p className="text-2xl font-bold">
+                            {getTopSource().source}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {getTopSource().count} closed deals
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </DragDropContext>
+                    </CardContent>
+                  </Card>
+
+                  {/* Time to Close */}
+                  <Card className="bg-white">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-green-100 rounded-lg">
+                          <Clock className="h-6 w-6 text-green-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">
+                            Avg Time to Close
+                          </p>
+                          <p className="text-2xl font-bold">
+                            {getAverageTimeToClose()}
+                          </p>
+                          <p className="text-xs text-muted-foreground">days</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Total Pipeline Value */}
+                  <Card className="bg-white">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-purple-100 rounded-lg">
+                          <DollarSign className="h-6 w-6 text-purple-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">
+                            Pipeline Value
+                          </p>
+                          <p className="text-2xl font-bold">
+                            {formatCurrency(
+                              leads.reduce((sum, lead) => sum + lead.value, 0),
+                            )}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            total value
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Conversion Rate */}
+                  <Card className="bg-white">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-orange-100 rounded-lg">
+                          <Target className="h-6 w-6 text-orange-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">
+                            Conversion Rate
+                          </p>
+                          <p className="text-2xl font-bold">
+                            {leads.length > 0
+                              ? Math.round(
+                                  (leads.filter((l) => l.stage === "closed_won")
+                                    .length /
+                                    leads.length) *
+                                    100,
+                                )
+                              : 0}
+                            %
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {
+                              leads.filter((l) => l.stage === "closed_won")
+                                .length
+                            }{" "}
+                            of {leads.length} leads
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Performance Charts Placeholder */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card className="bg-white">
+                    <CardHeader>
+                      <CardTitle className="text-lg">
+                        Lead Sources Performance
+                      </CardTitle>
+                      <CardDescription>
+                        Breakdown of leads by source and their success rates
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {Object.entries(SOURCES).map(
+                          ([sourceKey, sourceInfo]) => {
+                            const sourceLeads = leads.filter(
+                              (l) => l.source === sourceKey,
+                            );
+                            const closedWon = sourceLeads.filter(
+                              (l) => l.stage === "closed_won",
+                            ).length;
+                            const conversionRate =
+                              sourceLeads.length > 0
+                                ? Math.round(
+                                    (closedWon / sourceLeads.length) * 100,
+                                  )
+                                : 0;
+
+                            return (
+                              <div
+                                key={sourceKey}
+                                className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
+                              >
+                                <div>
+                                  <p className="font-medium text-sm">
+                                    {sourceInfo.label}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {sourceLeads.length} leads • {closedWon}{" "}
+                                    closed
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-bold text-sm">
+                                    {conversionRate}%
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    conversion
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          },
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-white">
+                    <CardHeader>
+                      <CardTitle className="text-lg">Pipeline Health</CardTitle>
+                      <CardDescription>
+                        Overview of your sales pipeline stages
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {Object.entries(STAGES).map(([stageKey, stageInfo]) => {
+                          const stageLeads = getLeadsByStage(stageKey);
+                          const stageValue = stageLeads.reduce(
+                            (sum, lead) => sum + lead.value,
+                            0,
+                          );
+
+                          return (
+                            <div
+                              key={stageKey}
+                              className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
+                            >
+                              <div>
+                                <p className="font-medium text-sm">
+                                  {stageInfo.label}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {stageLeads.length} leads
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-bold text-sm">
+                                  {formatCurrency(stageValue)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  value
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
       </div>
@@ -606,6 +875,26 @@ const SalesDashboard = () => {
                   placeholder="Enter deal value"
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lead-source">Source</Label>
+              <Select
+                value={newLead.source}
+                onValueChange={(value) =>
+                  setNewLead({ ...newLead, source: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select source" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(SOURCES).map(([key, source]) => (
+                    <SelectItem key={key} value={key}>
+                      {source.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="lead-notes">Notes</Label>
@@ -743,6 +1032,26 @@ const SalesDashboard = () => {
                     placeholder="Enter deal value"
                   />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-lead-source">Source</Label>
+                <Select
+                  value={selectedLead.source}
+                  onValueChange={(value) =>
+                    setSelectedLead({ ...selectedLead, source: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select source" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(SOURCES).map(([key, source]) => (
+                      <SelectItem key={key} value={key}>
+                        {source.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-lead-notes">Notes</Label>
