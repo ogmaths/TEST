@@ -27,6 +27,20 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
   TrendingUp,
   Users,
   DollarSign,
@@ -42,6 +56,9 @@ import {
   BarChart3,
   Clock,
   Award,
+  Menu,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -96,6 +113,10 @@ const SalesDashboard = () => {
   const [showAddLeadDialog, setShowAddLeadDialog] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [expandedLeadCards, setExpandedLeadCards] = useState<Set<number>>(
+    new Set(),
+  );
   const [newLead, setNewLead] = useState({
     lead_name: "",
     email: "",
@@ -302,186 +323,327 @@ const SalesDashboard = () => {
     return Math.round(totalDays / closedWonLeads.length);
   };
 
-  const LeadCard = ({ lead, index }: { lead: Lead; index: number }) => (
-    <Draggable draggableId={lead.id.toString()} index={index}>
-      {(provided, snapshot) => (
-        <div
-          ref={provided.innerRef}
-          {...provided.draggableProps}
-          {...provided.dragHandleProps}
-          className="mb-3"
-        >
-          <Card
-            className={cn(
-              "hover:shadow-md transition-shadow bg-white",
-              snapshot.isDragging && "shadow-lg rotate-2",
-            )}
+  const toggleLeadExpansion = (leadId: number) => {
+    const newExpanded = new Set(expandedLeadCards);
+    if (newExpanded.has(leadId)) {
+      newExpanded.delete(leadId);
+    } else {
+      newExpanded.add(leadId);
+    }
+    setExpandedLeadCards(newExpanded);
+  };
+
+  const LeadCard = ({ lead, index }: { lead: Lead; index: number }) => {
+    const isExpanded = expandedLeadCards.has(lead.id);
+
+    return (
+      <Draggable draggableId={lead.id.toString()} index={index}>
+        {(provided, snapshot) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.draggableProps}
+            {...provided.dragHandleProps}
+            className="mb-3"
           >
-            <CardContent className="p-4">
-              <div className="space-y-3">
-                {/* Header with name and status */}
-                <div className="flex items-start justify-between">
-                  <h4 className="font-semibold text-sm truncate pr-2">
-                    {lead.lead_name}
-                  </h4>
-                  <Badge
-                    className={cn(
-                      "text-xs",
-                      STAGES[lead.stage as keyof typeof STAGES]?.color,
-                    )}
-                  >
-                    {STAGES[lead.stage as keyof typeof STAGES]?.label}
-                  </Badge>
-                </div>
-
-                {/* Organization */}
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Building2 className="h-3 w-3" />
-                  <span className="truncate">{lead.organization_name}</span>
-                </div>
-
-                {/* Contact info */}
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Mail className="h-3 w-3" />
-                    <span className="truncate">{lead.email}</span>
+            <Card
+              className={cn(
+                "hover:shadow-md transition-shadow bg-white",
+                snapshot.isDragging && "shadow-lg rotate-2",
+              )}
+            >
+              <CardContent className="p-3 sm:p-4">
+                <div className="space-y-2 sm:space-y-3">
+                  {/* Header with name, status, and expand button */}
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-sm sm:text-base truncate pr-2">
+                        {lead.lead_name}
+                      </h4>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge
+                          className={cn(
+                            "text-xs",
+                            STAGES[lead.stage as keyof typeof STAGES]?.color,
+                          )}
+                        >
+                          {STAGES[lead.stage as keyof typeof STAGES]?.label}
+                        </Badge>
+                        <Badge className="text-xs">
+                          {SOURCES[lead.source as keyof typeof SOURCES]?.label}
+                        </Badge>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 sm:hidden"
+                      onClick={() => toggleLeadExpansion(lead.id)}
+                    >
+                      {isExpanded ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </Button>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Phone className="h-3 w-3" />
-                    <span>{lead.phone}</span>
-                  </div>
-                </div>
 
-                {/* Value and Source */}
-                <div className="flex items-center justify-between">
+                  {/* Value - Always visible */}
                   <div className="flex items-center gap-2">
-                    <DollarSign className="h-3 w-3 text-green-600" />
-                    <span className="text-sm font-medium text-green-600">
+                    <DollarSign className="h-4 w-4 text-green-600" />
+                    <span className="text-sm sm:text-base font-medium text-green-600">
                       {formatCurrency(lead.value)}
                     </span>
                   </div>
-                  <Badge className="text-xs">
-                    {SOURCES[lead.source as keyof typeof SOURCES]?.label}
-                  </Badge>
-                </div>
 
-                {/* Notes */}
-                {lead.notes && (
-                  <p className="text-xs text-muted-foreground bg-muted p-2 rounded text-wrap break-words">
-                    {lead.notes}
-                  </p>
-                )}
-
-                {/* Last contact */}
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Calendar className="h-3 w-3" />
-                  <span>Created: {formatDate(lead.created_at)}</span>
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-2 pt-2 border-t">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-xs"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedLead(lead);
-                      setShowEditDialog(true);
-                    }}
+                  {/* Collapsible content on mobile, always visible on desktop */}
+                  <div
+                    className={cn(
+                      "space-y-2 sm:space-y-3",
+                      "sm:block", // Always show on desktop
+                      isExpanded ? "block" : "hidden sm:block", // Show/hide on mobile based on expansion
+                    )}
                   >
-                    <Edit className="h-3 w-3 mr-1" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-xs text-red-500 hover:text-red-700"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteLead(lead.id);
-                    }}
-                  >
-                    <Trash2 className="h-3 w-3 mr-1" />
-                    Delete
-                  </Button>
+                    {/* Organization */}
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Building2 className="h-4 w-4" />
+                      <span className="truncate">{lead.organization_name}</span>
+                    </div>
+
+                    {/* Contact info */}
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Mail className="h-4 w-4" />
+                        <span className="truncate">{lead.email}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Phone className="h-4 w-4" />
+                        <span>{lead.phone}</span>
+                      </div>
+                    </div>
+
+                    {/* Notes */}
+                    {lead.notes && (
+                      <p className="text-sm text-muted-foreground bg-muted p-2 rounded text-wrap break-words">
+                        {lead.notes}
+                      </p>
+                    )}
+
+                    {/* Last contact */}
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Calendar className="h-4 w-4" />
+                      <span>Created: {formatDate(lead.created_at)}</span>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2 pt-2 border-t">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-11 px-3 text-sm min-w-[44px]" // Increased touch target
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedLead(lead);
+                          setShowEditDialog(true);
+                        }}
+                      >
+                        <Edit className="h-4 w-4 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-11 px-3 text-sm text-red-500 hover:text-red-700 min-w-[44px]" // Increased touch target
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteLead(lead.id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-    </Draggable>
-  );
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </Draggable>
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Left Sidebar */}
-      <div className="w-64 bg-white border-r border-border flex flex-col">
-        {/* Logo */}
-        <div className="p-6 border-b border-border">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <BarChart3 className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="font-bold text-lg">OGSTAT</h1>
-              <p className="text-xs text-muted-foreground">CRM</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 p-4">
-          <div className="space-y-2">
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-left"
-              onClick={() => setShowAddLeadDialog(true)}
-            >
-              <Plus className="mr-3 h-4 w-4" />
-              Add Lead
-            </Button>
-          </div>
-        </nav>
-
-        {/* User info */}
-        <div className="p-4 border-t border-border">
+    <div className="min-h-screen bg-background">
+      {/* Mobile Header */}
+      <div className="lg:hidden bg-white border-b border-border p-4">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-              <User className="h-4 w-4 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">
-                {user?.name || "Sales Rep"}
-              </p>
-              <p className="text-xs text-muted-foreground truncate">
-                Sales Team
-              </p>
+            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-11 w-11 p-0">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-80">
+                <SheetHeader>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                      <BarChart3 className="h-5 w-5 text-primary-foreground" />
+                    </div>
+                    <div>
+                      <SheetTitle className="text-lg font-bold">
+                        OGSTAT
+                      </SheetTitle>
+                      <SheetDescription className="text-xs">
+                        CRM
+                      </SheetDescription>
+                    </div>
+                  </div>
+                </SheetHeader>
+
+                <div className="mt-6 space-y-4">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start text-left h-12"
+                    onClick={() => {
+                      setShowAddLeadDialog(true);
+                      setIsMobileMenuOpen(false);
+                    }}
+                  >
+                    <Plus className="mr-3 h-5 w-5" />
+                    Add Lead
+                  </Button>
+                </div>
+
+                <div className="absolute bottom-6 left-6 right-6">
+                  <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                      <User className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {user?.name || "Sales Rep"}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        Sales Team
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
+
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                <BarChart3 className="h-5 w-5 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="font-bold text-lg">OGSTAT</h1>
+                <p className="text-xs text-muted-foreground">CRM</p>
+              </div>
             </div>
           </div>
+
+          <Button
+            variant="default"
+            size="sm"
+            className="h-11 px-4"
+            onClick={() => setShowAddLeadDialog(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Lead
+          </Button>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-hidden">
-        <div className="h-full flex flex-col">
-          {/* Header */}
-          <div className="p-6 border-b border-border bg-white">
-            <div className="flex items-center justify-between">
+      <div className="flex">
+        {/* Desktop Sidebar */}
+        <div className="hidden lg:flex w-64 bg-white border-r border-border flex-col">
+          {/* Logo */}
+          <div className="p-6 border-b border-border">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                <BarChart3 className="h-5 w-5 text-primary-foreground" />
+              </div>
               <div>
-                <h2 className="text-2xl font-semibold">Sales Pipeline</h2>
-                <p className="text-muted-foreground">
-                  Manage your leads and opportunities
+                <h1 className="font-bold text-lg">OGSTAT</h1>
+                <p className="text-xs text-muted-foreground">CRM</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 p-4">
+            <div className="space-y-2">
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-left h-12"
+                onClick={() => setShowAddLeadDialog(true)}
+              >
+                <Plus className="mr-3 h-5 w-5" />
+                Add Lead
+              </Button>
+            </div>
+          </nav>
+
+          {/* User info */}
+          <div className="p-4 border-t border-border">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                <User className="h-4 w-4 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">
+                  {user?.name || "Sales Rep"}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  Sales Team
                 </p>
               </div>
-              <div className="flex items-center gap-4">
-                <div className="text-right">
-                  <p className="text-2xl font-bold">{leads.length}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 overflow-hidden">
+          <div className="h-full flex flex-col">
+            {/* Desktop Header */}
+            <div className="hidden lg:block p-6 border-b border-border bg-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-semibold">Sales Pipeline</h2>
+                  <p className="text-muted-foreground">
+                    Manage your leads and opportunities
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <p className="text-2xl font-bold">{leads.length}</p>
+                    <p className="text-sm text-muted-foreground">Total Leads</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold">
+                      {formatCurrency(
+                        leads.reduce((sum, lead) => sum + lead.value, 0),
+                      )}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Pipeline Value
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Mobile Stats */}
+            <div className="lg:hidden p-4 bg-white border-b border-border">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center p-3 bg-muted/30 rounded-lg">
+                  <p className="text-xl font-bold">{leads.length}</p>
                   <p className="text-sm text-muted-foreground">Total Leads</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold">
+                <div className="text-center p-3 bg-muted/30 rounded-lg">
+                  <p className="text-xl font-bold">
                     {formatCurrency(
                       leads.reduce((sum, lead) => sum + lead.value, 0),
                     )}
@@ -492,306 +654,480 @@ const SalesDashboard = () => {
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Main Content Tabs */}
-          <div className="flex-1 overflow-hidden p-6">
-            <Tabs defaultValue="pipeline" className="h-full flex flex-col">
-              <TabsList className="grid w-full grid-cols-2 max-w-md">
-                <TabsTrigger
-                  value="pipeline"
-                  className="flex items-center gap-2"
-                >
-                  <Users className="h-4 w-4" />
-                  My Leads
-                </TabsTrigger>
-                <TabsTrigger
-                  value="performance"
-                  className="flex items-center gap-2"
-                >
-                  <TrendingUp className="h-4 w-4" />
-                  Performance
-                </TabsTrigger>
-              </TabsList>
+            {/* Main Content Tabs */}
+            <div className="flex-1 overflow-hidden p-3 sm:p-6">
+              <Tabs defaultValue="pipeline" className="h-full flex flex-col">
+                <TabsList className="grid w-full grid-cols-2 max-w-md h-12">
+                  <TabsTrigger
+                    value="pipeline"
+                    className="flex items-center gap-2 h-11 text-sm"
+                  >
+                    <Users className="h-4 w-4" />
+                    <span className="hidden sm:inline">My Leads</span>
+                    <span className="sm:hidden">Leads</span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="performance"
+                    className="flex items-center gap-2 h-11 text-sm"
+                  >
+                    <TrendingUp className="h-4 w-4" />
+                    <span className="hidden sm:inline">Performance</span>
+                    <span className="sm:hidden">Stats</span>
+                  </TabsTrigger>
+                </TabsList>
 
-              <TabsContent
-                value="pipeline"
-                className="flex-1 overflow-x-auto mt-6"
-              >
-                <DragDropContext onDragEnd={handleDragEnd}>
-                  <div className="flex gap-6 min-w-max">
-                    {Object.entries(STAGES).map(([stageKey, stageInfo]) => {
-                      const stageLeads = getLeadsByStage(stageKey);
-                      return (
-                        <div key={stageKey} className="w-80 flex-shrink-0">
-                          <div className="bg-muted/30 rounded-lg p-4 h-full">
-                            {/* Column Header */}
-                            <div className="flex items-center justify-between mb-4">
-                              <h3 className="font-semibold text-sm">
-                                {stageInfo.label}
-                              </h3>
-                              <Badge variant="secondary" className="text-xs">
-                                {stageLeads.length}
-                              </Badge>
-                            </div>
-
-                            {/* Leads List */}
-                            <Droppable droppableId={stageKey}>
-                              {(provided, snapshot) => (
-                                <div
-                                  ref={provided.innerRef}
-                                  {...provided.droppableProps}
-                                  className={cn(
-                                    "min-h-[200px] transition-colors",
-                                    snapshot.isDraggingOver &&
-                                      "bg-muted/50 rounded-md",
-                                  )}
-                                >
-                                  {stageLeads.map((lead, index) => (
-                                    <LeadCard
-                                      key={lead.id}
-                                      lead={lead}
-                                      index={index}
-                                    />
-                                  ))}
-                                  {provided.placeholder}
-                                </div>
-                              )}
-                            </Droppable>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </DragDropContext>
-              </TabsContent>
-
-              <TabsContent value="performance" className="flex-1 mt-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                  {/* Top Source */}
-                  <Card className="bg-white">
-                    <CardContent className="p-6">
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 bg-blue-100 rounded-lg">
-                          <Award className="h-6 w-6 text-blue-600" />
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">
-                            Top Source
-                          </p>
-                          <p className="text-2xl font-bold">
-                            {getTopSource().source}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {getTopSource().count} closed deals
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Time to Close */}
-                  <Card className="bg-white">
-                    <CardContent className="p-6">
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 bg-green-100 rounded-lg">
-                          <Clock className="h-6 w-6 text-green-600" />
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">
-                            Avg Time to Close
-                          </p>
-                          <p className="text-2xl font-bold">
-                            {getAverageTimeToClose()}
-                          </p>
-                          <p className="text-xs text-muted-foreground">days</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Total Pipeline Value */}
-                  <Card className="bg-white">
-                    <CardContent className="p-6">
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 bg-purple-100 rounded-lg">
-                          <DollarSign className="h-6 w-6 text-purple-600" />
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">
-                            Pipeline Value
-                          </p>
-                          <p className="text-2xl font-bold">
-                            {formatCurrency(
-                              leads.reduce((sum, lead) => sum + lead.value, 0),
-                            )}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            total value
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Conversion Rate */}
-                  <Card className="bg-white">
-                    <CardContent className="p-6">
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 bg-orange-100 rounded-lg">
-                          <Target className="h-6 w-6 text-orange-600" />
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">
-                            Conversion Rate
-                          </p>
-                          <p className="text-2xl font-bold">
-                            {leads.length > 0
-                              ? Math.round(
-                                  (leads.filter((l) => l.stage === "closed_won")
-                                    .length /
-                                    leads.length) *
-                                    100,
-                                )
-                              : 0}
-                            %
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {
-                              leads.filter((l) => l.stage === "closed_won")
-                                .length
-                            }{" "}
-                            of {leads.length} leads
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Performance Charts Placeholder */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <Card className="bg-white">
-                    <CardHeader>
-                      <CardTitle className="text-lg">
-                        Lead Sources Performance
-                      </CardTitle>
-                      <CardDescription>
-                        Breakdown of leads by source and their success rates
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {Object.entries(SOURCES).map(
-                          ([sourceKey, sourceInfo]) => {
-                            const sourceLeads = leads.filter(
-                              (l) => l.source === sourceKey,
-                            );
-                            const closedWon = sourceLeads.filter(
-                              (l) => l.stage === "closed_won",
-                            ).length;
-                            const conversionRate =
-                              sourceLeads.length > 0
-                                ? Math.round(
-                                    (closedWon / sourceLeads.length) * 100,
-                                  )
-                                : 0;
-
-                            return (
-                              <div
-                                key={sourceKey}
-                                className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
-                              >
-                                <div>
-                                  <p className="font-medium text-sm">
-                                    {sourceInfo.label}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {sourceLeads.length} leads • {closedWon}{" "}
-                                    closed
-                                  </p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="font-bold text-sm">
-                                    {conversionRate}%
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    conversion
-                                  </p>
-                                </div>
+                <TabsContent value="pipeline" className="flex-1 mt-6">
+                  <DragDropContext onDragEnd={handleDragEnd}>
+                    {/* Desktop Kanban View */}
+                    <div className="hidden lg:flex gap-6 overflow-x-auto">
+                      {Object.entries(STAGES).map(([stageKey, stageInfo]) => {
+                        const stageLeads = getLeadsByStage(stageKey);
+                        return (
+                          <div key={stageKey} className="w-80 flex-shrink-0">
+                            <div className="bg-muted/30 rounded-lg p-4 h-full">
+                              {/* Column Header */}
+                              <div className="flex items-center justify-between mb-4">
+                                <h3 className="font-semibold text-sm">
+                                  {stageInfo.label}
+                                </h3>
+                                <Badge variant="secondary" className="text-xs">
+                                  {stageLeads.length}
+                                </Badge>
                               </div>
-                            );
-                          },
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
 
-                  <Card className="bg-white">
-                    <CardHeader>
-                      <CardTitle className="text-lg">Pipeline Health</CardTitle>
-                      <CardDescription>
-                        Overview of your sales pipeline stages
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
+                              {/* Leads List */}
+                              <Droppable droppableId={stageKey}>
+                                {(provided, snapshot) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.droppableProps}
+                                    className={cn(
+                                      "min-h-[200px] transition-colors",
+                                      snapshot.isDraggingOver &&
+                                        "bg-muted/50 rounded-md",
+                                    )}
+                                  >
+                                    {stageLeads.map((lead, index) => (
+                                      <LeadCard
+                                        key={lead.id}
+                                        lead={lead}
+                                        index={index}
+                                      />
+                                    ))}
+                                    {provided.placeholder}
+                                  </div>
+                                )}
+                              </Droppable>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Mobile Accordion View */}
+                    <div className="lg:hidden space-y-4">
+                      <Accordion type="multiple" className="w-full">
                         {Object.entries(STAGES).map(([stageKey, stageInfo]) => {
                           const stageLeads = getLeadsByStage(stageKey);
-                          const stageValue = stageLeads.reduce(
-                            (sum, lead) => sum + lead.value,
-                            0,
-                          );
-
                           return (
-                            <div
-                              key={stageKey}
-                              className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
-                            >
-                              <div>
-                                <p className="font-medium text-sm">
-                                  {stageInfo.label}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {stageLeads.length} leads
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <p className="font-bold text-sm">
-                                  {formatCurrency(stageValue)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  value
-                                </p>
-                              </div>
-                            </div>
+                            <AccordionItem key={stageKey} value={stageKey}>
+                              <AccordionTrigger className="text-base font-semibold">
+                                <div className="flex items-center justify-between w-full pr-4">
+                                  <span>{stageInfo.label}</span>
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-xs"
+                                  >
+                                    {stageLeads.length}
+                                  </Badge>
+                                </div>
+                              </AccordionTrigger>
+                              <AccordionContent>
+                                <Droppable droppableId={stageKey}>
+                                  {(provided, snapshot) => (
+                                    <div
+                                      ref={provided.innerRef}
+                                      {...provided.droppableProps}
+                                      className={cn(
+                                        "space-y-3 p-2",
+                                        snapshot.isDraggingOver &&
+                                          "bg-muted/50 rounded-md",
+                                      )}
+                                    >
+                                      {stageLeads.map((lead, index) => (
+                                        <LeadCard
+                                          key={lead.id}
+                                          lead={lead}
+                                          index={index}
+                                        />
+                                      ))}
+                                      {provided.placeholder}
+                                    </div>
+                                  )}
+                                </Droppable>
+                              </AccordionContent>
+                            </AccordionItem>
                           );
                         })}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
-            </Tabs>
+                      </Accordion>
+                    </div>
+                  </DragDropContext>
+                </TabsContent>
+
+                <TabsContent value="performance" className="flex-1 mt-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+                    {/* Top Source */}
+                    <Card className="bg-white">
+                      <CardContent className="p-4 sm:p-6">
+                        <div className="flex items-center gap-3 sm:gap-4">
+                          <div className="p-2 sm:p-3 bg-blue-100 rounded-lg">
+                            <Award className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm text-muted-foreground">
+                              Top Source
+                            </p>
+                            <p className="text-lg sm:text-2xl font-bold truncate">
+                              {getTopSource().source}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {getTopSource().count} closed deals
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Time to Close */}
+                    <Card className="bg-white">
+                      <CardContent className="p-4 sm:p-6">
+                        <div className="flex items-center gap-3 sm:gap-4">
+                          <div className="p-2 sm:p-3 bg-green-100 rounded-lg">
+                            <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm text-muted-foreground">
+                              Avg Time to Close
+                            </p>
+                            <p className="text-lg sm:text-2xl font-bold">
+                              {getAverageTimeToClose()}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              days
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Total Pipeline Value */}
+                    <Card className="bg-white">
+                      <CardContent className="p-4 sm:p-6">
+                        <div className="flex items-center gap-3 sm:gap-4">
+                          <div className="p-2 sm:p-3 bg-purple-100 rounded-lg">
+                            <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm text-muted-foreground">
+                              Pipeline Value
+                            </p>
+                            <p className="text-lg sm:text-2xl font-bold truncate">
+                              {formatCurrency(
+                                leads.reduce(
+                                  (sum, lead) => sum + lead.value,
+                                  0,
+                                ),
+                              )}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              total value
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Conversion Rate */}
+                    <Card className="bg-white">
+                      <CardContent className="p-4 sm:p-6">
+                        <div className="flex items-center gap-3 sm:gap-4">
+                          <div className="p-2 sm:p-3 bg-orange-100 rounded-lg">
+                            <Target className="h-5 w-5 sm:h-6 sm:w-6 text-orange-600" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm text-muted-foreground">
+                              Conversion Rate
+                            </p>
+                            <p className="text-lg sm:text-2xl font-bold">
+                              {leads.length > 0
+                                ? Math.round(
+                                    (leads.filter(
+                                      (l) => l.stage === "closed_won",
+                                    ).length /
+                                      leads.length) *
+                                      100,
+                                  )
+                                : 0}
+                              %
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {
+                                leads.filter((l) => l.stage === "closed_won")
+                                  .length
+                              }{" "}
+                              of {leads.length} leads
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Performance Charts */}
+                  <div className="space-y-6">
+                    {/* Mobile: Stack cards vertically, Desktop: Side by side */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                      <Card className="bg-white">
+                        <CardHeader className="p-4 sm:p-6">
+                          <CardTitle className="text-base sm:text-lg">
+                            Lead Sources Performance
+                          </CardTitle>
+                          <CardDescription className="text-sm">
+                            Breakdown of leads by source and their success rates
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-4 sm:p-6 pt-0">
+                          <Accordion
+                            type="single"
+                            collapsible
+                            className="lg:hidden"
+                          >
+                            <AccordionItem value="sources">
+                              <AccordionTrigger className="text-sm font-medium">
+                                View Source Details
+                              </AccordionTrigger>
+                              <AccordionContent>
+                                <div className="space-y-3">
+                                  {Object.entries(SOURCES).map(
+                                    ([sourceKey, sourceInfo]) => {
+                                      const sourceLeads = leads.filter(
+                                        (l) => l.source === sourceKey,
+                                      );
+                                      const closedWon = sourceLeads.filter(
+                                        (l) => l.stage === "closed_won",
+                                      ).length;
+                                      const conversionRate =
+                                        sourceLeads.length > 0
+                                          ? Math.round(
+                                              (closedWon / sourceLeads.length) *
+                                                100,
+                                            )
+                                          : 0;
+
+                                      return (
+                                        <div
+                                          key={sourceKey}
+                                          className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
+                                        >
+                                          <div className="min-w-0 flex-1">
+                                            <p className="font-medium text-sm truncate">
+                                              {sourceInfo.label}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                              {sourceLeads.length} leads •{" "}
+                                              {closedWon} closed
+                                            </p>
+                                          </div>
+                                          <div className="text-right ml-2">
+                                            <p className="font-bold text-sm">
+                                              {conversionRate}%
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                              conversion
+                                            </p>
+                                          </div>
+                                        </div>
+                                      );
+                                    },
+                                  )}
+                                </div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          </Accordion>
+
+                          <div className="hidden lg:block space-y-4">
+                            {Object.entries(SOURCES).map(
+                              ([sourceKey, sourceInfo]) => {
+                                const sourceLeads = leads.filter(
+                                  (l) => l.source === sourceKey,
+                                );
+                                const closedWon = sourceLeads.filter(
+                                  (l) => l.stage === "closed_won",
+                                ).length;
+                                const conversionRate =
+                                  sourceLeads.length > 0
+                                    ? Math.round(
+                                        (closedWon / sourceLeads.length) * 100,
+                                      )
+                                    : 0;
+
+                                return (
+                                  <div
+                                    key={sourceKey}
+                                    className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
+                                  >
+                                    <div>
+                                      <p className="font-medium text-sm">
+                                        {sourceInfo.label}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {sourceLeads.length} leads • {closedWon}{" "}
+                                        closed
+                                      </p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="font-bold text-sm">
+                                        {conversionRate}%
+                                      </p>
+                                      <p className="text-xs text-muted-foreground">
+                                        conversion
+                                      </p>
+                                    </div>
+                                  </div>
+                                );
+                              },
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="bg-white">
+                        <CardHeader className="p-4 sm:p-6">
+                          <CardTitle className="text-base sm:text-lg">
+                            Pipeline Health
+                          </CardTitle>
+                          <CardDescription className="text-sm">
+                            Overview of your sales pipeline stages
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-4 sm:p-6 pt-0">
+                          <Accordion
+                            type="single"
+                            collapsible
+                            className="lg:hidden"
+                          >
+                            <AccordionItem value="pipeline">
+                              <AccordionTrigger className="text-sm font-medium">
+                                View Pipeline Details
+                              </AccordionTrigger>
+                              <AccordionContent>
+                                <div className="space-y-3">
+                                  {Object.entries(STAGES).map(
+                                    ([stageKey, stageInfo]) => {
+                                      const stageLeads =
+                                        getLeadsByStage(stageKey);
+                                      const stageValue = stageLeads.reduce(
+                                        (sum, lead) => sum + lead.value,
+                                        0,
+                                      );
+
+                                      return (
+                                        <div
+                                          key={stageKey}
+                                          className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
+                                        >
+                                          <div className="min-w-0 flex-1">
+                                            <p className="font-medium text-sm truncate">
+                                              {stageInfo.label}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                              {stageLeads.length} leads
+                                            </p>
+                                          </div>
+                                          <div className="text-right ml-2">
+                                            <p className="font-bold text-sm truncate">
+                                              {formatCurrency(stageValue)}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                              value
+                                            </p>
+                                          </div>
+                                        </div>
+                                      );
+                                    },
+                                  )}
+                                </div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          </Accordion>
+
+                          <div className="hidden lg:block space-y-4">
+                            {Object.entries(STAGES).map(
+                              ([stageKey, stageInfo]) => {
+                                const stageLeads = getLeadsByStage(stageKey);
+                                const stageValue = stageLeads.reduce(
+                                  (sum, lead) => sum + lead.value,
+                                  0,
+                                );
+
+                                return (
+                                  <div
+                                    key={stageKey}
+                                    className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
+                                  >
+                                    <div>
+                                      <p className="font-medium text-sm">
+                                        {stageInfo.label}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {stageLeads.length} leads
+                                      </p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="font-bold text-sm">
+                                        {formatCurrency(stageValue)}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground">
+                                        value
+                                      </p>
+                                    </div>
+                                  </div>
+                                );
+                              },
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Add Lead Dialog */}
       <Dialog open={showAddLeadDialog} onOpenChange={setShowAddLeadDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add New Lead</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg sm:text-xl">
+              Add New Lead
+            </DialogTitle>
+            <DialogDescription className="text-sm">
               Add a new lead to your sales pipeline
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="lead-name">Lead Name *</Label>
+                <Label htmlFor="lead-name" className="text-sm font-medium">
+                  Lead Name *
+                </Label>
                 <Input
                   id="lead-name"
+                  className="h-11 text-base" // Increased touch target
                   value={newLead.lead_name}
                   onChange={(e) =>
                     setNewLead({ ...newLead, lead_name: e.target.value })
@@ -800,10 +1136,13 @@ const SalesDashboard = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lead-email">Email *</Label>
+                <Label htmlFor="lead-email" className="text-sm font-medium">
+                  Email *
+                </Label>
                 <Input
                   id="lead-email"
                   type="email"
+                  className="h-11 text-base" // Increased touch target
                   value={newLead.email}
                   onChange={(e) =>
                     setNewLead({ ...newLead, email: e.target.value })
@@ -812,11 +1151,14 @@ const SalesDashboard = () => {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="lead-phone">Phone</Label>
+                <Label htmlFor="lead-phone" className="text-sm font-medium">
+                  Phone
+                </Label>
                 <Input
                   id="lead-phone"
+                  className="h-11 text-base" // Increased touch target
                   value={newLead.phone}
                   onChange={(e) =>
                     setNewLead({ ...newLead, phone: e.target.value })
@@ -825,9 +1167,15 @@ const SalesDashboard = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lead-organization">Organization</Label>
+                <Label
+                  htmlFor="lead-organization"
+                  className="text-sm font-medium"
+                >
+                  Organization
+                </Label>
                 <Input
                   id="lead-organization"
+                  className="h-11 text-base" // Increased touch target
                   value={newLead.organization_name}
                   onChange={(e) =>
                     setNewLead({
@@ -839,21 +1187,27 @@ const SalesDashboard = () => {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="lead-stage">Stage</Label>
+                <Label htmlFor="lead-stage" className="text-sm font-medium">
+                  Stage
+                </Label>
                 <Select
                   value={newLead.stage}
                   onValueChange={(value) =>
                     setNewLead({ ...newLead, stage: value })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-11 text-base">
                     <SelectValue placeholder="Select stage" />
                   </SelectTrigger>
                   <SelectContent>
                     {Object.entries(STAGES).map(([key, stage]) => (
-                      <SelectItem key={key} value={key}>
+                      <SelectItem
+                        key={key}
+                        value={key}
+                        className="text-base py-3"
+                      >
                         {stage.label}
                       </SelectItem>
                     ))}
@@ -861,10 +1215,13 @@ const SalesDashboard = () => {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lead-value">Value ($)</Label>
+                <Label htmlFor="lead-value" className="text-sm font-medium">
+                  Value (£)
+                </Label>
                 <Input
                   id="lead-value"
                   type="number"
+                  className="h-11 text-base" // Increased touch target
                   value={newLead.value}
                   onChange={(e) =>
                     setNewLead({
@@ -877,19 +1234,25 @@ const SalesDashboard = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="lead-source">Source</Label>
+              <Label htmlFor="lead-source" className="text-sm font-medium">
+                Source
+              </Label>
               <Select
                 value={newLead.source}
                 onValueChange={(value) =>
                   setNewLead({ ...newLead, source: value })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-11 text-base">
                   <SelectValue placeholder="Select source" />
                 </SelectTrigger>
                 <SelectContent>
                   {Object.entries(SOURCES).map(([key, source]) => (
-                    <SelectItem key={key} value={key}>
+                    <SelectItem
+                      key={key}
+                      value={key}
+                      className="text-base py-3"
+                    >
                       {source.label}
                     </SelectItem>
                   ))}
@@ -897,9 +1260,12 @@ const SalesDashboard = () => {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="lead-notes">Notes</Label>
+              <Label htmlFor="lead-notes" className="text-sm font-medium">
+                Notes
+              </Label>
               <Textarea
                 id="lead-notes"
+                className="min-h-[80px] text-base" // Increased touch target
                 value={newLead.notes}
                 onChange={(e) =>
                   setNewLead({ ...newLead, notes: e.target.value })
@@ -909,14 +1275,16 @@ const SalesDashboard = () => {
               />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button
               variant="outline"
+              className="h-11 text-base w-full sm:w-auto" // Increased touch target
               onClick={() => setShowAddLeadDialog(false)}
             >
               Cancel
             </Button>
             <Button
+              className="h-11 text-base w-full sm:w-auto" // Increased touch target
               onClick={handleAddLead}
               disabled={!newLead.lead_name || !newLead.email}
             >
@@ -928,18 +1296,26 @@ const SalesDashboard = () => {
 
       {/* Edit Lead Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Lead</DialogTitle>
-            <DialogDescription>Update lead information</DialogDescription>
+            <DialogTitle className="text-lg sm:text-xl">Edit Lead</DialogTitle>
+            <DialogDescription className="text-sm">
+              Update lead information
+            </DialogDescription>
           </DialogHeader>
           {selectedLead && (
             <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-lead-name">Lead Name *</Label>
+                  <Label
+                    htmlFor="edit-lead-name"
+                    className="text-sm font-medium"
+                  >
+                    Lead Name *
+                  </Label>
                   <Input
                     id="edit-lead-name"
+                    className="h-11 text-base" // Increased touch target
                     value={selectedLead.lead_name}
                     onChange={(e) =>
                       setSelectedLead({
@@ -951,10 +1327,16 @@ const SalesDashboard = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-lead-email">Email *</Label>
+                  <Label
+                    htmlFor="edit-lead-email"
+                    className="text-sm font-medium"
+                  >
+                    Email *
+                  </Label>
                   <Input
                     id="edit-lead-email"
                     type="email"
+                    className="h-11 text-base" // Increased touch target
                     value={selectedLead.email}
                     onChange={(e) =>
                       setSelectedLead({
@@ -966,11 +1348,17 @@ const SalesDashboard = () => {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-lead-phone">Phone</Label>
+                  <Label
+                    htmlFor="edit-lead-phone"
+                    className="text-sm font-medium"
+                  >
+                    Phone
+                  </Label>
                   <Input
                     id="edit-lead-phone"
+                    className="h-11 text-base" // Increased touch target
                     value={selectedLead.phone}
                     onChange={(e) =>
                       setSelectedLead({
@@ -982,9 +1370,15 @@ const SalesDashboard = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-lead-organization">Organization</Label>
+                  <Label
+                    htmlFor="edit-lead-organization"
+                    className="text-sm font-medium"
+                  >
+                    Organization
+                  </Label>
                   <Input
                     id="edit-lead-organization"
+                    className="h-11 text-base" // Increased touch target
                     value={selectedLead.organization_name}
                     onChange={(e) =>
                       setSelectedLead({
@@ -996,21 +1390,30 @@ const SalesDashboard = () => {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-lead-stage">Stage</Label>
+                  <Label
+                    htmlFor="edit-lead-stage"
+                    className="text-sm font-medium"
+                  >
+                    Stage
+                  </Label>
                   <Select
                     value={selectedLead.stage}
                     onValueChange={(value) =>
                       setSelectedLead({ ...selectedLead, stage: value })
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-11 text-base">
                       <SelectValue placeholder="Select stage" />
                     </SelectTrigger>
                     <SelectContent>
                       {Object.entries(STAGES).map(([key, stage]) => (
-                        <SelectItem key={key} value={key}>
+                        <SelectItem
+                          key={key}
+                          value={key}
+                          className="text-base py-3"
+                        >
                           {stage.label}
                         </SelectItem>
                       ))}
@@ -1018,10 +1421,16 @@ const SalesDashboard = () => {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-lead-value">Value ($)</Label>
+                  <Label
+                    htmlFor="edit-lead-value"
+                    className="text-sm font-medium"
+                  >
+                    Value (£)
+                  </Label>
                   <Input
                     id="edit-lead-value"
                     type="number"
+                    className="h-11 text-base" // Increased touch target
                     value={selectedLead.value}
                     onChange={(e) =>
                       setSelectedLead({
@@ -1034,19 +1443,28 @@ const SalesDashboard = () => {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-lead-source">Source</Label>
+                <Label
+                  htmlFor="edit-lead-source"
+                  className="text-sm font-medium"
+                >
+                  Source
+                </Label>
                 <Select
                   value={selectedLead.source}
                   onValueChange={(value) =>
                     setSelectedLead({ ...selectedLead, source: value })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-11 text-base">
                     <SelectValue placeholder="Select source" />
                   </SelectTrigger>
                   <SelectContent>
                     {Object.entries(SOURCES).map(([key, source]) => (
-                      <SelectItem key={key} value={key}>
+                      <SelectItem
+                        key={key}
+                        value={key}
+                        className="text-base py-3"
+                      >
                         {source.label}
                       </SelectItem>
                     ))}
@@ -1054,9 +1472,15 @@ const SalesDashboard = () => {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-lead-notes">Notes</Label>
+                <Label
+                  htmlFor="edit-lead-notes"
+                  className="text-sm font-medium"
+                >
+                  Notes
+                </Label>
                 <Textarea
                   id="edit-lead-notes"
+                  className="min-h-[80px] text-base" // Increased touch target
                   value={selectedLead.notes}
                   onChange={(e) =>
                     setSelectedLead({ ...selectedLead, notes: e.target.value })
@@ -1067,11 +1491,16 @@ const SalesDashboard = () => {
               </div>
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              className="h-11 text-base w-full sm:w-auto" // Increased touch target
+              onClick={() => setShowEditDialog(false)}
+            >
               Cancel
             </Button>
             <Button
+              className="h-11 text-base w-full sm:w-auto" // Increased touch target
               onClick={handleEditLead}
               disabled={!selectedLead?.lead_name || !selectedLead?.email}
             >
