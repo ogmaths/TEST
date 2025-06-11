@@ -37,7 +37,7 @@ import SuperAdminDashboard from "./components/SuperAdminDashboard";
 import SalesDashboard from "./components/SalesDashboard";
 import ViewAssessment from "./components/ViewAssessment";
 import AssessmentForm from "./components/AssessmentForm";
-import AssessmentBuilderPage from "./components/AssessmentBuilderPage";
+
 import ConfidentialityAgreement from "./components/ConfidentialityAgreement";
 
 import {
@@ -780,14 +780,6 @@ function App() {
                         </div>
                         <AdminDashboard />
                       </Suspense>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/assessment-builder"
-                  element={
-                    <ProtectedRoute>
-                      <AssessmentBuilderPage />
                     </ProtectedRoute>
                   }
                 />

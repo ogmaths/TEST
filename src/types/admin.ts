@@ -28,6 +28,8 @@ export interface Organization {
   secondary_color?: string;
   settings?: OrganizationSettings;
   areas?: string[];
+  sector?: string;
+  assessmentPackId?: string;
 }
 
 export interface OrganizationSettings {
@@ -53,6 +55,11 @@ export interface AssessmentTemplate {
   createdAt: string;
   updatedAt: string;
   sections: AssessmentSection[];
+  sector?: string;
+  packId?: string;
+  tags?: string[];
+  version?: string;
+  author?: string;
 }
 
 export interface AssessmentSection {
@@ -66,4 +73,23 @@ export interface AssessmentQuestion {
   type: "text" | "textarea" | "select" | "radio" | "checkbox" | "date";
   required: boolean;
   options: string[];
+}
+
+export interface AssessmentPack {
+  id: string;
+  name: string;
+  description: string;
+  sector: string;
+  templateIds: string[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Sector {
+  id: string;
+  name: string;
+  description: string;
+  defaultTemplates: string[];
+  additionalTemplates: string[];
 }

@@ -56,10 +56,19 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  Package,
+  FileText,
+  Copy,
 } from "lucide-react";
+import AssessmentBuilder from "./AssessmentBuilder";
 import SuccessToast from "./SuccessToast";
 import { useUser } from "@/context/UserContext";
-import { Organization } from "@/types/admin";
+import {
+  Organization,
+  AssessmentPack,
+  AssessmentTemplate,
+  Sector,
+} from "@/types/admin";
 import BackButton from "./BackButton";
 import { Link } from "react-router-dom";
 import { supabaseClient } from "@/lib/supabaseClient";
@@ -72,6 +81,20 @@ const SuperAdminDashboard = () => {
   const { tenantId } = useTenant();
   const { addNotification } = useNotifications();
   const [activeTab, setActiveTab] = useState("tenants");
+  const [assessmentPacks, setAssessmentPacks] = useState<AssessmentPack[]>([]);
+  const [sectors, setSectors] = useState<Sector[]>([]);
+  const [assessmentTemplates, setAssessmentTemplates] = useState<
+    AssessmentTemplate[]
+  >([]);
+  const [showAssessmentBuilder, setShowAssessmentBuilder] = useState(false);
+  const [showPackDialog, setShowPackDialog] = useState(false);
+  const [editingPack, setEditingPack] = useState<AssessmentPack | null>(null);
+  const [packFormData, setPackFormData] = useState({
+    name: "",
+    description: "",
+    sector: "",
+    templateIds: [] as string[],
+  });
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
@@ -97,6 +120,7 @@ const SuperAdminDashboard = () => {
     primary_color: "#6366f1",
     secondary_color: "#4f46e5",
     plan: "trial",
+    sector: "general",
   });
   // Logo functionality removed
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -107,6 +131,98 @@ const SuperAdminDashboard = () => {
       setIsAuthenticated(true);
     }
   }, [tenantId]);
+
+  // Initialize sectors and assessment data
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Initialize sectors
+      const defaultSectors: Sector[] = [
+        {
+          id: "general",
+          name: "General",
+          description: "Standard assessment pack for all sectors",
+          defaultTemplates: ["introduction", "progress", "exit"],
+          additionalTemplates: [],
+        },
+        {
+          id: "perinatal",
+          name: "Perinatal",
+          description: "Specialized assessments for perinatal support",
+          defaultTemplates: ["introduction", "progress", "exit"],
+          additionalTemplates: ["epds", "bonding-scale", "whooley-questions"],
+        },
+        {
+          id: "domestic-abuse",
+          name: "Domestic Abuse",
+          description: "Risk assessment tools for domestic abuse support",
+          defaultTemplates: ["introduction", "progress", "exit"],
+          additionalTemplates: ["dash-risk", "ric-caada", "marac-flags"],
+        },
+        {
+          id: "mental-health",
+          name: "Mental Health",
+          description: "Mental health and wellbeing assessment tools",
+          defaultTemplates: ["introduction", "progress", "exit"],
+          additionalTemplates: ["wemwbs", "gad-7", "phq-9"],
+        },
+        {
+          id: "youth-work",
+          name: "Youth Work",
+          description: "Youth development and outcome tracking",
+          defaultTemplates: ["introduction", "progress", "exit"],
+          additionalTemplates: [
+            "outcome-star-young-people",
+            "resilience-framework",
+          ],
+        },
+        {
+          id: "parenting-support",
+          name: "Parenting Support",
+          description: "Family support and parenting assessments",
+          defaultTemplates: ["introduction", "progress", "exit"],
+          additionalTemplates: ["family-star-plus", "strengthening-families"],
+        },
+      ];
+      setSectors(defaultSectors);
+
+      // Load assessment templates
+      const savedTemplates = localStorage.getItem("assessmentTemplates");
+      if (savedTemplates) {
+        try {
+          setAssessmentTemplates(JSON.parse(savedTemplates));
+        } catch (error) {
+          console.error("Failed to parse saved assessment templates", error);
+        }
+      }
+
+      // Load assessment packs
+      const savedPacks = localStorage.getItem("assessmentPacks");
+      if (savedPacks) {
+        try {
+          setAssessmentPacks(JSON.parse(savedPacks));
+        } catch (error) {
+          console.error("Failed to parse saved assessment packs", error);
+        }
+      } else {
+        // Initialize with default packs
+        const defaultPacks: AssessmentPack[] = defaultSectors.map((sector) => ({
+          id: `pack-${sector.id}`,
+          name: `${sector.name} Assessment Pack`,
+          description: sector.description,
+          sector: sector.id,
+          templateIds: [
+            ...sector.defaultTemplates,
+            ...sector.additionalTemplates,
+          ],
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }));
+        setAssessmentPacks(defaultPacks);
+        localStorage.setItem("assessmentPacks", JSON.stringify(defaultPacks));
+      }
+    }
+  }, [isAuthenticated]);
 
   // Fetch tenants
   useEffect(() => {
@@ -124,6 +240,8 @@ const SuperAdminDashboard = () => {
           tenant_id: "1",
           primary_color: "#4f46e5",
           secondary_color: "#6366f1",
+          sector: "general",
+          assessmentPackId: "pack-general",
         },
         {
           id: "parents1st-tenant",
@@ -136,6 +254,8 @@ const SuperAdminDashboard = () => {
           tenant_id: "2",
           primary_color: "#10b981",
           secondary_color: "#34d399",
+          sector: "parenting-support",
+          assessmentPackId: "pack-parenting-support",
         },
         {
           id: "demo-tenant",
@@ -148,6 +268,8 @@ const SuperAdminDashboard = () => {
           tenant_id: "3",
           primary_color: "#f59e0b",
           secondary_color: "#fbbf24",
+          sector: "general",
+          assessmentPackId: "pack-general",
         },
       ];
 
@@ -596,9 +718,11 @@ const SuperAdminDashboard = () => {
           onValueChange={setActiveTab}
           className="w-full"
         >
-          <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsList className="grid w-full max-w-2xl grid-cols-4">
             <TabsTrigger value="tenants">Active Tenants</TabsTrigger>
             <TabsTrigger value="archived">Archived Tenants</TabsTrigger>
+            <TabsTrigger value="packs">Assessment Packs</TabsTrigger>
+            <TabsTrigger value="templates">Templates</TabsTrigger>
           </TabsList>
 
           <TabsContent value="tenants" className="mt-6">
@@ -631,6 +755,7 @@ const SuperAdminDashboard = () => {
                           <th className="p-2 pl-4">Organization</th>
                           <th className="p-2">Subdomain</th>
                           <th className="p-2">Tenant ID</th>
+                          <th className="p-2">Sector</th>
                           <th className="p-2">Status</th>
                           <th className="p-2">Plan</th>
                           <th className="p-2 text-right pr-4">Actions</th>
@@ -676,6 +801,12 @@ const SuperAdminDashboard = () => {
                               <td className="p-2">
                                 <span className="font-mono text-xs">
                                   {tenant.tenant_id || "Not set"}
+                                </span>
+                              </td>
+                              <td className="p-2">
+                                <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800">
+                                  {sectors.find((s) => s.id === tenant.sector)
+                                    ?.name || "General"}
                                 </span>
                               </td>
                               <td className="p-2">
@@ -784,6 +915,7 @@ const SuperAdminDashboard = () => {
                           <th className="p-2 pl-4">Organization</th>
                           <th className="p-2">Subdomain</th>
                           <th className="p-2">Tenant ID</th>
+                          <th className="p-2">Sector</th>
                           <th className="p-2">Archived Date</th>
                           <th className="p-2 text-right pr-4">Actions</th>
                         </tr>
@@ -833,6 +965,12 @@ const SuperAdminDashboard = () => {
                                 </span>
                               </td>
                               <td className="p-2 text-muted-foreground">
+                                <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-600">
+                                  {sectors.find((s) => s.id === tenant.sector)
+                                    ?.name || "General"}
+                                </span>
+                              </td>
+                              <td className="p-2 text-muted-foreground">
                                 {new Date(
                                   tenant.updatedAt || tenant.createdAt,
                                 ).toLocaleDateString()}
@@ -865,6 +1003,347 @@ const SuperAdminDashboard = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="packs" className="mt-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Assessment Packs</CardTitle>
+                  <CardDescription>
+                    Manage sector-specific assessment template packs
+                  </CardDescription>
+                </div>
+                <Button
+                  onClick={() => {
+                    setEditingPack(null);
+                    setPackFormData({
+                      name: "",
+                      description: "",
+                      sector: "",
+                      templateIds: [],
+                    });
+                    setShowPackDialog(true);
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" /> Create Pack
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/50 text-left">
+                        <th className="p-2 pl-4">Pack Name</th>
+                        <th className="p-2">Sector</th>
+                        <th className="p-2">Templates</th>
+                        <th className="p-2">Status</th>
+                        <th className="p-2 text-right pr-4">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {assessmentPacks.length > 0 ? (
+                        assessmentPacks.map((pack) => (
+                          <tr key={pack.id} className="border-b">
+                            <td className="p-2 pl-4 font-medium">
+                              {pack.name}
+                              <div className="text-xs text-muted-foreground">
+                                {pack.description}
+                              </div>
+                            </td>
+                            <td className="p-2">
+                              <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800">
+                                {sectors.find((s) => s.id === pack.sector)
+                                  ?.name || pack.sector}
+                              </span>
+                            </td>
+                            <td className="p-2">
+                              <span className="text-sm text-muted-foreground">
+                                {pack.templateIds.length} templates
+                              </span>
+                            </td>
+                            <td className="p-2">
+                              {pack.isActive ? (
+                                <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800">
+                                  Active
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-red-100 text-red-800">
+                                  Inactive
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-2 text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setEditingPack(pack);
+                                    setPackFormData({
+                                      name: pack.name,
+                                      description: pack.description,
+                                      sector: pack.sector,
+                                      templateIds: pack.templateIds,
+                                    });
+                                    setShowPackDialog(true);
+                                  }}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan={5}
+                            className="p-4 text-center text-muted-foreground"
+                          >
+                            No assessment packs found. Create your first pack by
+                            clicking the "Create Pack" button.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="templates" className="mt-6">
+            {showAssessmentBuilder ? (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Assessment Builder</CardTitle>
+                      <CardDescription>
+                        Create and manage assessment templates
+                      </CardDescription>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowAssessmentBuilder(false)}
+                    >
+                      Back to Templates
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <AssessmentBuilder />
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Assessment Templates</CardTitle>
+                    <CardDescription>
+                      Create and manage assessment templates for all sectors
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={() => setShowAssessmentBuilder(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" /> Create Template
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="mb-4">
+                    <Input
+                      type="search"
+                      placeholder="Search templates..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="max-w-sm"
+                    />
+                  </div>
+                  <div className="rounded-md border">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/50 text-left">
+                          <th className="p-2 pl-4">Template Name</th>
+                          <th className="p-2">Type</th>
+                          <th className="p-2">Sector</th>
+                          <th className="p-2">Questions</th>
+                          <th className="p-2">Status</th>
+                          <th className="p-2 text-right pr-4">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {assessmentTemplates.length > 0 ? (
+                          assessmentTemplates
+                            .filter(
+                              (template) =>
+                                template.name
+                                  .toLowerCase()
+                                  .includes(searchQuery.toLowerCase()) ||
+                                template.description
+                                  .toLowerCase()
+                                  .includes(searchQuery.toLowerCase()) ||
+                                template.type
+                                  .toLowerCase()
+                                  .includes(searchQuery.toLowerCase()) ||
+                                (template.sector &&
+                                  template.sector
+                                    .toLowerCase()
+                                    .includes(searchQuery.toLowerCase())),
+                            )
+                            .map((template) => {
+                              const totalQuestions = template.sections.reduce(
+                                (total, section) =>
+                                  total + section.questions.length,
+                                0,
+                              );
+                              return (
+                                <tr key={template.id} className="border-b">
+                                  <td className="p-2 pl-4 font-medium">
+                                    {template.name}
+                                    <div className="text-xs text-muted-foreground">
+                                      {template.description}
+                                    </div>
+                                  </td>
+                                  <td className="p-2">
+                                    <span
+                                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                                        template.type === "introduction"
+                                          ? "bg-blue-100 text-blue-800"
+                                          : template.type === "progress"
+                                            ? "bg-green-100 text-green-800"
+                                            : template.type === "exit"
+                                              ? "bg-purple-100 text-purple-800"
+                                              : "bg-yellow-100 text-yellow-800"
+                                      }`}
+                                    >
+                                      {template.type.charAt(0).toUpperCase() +
+                                        template.type.slice(1)}
+                                    </span>
+                                  </td>
+                                  <td className="p-2">
+                                    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-800">
+                                      {template.sector
+                                        ? sectors.find(
+                                            (s) => s.id === template.sector,
+                                          )?.name || template.sector
+                                        : "General"}
+                                    </span>
+                                  </td>
+                                  <td className="p-2">
+                                    <span className="text-sm text-muted-foreground">
+                                      {totalQuestions} questions
+                                    </span>
+                                  </td>
+                                  <td className="p-2">
+                                    {template.isActive ? (
+                                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800">
+                                        <CheckCircle2 className="mr-1 h-3 w-3" />
+                                        Active
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-red-100 text-red-800">
+                                        <XCircle className="mr-1 h-3 w-3" />
+                                        Inactive
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="p-2 text-right">
+                                    <div className="flex justify-end gap-2">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          setShowAssessmentBuilder(true);
+                                        }}
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          // Duplicate template
+                                          const newTemplate = {
+                                            ...template,
+                                            id: `${template.id}-copy-${Date.now()}`,
+                                            name: `${template.name} (Copy)`,
+                                            createdAt: new Date().toISOString(),
+                                            updatedAt: new Date().toISOString(),
+                                          };
+                                          const updatedTemplates = [
+                                            ...assessmentTemplates,
+                                            newTemplate,
+                                          ];
+                                          setAssessmentTemplates(
+                                            updatedTemplates,
+                                          );
+                                          localStorage.setItem(
+                                            "assessmentTemplates",
+                                            JSON.stringify(updatedTemplates),
+                                          );
+                                          addNotification({
+                                            type: "success",
+                                            title: "Template Duplicated",
+                                            message: `${template.name} has been duplicated successfully`,
+                                            priority: "medium",
+                                          });
+                                        }}
+                                      >
+                                        <Copy className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                        onClick={() => {
+                                          // Delete template
+                                          const updatedTemplates =
+                                            assessmentTemplates.filter(
+                                              (t) => t.id !== template.id,
+                                            );
+                                          setAssessmentTemplates(
+                                            updatedTemplates,
+                                          );
+                                          localStorage.setItem(
+                                            "assessmentTemplates",
+                                            JSON.stringify(updatedTemplates),
+                                          );
+                                          addNotification({
+                                            type: "success",
+                                            title: "Template Deleted",
+                                            message: `${template.name} has been deleted successfully`,
+                                            priority: "high",
+                                          });
+                                        }}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })
+                        ) : (
+                          <tr>
+                            <td
+                              colSpan={6}
+                              className="p-4 text-center text-muted-foreground"
+                            >
+                              No assessment templates found. Create your first
+                              template by clicking the "Create Template" button.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </main>
@@ -966,6 +1445,29 @@ const SuperAdminDashboard = () => {
                     )
                   }
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="sector">Sector</Label>
+                <Select
+                  value={selectedTenant?.sector || "general"}
+                  onValueChange={(value) =>
+                    setSelectedTenant((prev) =>
+                      prev ? { ...prev, sector: value } : null,
+                    )
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select sector" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sectors.map((sector) => (
+                      <SelectItem key={sector.id} value={sector.id}>
+                        {sector.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -1150,6 +1652,27 @@ const SuperAdminDashboard = () => {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="new-sector">Sector</Label>
+                <Select
+                  value={newTenant.sector}
+                  onValueChange={(value) =>
+                    setNewTenant({ ...newTenant, sector: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select sector" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sectors.map((sector) => (
+                      <SelectItem key={sector.id} value={sector.id}>
+                        {sector.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="new-plan">Plan</Label>
                 <Select
                   value={newTenant.plan}
@@ -1257,6 +1780,214 @@ const SuperAdminDashboard = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Assessment Pack Dialog */}
+      <Dialog open={showPackDialog} onOpenChange={setShowPackDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {editingPack ? "Edit Assessment Pack" : "Create Assessment Pack"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingPack
+                ? "Update the assessment pack details"
+                : "Create a new sector-specific assessment pack"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-6 py-4">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="pack-name">Pack Name</Label>
+                <Input
+                  id="pack-name"
+                  value={packFormData.name}
+                  onChange={(e) =>
+                    setPackFormData({ ...packFormData, name: e.target.value })
+                  }
+                  placeholder="Assessment pack name"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="pack-description">Description</Label>
+                <Textarea
+                  id="pack-description"
+                  value={packFormData.description}
+                  onChange={(e) =>
+                    setPackFormData({
+                      ...packFormData,
+                      description: e.target.value,
+                    })
+                  }
+                  placeholder="Brief description of this assessment pack"
+                  rows={3}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="pack-sector">Sector</Label>
+                <Select
+                  value={packFormData.sector}
+                  onValueChange={(value) =>
+                    setPackFormData({ ...packFormData, sector: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select sector" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sectors.map((sector) => (
+                      <SelectItem key={sector.id} value={sector.id}>
+                        {sector.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Available Templates</Label>
+                <div className="border rounded-md p-4 max-h-60 overflow-y-auto">
+                  <div className="space-y-3">
+                    <div>
+                      <h4 className="text-sm font-medium text-green-700 mb-2">
+                        Standard Templates (Always Included)
+                      </h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        {["introduction", "progress", "exit"].map(
+                          (template) => (
+                            <div
+                              key={template}
+                              className="flex items-center space-x-2"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={true}
+                                disabled={true}
+                                className="h-4 w-4 rounded border-gray-300 text-green-600"
+                              />
+                              <span className="text-sm text-green-700">
+                                {template.charAt(0).toUpperCase() +
+                                  template.slice(1)}
+                              </span>
+                            </div>
+                          ),
+                        )}
+                      </div>
+                    </div>
+
+                    {packFormData.sector &&
+                      sectors.find((s) => s.id === packFormData.sector)
+                        ?.additionalTemplates.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-medium text-blue-700 mb-2">
+                            Sector-Specific Templates
+                          </h4>
+                          <div className="grid grid-cols-1 gap-2">
+                            {sectors
+                              .find((s) => s.id === packFormData.sector)
+                              ?.additionalTemplates.map((template) => (
+                                <div
+                                  key={template}
+                                  className="flex items-center space-x-2"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={packFormData.templateIds.includes(
+                                      template,
+                                    )}
+                                    onChange={(e) => {
+                                      const newTemplateIds = e.target.checked
+                                        ? [
+                                            ...packFormData.templateIds,
+                                            template,
+                                          ]
+                                        : packFormData.templateIds.filter(
+                                            (id) => id !== template,
+                                          );
+                                      setPackFormData({
+                                        ...packFormData,
+                                        templateIds: newTemplateIds,
+                                      });
+                                    }}
+                                    className="h-4 w-4 rounded border-gray-300 text-blue-600"
+                                  />
+                                  <span className="text-sm">
+                                    {template.toUpperCase().replace(/-/g, " ")}
+                                  </span>
+                                </div>
+                              )) || []}
+                          </div>
+                        </div>
+                      )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPackDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                const pack: AssessmentPack = {
+                  id: editingPack ? editingPack.id : `pack-${Date.now()}`,
+                  name: packFormData.name,
+                  description: packFormData.description,
+                  sector: packFormData.sector,
+                  templateIds: [
+                    "introduction",
+                    "progress",
+                    "exit",
+                    ...packFormData.templateIds,
+                  ],
+                  isActive: true,
+                  createdAt: editingPack
+                    ? editingPack.createdAt
+                    : new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                };
+
+                let updatedPacks;
+                if (editingPack) {
+                  updatedPacks = assessmentPacks.map((p) =>
+                    p.id === editingPack.id ? pack : p,
+                  );
+                } else {
+                  updatedPacks = [...assessmentPacks, pack];
+                }
+
+                setAssessmentPacks(updatedPacks);
+                localStorage.setItem(
+                  "assessmentPacks",
+                  JSON.stringify(updatedPacks),
+                );
+
+                addNotification({
+                  title: "Success",
+                  message: `Assessment pack ${pack.name} has been ${editingPack ? "updated" : "created"}.`,
+                  type: "success",
+                  priority: "medium",
+                });
+
+                setShowPackDialog(false);
+                setEditingPack(null);
+                setPackFormData({
+                  name: "",
+                  description: "",
+                  sector: "",
+                  templateIds: [],
+                });
+              }}
+              disabled={!packFormData.name || !packFormData.sector}
+            >
+              {editingPack ? "Update Pack" : "Create Pack"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

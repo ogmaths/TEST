@@ -1177,32 +1177,17 @@ const AdminDashboard = () => {
                   <div>
                     <CardTitle>Assessment Management</CardTitle>
                   </div>
-                  <Button
-                    className="flex items-center gap-2"
-                    onClick={() => window.open("/assessment-builder", "_blank")}
-                  >
-                    <Plus className="h-4 w-4" /> Manage Assessment Templates
-                  </Button>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex justify-center gap-4 py-8">
+                  <div className="flex justify-center py-8">
                     <Link to="/assessments">
                       <Button
                         variant="outline"
                         className="flex items-center gap-2"
                       >
-                        View All Assessments
+                        <FileText className="h-4 w-4" /> View All Assessments
                       </Button>
                     </Link>
-                    <Button
-                      variant="outline"
-                      className="flex items-center gap-2"
-                      onClick={() =>
-                        window.open("/assessment-builder", "_blank")
-                      }
-                    >
-                      Manage Assessment Templates
-                    </Button>
                   </div>
                 </CardContent>
               </Card>
