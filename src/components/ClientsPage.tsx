@@ -47,6 +47,8 @@ interface Client {
 
 const ClientsPage: React.FC = () => {
   const { user } = useUser();
+
+  console.log("🔍 ClientsPage - Rendering with user:", user);
   const [searchQuery, setSearchQuery] = useState("");
   const [clients, setClients] = useState<Client[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -56,12 +58,39 @@ const ClientsPage: React.FC = () => {
 
   // Load clients from localStorage or use mock data if none exists
   useEffect(() => {
-    const savedClients = localStorage.getItem("clients");
-    if (savedClients) {
-      setClients(JSON.parse(savedClients));
-    } else {
+    try {
+      console.log("🔍 ClientsPage - Loading clients from localStorage");
+      const savedClients = localStorage.getItem("clients");
+      if (
+        savedClients &&
+        savedClients !== "null" &&
+        savedClients !== "undefined"
+      ) {
+        try {
+          const parsedClients = JSON.parse(savedClients);
+          if (Array.isArray(parsedClients)) {
+            console.log(
+              "🔍 ClientsPage - Found saved clients:",
+              parsedClients.length,
+            );
+            setClients(parsedClients);
+            return;
+          } else {
+            console.warn(
+              "🔍 ClientsPage - Saved clients is not an array, using mock data",
+            );
+          }
+        } catch (parseError) {
+          console.error(
+            "🔍 ClientsPage - Error parsing saved clients:",
+            parseError,
+          );
+        }
+      }
+
+      console.log("🔍 ClientsPage - No valid saved clients, using mock data");
       // Mock clients data as fallback
-      setClients([
+      const mockClients = [
         {
           id: "1",
           name: "Jane Smith",
@@ -70,6 +99,8 @@ const ClientsPage: React.FC = () => {
           caseWorker: "Michael Johnson",
           profileImage: "https://api.dicebear.com/7.x/initials/svg?seed=JS",
           lastActivity: "2023-06-15",
+          email: "jane.smith@example.com",
+          phone: "555-0123",
         },
         {
           id: "2",
@@ -79,6 +110,8 @@ const ClientsPage: React.FC = () => {
           caseWorker: "Sarah Williams",
           profileImage: "https://api.dicebear.com/7.x/initials/svg?seed=RC",
           lastActivity: "2023-06-10",
+          email: "robert.chen@example.com",
+          phone: "555-0124",
         },
         {
           id: "3",
@@ -88,6 +121,8 @@ const ClientsPage: React.FC = () => {
           caseWorker: "Michael Johnson",
           profileImage: "https://api.dicebear.com/7.x/initials/svg?seed=MG",
           lastActivity: "2023-05-22",
+          email: "maria.garcia@example.com",
+          phone: "555-0125",
         },
         {
           id: "4",
@@ -97,6 +132,8 @@ const ClientsPage: React.FC = () => {
           caseWorker: "Lisa Chen",
           profileImage: "https://api.dicebear.com/7.x/initials/svg?seed=DW",
           lastActivity: "2023-06-14",
+          email: "david.wilson@example.com",
+          phone: "555-0126",
         },
         {
           id: "5",
@@ -106,8 +143,28 @@ const ClientsPage: React.FC = () => {
           caseWorker: "Sarah Williams",
           profileImage: "https://api.dicebear.com/7.x/initials/svg?seed=AP",
           lastActivity: "2023-06-01",
+          email: "aisha.patel@example.com",
+          phone: "555-0127",
         },
-      ]);
+      ];
+      setClients(mockClients);
+    } catch (error) {
+      console.error("🔍 ClientsPage - Error loading clients:", error);
+      // Set mock data as fallback even on error
+      const fallbackClients = [
+        {
+          id: "1",
+          name: "Sample Client",
+          status: "Active",
+          joinDate: "2023-01-01",
+          caseWorker: "Sample Worker",
+          profileImage: "https://api.dicebear.com/7.x/initials/svg?seed=SC",
+          lastActivity: "2023-06-01",
+          email: "sample@example.com",
+          phone: "555-0000",
+        },
+      ];
+      setClients(fallbackClients);
     }
   }, []);
 

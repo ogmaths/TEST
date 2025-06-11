@@ -125,7 +125,7 @@ function App() {
     };
   }, [fetchUserRole]);
 
-  // Role-based redirection logic
+  // Role-based redirection logic - simplified to avoid redirect loops
   useEffect(() => {
     if (!isInitializing && !isLoadingRole && isLoggedIn && user?.role) {
       const currentPath = location.pathname;
@@ -136,37 +136,46 @@ function App() {
         tenantId: user.tenantId,
       });
 
-      // Skip redirection if user is on login, landing, or confidentiality agreement pages
-      if (
-        currentPath === "/login" ||
-        currentPath === "/" ||
-        currentPath === "/confidentiality-agreement"
-      ) {
+      // Skip redirection if user is on login, landing, confidentiality agreement, or already on a valid page
+      const skipRedirectPaths = [
+        "/login",
+        "/",
+        "/confidentiality-agreement",
+        "/clients",
+        "/events",
+        "/assessments",
+        "/client/",
+        "/assessment/",
+        "/interaction/",
+        "/admin",
+        "/super-admin",
+        "/super-admin-dashboard",
+        "/sales-dashboard",
+        "/support-dashboard",
+      ];
+
+      const shouldSkipRedirect = skipRedirectPaths.some(
+        (path) => currentPath === path || currentPath.startsWith(path),
+      );
+
+      if (shouldSkipRedirect) {
         return;
       }
 
-      // Determine correct dashboard based on role
-      let targetPath = "/support-dashboard"; // default for support workers
+      // Only redirect from root dashboard path
+      if (currentPath === "/dashboard") {
+        let targetPath = "/support-dashboard"; // default for support workers
 
-      if (user.role === "super_admin" || user.tenantId === "0") {
-        targetPath = "/super-admin-dashboard";
-      } else if (user.role === "admin" || user.role === "org_admin") {
-        targetPath = "/admin";
-      } else if (user.role === "sales") {
-        targetPath = "/sales-dashboard";
-      } else if (user.role === "support_worker") {
-        targetPath = "/support-dashboard";
-      }
+        if (user.role === "super_admin" || user.tenantId === "0") {
+          targetPath = "/super-admin-dashboard";
+        } else if (user.role === "admin" || user.role === "org_admin") {
+          targetPath = "/admin";
+        } else if (user.role === "sales") {
+          targetPath = "/sales-dashboard";
+        } else if (user.role === "support_worker") {
+          targetPath = "/support-dashboard";
+        }
 
-      console.log(
-        "🔍 App - Target path for role:",
-        user.role,
-        "is:",
-        targetPath,
-      );
-
-      // Only redirect if user is not already on the correct dashboard
-      if (currentPath !== targetPath) {
         console.log(
           `🔍 App - Redirecting ${user.role} from ${currentPath} to ${targetPath}`,
         );
@@ -209,8 +218,8 @@ function App() {
     // Don't auto-close sidebar when navigating
   }, [location.pathname]);
 
-  // Show loading screen while initializing or loading role
-  if (isInitializing || (isLoggedIn && isLoadingRole)) {
+  // Show loading screen only during initial app load
+  if (isInitializing) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
@@ -218,9 +227,7 @@ function App() {
           <div className="space-y-2">
             <p className="text-lg font-medium">Loading...</p>
             <p className="text-sm text-muted-foreground">
-              {isInitializing
-                ? "Initializing application"
-                : "Determining user permissions"}
+              Initializing application
             </p>
           </div>
         </div>
@@ -228,10 +235,25 @@ function App() {
     );
   }
 
-  // Protected route component
+  // Protected route component - simplified to reduce redirect loops
   const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     console.log("🔍 ProtectedRoute - isLoggedIn:", isLoggedIn);
     console.log("🔍 ProtectedRoute - user:", user);
+    console.log("🔍 ProtectedRoute - isLoadingRole:", isLoadingRole);
+
+    // Show loading if we're still determining user role
+    if (isLoggedIn && isLoadingRole) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="text-center space-y-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="text-sm text-muted-foreground">
+              Loading user data...
+            </p>
+          </div>
+        </div>
+      );
+    }
 
     if (!isLoggedIn) {
       console.log("🔍 ProtectedRoute - Redirecting to login (not logged in)");
@@ -255,14 +277,17 @@ function App() {
     console.log("🔍 AdminRoute - user:", user);
     console.log("🔍 AdminRoute - user role:", user?.role);
     console.log("🔍 AdminRoute - isLoggedIn:", isLoggedIn);
+    console.log("🔍 AdminRoute - isLoadingRole:", isLoadingRole);
 
     if (!isLoggedIn) {
       console.log("🔍 AdminRoute - Redirecting to login (not logged in)");
       return <Navigate to="/login" replace />;
     }
 
-    if (!user) {
-      console.log("🔍 AdminRoute - No user object, showing loading...");
+    if (!user || isLoadingRole) {
+      console.log(
+        "🔍 AdminRoute - No user object or loading role, showing loading...",
+      );
       return (
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
@@ -279,7 +304,10 @@ function App() {
       return <Navigate to="/confidentiality-agreement" replace />;
     }
 
-    const isAdmin = user.role === "admin" || user.role === "super_admin";
+    const isAdmin =
+      user.role === "admin" ||
+      user.role === "super_admin" ||
+      user.role === "org_admin";
     console.log("🔍 AdminRoute - Is admin check:", isAdmin);
 
     if (!isAdmin) {
@@ -306,6 +334,17 @@ function App() {
       return <Navigate to="/login" replace />;
     }
 
+    if (!user || isLoadingRole) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p>Loading user data...</p>
+          </div>
+        </div>
+      );
+    }
+
     if (!user?.hasAcceptedConfidentiality) {
       return <Navigate to="/confidentiality-agreement" replace />;
     }
@@ -327,6 +366,17 @@ function App() {
   const SupportWorkerRoute = ({ children }: { children: React.ReactNode }) => {
     if (!isLoggedIn) {
       return <Navigate to="/login" replace />;
+    }
+
+    if (!user || isLoadingRole) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p>Loading user data...</p>
+          </div>
+        </div>
+      );
     }
 
     if (!user?.hasAcceptedConfidentiality) {
@@ -352,6 +402,17 @@ function App() {
   const SuperAdminRoute = ({ children }: { children: React.ReactNode }) => {
     if (!isLoggedIn) {
       return <Navigate to="/login" replace />;
+    }
+
+    if (!user || isLoadingRole) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p>Loading user data...</p>
+          </div>
+        </div>
+      );
     }
 
     if (!user?.hasAcceptedConfidentiality) {
@@ -416,19 +477,23 @@ function App() {
 
                                 {/* Support Worker Dashboard - Only for support_worker role */}
                                 {user?.role === "support_worker" && (
-                                  <>
-                                    <Link
-                                      to="/support-dashboard"
-                                      onClick={() => setSidebarOpen(false)}
+                                  <Link
+                                    to="/support-dashboard"
+                                    onClick={() => setSidebarOpen(false)}
+                                  >
+                                    <Button
+                                      variant="ghost"
+                                      className="w-full justify-start"
                                     >
-                                      <Button
-                                        variant="ghost"
-                                        className="w-full justify-start"
-                                      >
-                                        <HomeIcon className="mr-2 h-4 w-4" />
-                                        Support Dashboard
-                                      </Button>
-                                    </Link>
+                                      <HomeIcon className="mr-2 h-4 w-4" />
+                                      Support Dashboard
+                                    </Button>
+                                  </Link>
+                                )}
+
+                                {/* Common navigation items for all authenticated users */}
+                                {isLoggedIn && (
+                                  <>
                                     <Link
                                       to="/clients"
                                       onClick={() => setSidebarOpen(false)}
@@ -589,17 +654,17 @@ function App() {
                 <Route
                   path="/clients"
                   element={
-                    <SupportWorkerRoute>
+                    <ProtectedRoute>
                       <ClientsPage />
-                    </SupportWorkerRoute>
+                    </ProtectedRoute>
                   }
                 />
                 <Route
                   path="/clients/new"
                   element={
-                    <SupportWorkerRoute>
+                    <ProtectedRoute>
                       <NewClientForm />
-                    </SupportWorkerRoute>
+                    </ProtectedRoute>
                   }
                 />
 
@@ -622,17 +687,17 @@ function App() {
                 <Route
                   path="/events"
                   element={
-                    <SupportWorkerRoute>
+                    <ProtectedRoute>
                       <EventsPage />
-                    </SupportWorkerRoute>
+                    </ProtectedRoute>
                   }
                 />
                 <Route
                   path="/events/new"
                   element={
-                    <SupportWorkerRoute>
+                    <ProtectedRoute>
                       <NewEventForm />
-                    </SupportWorkerRoute>
+                    </ProtectedRoute>
                   }
                 />
                 <Route
@@ -780,13 +845,13 @@ function App() {
                 <Route
                   path="/assessments"
                   element={
-                    <SupportWorkerRoute>
+                    <ProtectedRoute>
                       {user?.role === "admin" ? (
                         <AssessmentsPage />
                       ) : (
                         <WorkerAssessments />
                       )}
-                    </SupportWorkerRoute>
+                    </ProtectedRoute>
                   }
                 />
 
