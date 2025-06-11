@@ -60,7 +60,7 @@ import {
   FileText,
   Copy,
 } from "lucide-react";
-import AssessmentBuilder from "./AssessmentBuilder";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import SuccessToast from "./SuccessToast";
 import { useUser } from "@/context/UserContext";
 import {
@@ -68,12 +68,14 @@ import {
   AssessmentPack,
   AssessmentTemplate,
   Sector,
+  AssessmentSection,
 } from "@/types/admin";
 import BackButton from "./BackButton";
 import { Link } from "react-router-dom";
 import { supabaseClient } from "@/lib/supabaseClient";
 import { useTenant } from "@/context/TenantContext";
 import Logo from "./Logo";
+import AssessmentTemplateForm from "./AssessmentTemplateForm";
 
 const SuperAdminDashboard = () => {
   const navigate = useNavigate();
@@ -87,6 +89,40 @@ const SuperAdminDashboard = () => {
     AssessmentTemplate[]
   >([]);
   const [showAssessmentBuilder, setShowAssessmentBuilder] = useState(false);
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [editingTemplate, setEditingTemplate] =
+    useState<AssessmentTemplate | null>(null);
+  const [templateToDelete, setTemplateToDelete] =
+    useState<AssessmentTemplate | null>(null);
+  const [showDeleteTemplateDialog, setShowDeleteTemplateDialog] =
+    useState(false);
+  const [showTemplateForm, setShowTemplateForm] = useState(false);
+  const [templateFormMode, setTemplateFormMode] = useState<"create" | "edit">(
+    "create",
+  );
+  const [templateFormData, setTemplateFormData] = useState({
+    name: "",
+    description: "",
+    type: "introduction",
+    sector: "",
+    defaultDueInDays: "7",
+    isRequired: true,
+    isActive: true,
+    sections: [
+      {
+        title: "General Information",
+        questions: [
+          {
+            id: "1",
+            text: "Sample question",
+            type: "text",
+            required: true,
+            options: [],
+          },
+        ],
+      },
+    ],
+  });
   const [showPackDialog, setShowPackDialog] = useState(false);
   const [editingPack, setEditingPack] = useState<AssessmentPack | null>(null);
   const [packFormData, setPackFormData] = useState({
@@ -193,6 +229,117 @@ const SuperAdminDashboard = () => {
         } catch (error) {
           console.error("Failed to parse saved assessment templates", error);
         }
+      } else {
+        // Initialize with default templates if none exist
+        const defaultTemplates: AssessmentTemplate[] = [
+          {
+            id: "intro-assessment",
+            name: "Introduction Assessment",
+            description: "Initial assessment for new clients",
+            type: "introduction",
+            defaultDueInDays: 7,
+            isRequired: true,
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            sections: [
+              {
+                title: "Personal Information",
+                questions: [
+                  {
+                    id: "q1",
+                    text: "How would you describe your current situation?",
+                    type: "textarea",
+                    required: true,
+                    options: [],
+                  },
+                  {
+                    id: "q2",
+                    text: "What are your main goals for seeking support?",
+                    type: "textarea",
+                    required: true,
+                    options: [],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            id: "progress-assessment",
+            name: "Progress Assessment",
+            description: "Regular check-in assessment",
+            type: "progress",
+            defaultDueInDays: 30,
+            isRequired: false,
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            sections: [
+              {
+                title: "Progress Review",
+                questions: [
+                  {
+                    id: "q1",
+                    text: "How would you rate your progress since the last assessment?",
+                    type: "select",
+                    required: true,
+                    options: ["Excellent", "Good", "Fair", "Poor"],
+                  },
+                  {
+                    id: "q2",
+                    text: "What challenges have you faced since the last assessment?",
+                    type: "textarea",
+                    required: true,
+                    options: [],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            id: "exit-assessment",
+            name: "Exit Assessment",
+            description: "Final assessment when client completes program",
+            type: "exit",
+            defaultDueInDays: 0,
+            isRequired: true,
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            sections: [
+              {
+                title: "Program Completion",
+                questions: [
+                  {
+                    id: "q1",
+                    text: "How satisfied are you with the support you received?",
+                    type: "select",
+                    required: true,
+                    options: [
+                      "Very Satisfied",
+                      "Satisfied",
+                      "Neutral",
+                      "Dissatisfied",
+                      "Very Dissatisfied",
+                    ],
+                  },
+                  {
+                    id: "q2",
+                    text: "What aspects of the program were most helpful to you?",
+                    type: "textarea",
+                    required: true,
+                    options: [],
+                  },
+                ],
+              },
+            ],
+          },
+        ];
+        setAssessmentTemplates(defaultTemplates);
+        localStorage.setItem(
+          "assessmentTemplates",
+          JSON.stringify(defaultTemplates),
+        );
       }
 
       // Load assessment packs
@@ -603,6 +750,272 @@ const SuperAdminDashboard = () => {
       tenant.subdomain?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
+  // Assessment Builder functions
+  const handleDeleteTemplate = (template: AssessmentTemplate) => {
+    setTemplateToDelete(template);
+    setShowDeleteTemplateDialog(true);
+  };
+
+  const confirmDeleteTemplate = () => {
+    if (templateToDelete) {
+      const updatedTemplates = assessmentTemplates.filter(
+        (t) => t.id !== templateToDelete.id,
+      );
+      setAssessmentTemplates(updatedTemplates);
+      localStorage.setItem(
+        "assessmentTemplates",
+        JSON.stringify(updatedTemplates),
+      );
+      setShowDeleteTemplateDialog(false);
+      setTemplateToDelete(null);
+
+      addNotification({
+        type: "success",
+        title: "Assessment Template Deleted",
+        message: `${templateToDelete.name} has been deleted successfully`,
+        priority: "high",
+      });
+    }
+  };
+
+  const handleEditTemplate = (template: AssessmentTemplate) => {
+    console.log("Editing template:", template);
+    setEditingTemplate(template);
+    setTemplateFormMode("edit");
+    setShowTemplateForm(true);
+  };
+
+  const handleDuplicateTemplate = (template: AssessmentTemplate) => {
+    const newTemplate = {
+      ...template,
+      id: `${template.id}-copy-${Date.now()}`,
+      name: `${template.name} (Copy)`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const updatedTemplates = [...assessmentTemplates, newTemplate];
+    setAssessmentTemplates(updatedTemplates);
+    localStorage.setItem(
+      "assessmentTemplates",
+      JSON.stringify(updatedTemplates),
+    );
+
+    addNotification({
+      type: "success",
+      title: "Assessment Template Duplicated",
+      message: `${template.name} has been duplicated successfully`,
+      priority: "medium",
+    });
+  };
+
+  const handleTemplateFormChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
+  ) => {
+    const { id, value } = e.target;
+    setTemplateFormData((prev) => ({
+      ...prev,
+      [id]: value,
+    }));
+  };
+
+  const handleTemplateCheckboxChange = (id: string, checked: boolean) => {
+    setTemplateFormData((prev) => ({
+      ...prev,
+      [id]: checked,
+    }));
+  };
+
+  const handleTemplateFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const formattedTemplate: AssessmentTemplate = {
+      id: editingTemplate ? editingTemplate.id : `template-${Date.now()}`,
+      name: templateFormData.name,
+      description: templateFormData.description,
+      type: templateFormData.type as
+        | "introduction"
+        | "progress"
+        | "exit"
+        | "custom"
+        | "risk",
+      sector: templateFormData.sector || undefined,
+      defaultDueInDays: parseInt(templateFormData.defaultDueInDays) || 0,
+      isRequired: templateFormData.isRequired,
+      isActive: templateFormData.isActive,
+      createdAt: editingTemplate
+        ? editingTemplate.createdAt
+        : new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      sections: templateFormData.sections as AssessmentSection[],
+    };
+
+    let updatedTemplates;
+    if (editingTemplate) {
+      // Update existing template
+      updatedTemplates = assessmentTemplates.map((t) =>
+        t.id === editingTemplate.id ? formattedTemplate : t,
+      );
+
+      addNotification({
+        type: "success",
+        title: "Assessment Template Updated",
+        message: `${formattedTemplate.name} has been updated successfully`,
+        priority: "high",
+      });
+    } else {
+      // Create new template
+      updatedTemplates = [...assessmentTemplates, formattedTemplate];
+
+      addNotification({
+        type: "success",
+        title: "Assessment Template Created",
+        message: `${formattedTemplate.name} has been created successfully`,
+        priority: "high",
+      });
+    }
+
+    setAssessmentTemplates(updatedTemplates);
+    localStorage.setItem(
+      "assessmentTemplates",
+      JSON.stringify(updatedTemplates),
+    );
+
+    // Reset form and close dialog
+    setShowTemplateDialog(false);
+    setEditingTemplate(null);
+    setTemplateFormData({
+      name: "",
+      description: "",
+      type: "introduction",
+      sector: "",
+      defaultDueInDays: "7",
+      isRequired: true,
+      isActive: true,
+      sections: [
+        {
+          title: "General Information",
+          questions: [
+            {
+              id: "1",
+              text: "Sample question",
+              type: "text",
+              required: true,
+              options: [],
+            },
+          ],
+        },
+      ],
+    });
+  };
+
+  const openNewTemplateForm = () => {
+    console.log("Creating new template");
+    setEditingTemplate(null);
+    setTemplateFormMode("create");
+    setShowTemplateForm(true);
+  };
+
+  const handleTemplateFormSave = (template: AssessmentTemplate) => {
+    console.log("Template form saved:", template);
+
+    let updatedTemplates;
+    if (templateFormMode === "edit") {
+      // Update existing template
+      updatedTemplates = assessmentTemplates.map((t) =>
+        t.id === template.id ? template : t,
+      );
+      addNotification({
+        type: "success",
+        title: "Assessment Template Updated",
+        message: `${template.name} has been updated successfully`,
+        priority: "high",
+      });
+    } else {
+      // Create new template
+      updatedTemplates = [...assessmentTemplates, template];
+      addNotification({
+        type: "success",
+        title: "Assessment Template Created",
+        message: `${template.name} has been created successfully`,
+        priority: "high",
+      });
+    }
+
+    setAssessmentTemplates(updatedTemplates);
+    localStorage.setItem(
+      "assessmentTemplates",
+      JSON.stringify(updatedTemplates),
+    );
+
+    setShowTemplateForm(false);
+    setEditingTemplate(null);
+  };
+
+  const handleTemplateFormCancel = () => {
+    console.log("Template form cancelled");
+    setShowTemplateForm(false);
+    setEditingTemplate(null);
+  };
+
+  const getTypeBadge = (type: string) => {
+    switch (type) {
+      case "introduction":
+        return (
+          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800">
+            Introduction
+          </span>
+        );
+      case "progress":
+        return (
+          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800">
+            Progress
+          </span>
+        );
+      case "exit":
+        return (
+          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-purple-100 text-purple-800">
+            Exit
+          </span>
+        );
+      case "custom":
+        return (
+          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800">
+            Custom
+          </span>
+        );
+      case "perinatal":
+        return (
+          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-pink-100 text-pink-800">
+            Perinatal
+          </span>
+        );
+      case "risk":
+        return (
+          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-red-100 text-red-800">
+            Risk
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-800">
+            {type}
+          </span>
+        );
+    }
+  };
+
+  const filteredTemplates = assessmentTemplates.filter(
+    (template) =>
+      template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      template.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      template.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (template.sector &&
+        template.sector.toLowerCase().includes(searchQuery.toLowerCase())),
+  );
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-background">
@@ -697,7 +1110,9 @@ const SuperAdminDashboard = () => {
           <div className="flex gap-2">
             <Button
               className="flex items-center gap-2"
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 setShowNewTenantDialog(true);
               }}
             >
@@ -706,7 +1121,11 @@ const SuperAdminDashboard = () => {
             <Button
               variant="outline"
               className="flex items-center gap-2"
-              onClick={fetchTenants}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                fetchTenants();
+              }}
             >
               <RefreshCw className="h-4 w-4" /> Refresh
             </Button>
@@ -851,7 +1270,11 @@ const SuperAdminDashboard = () => {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => impersonateTenant(tenant)}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      impersonateTenant(tenant);
+                                    }}
                                     className="flex items-center gap-1"
                                   >
                                     <LogIn className="h-3 w-3" />
@@ -860,7 +1283,11 @@ const SuperAdminDashboard = () => {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => handleEditTenant(tenant)}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleEditTenant(tenant);
+                                    }}
                                   >
                                     <Edit className="h-4 w-4" />
                                   </Button>
@@ -868,7 +1295,11 @@ const SuperAdminDashboard = () => {
                                     variant="ghost"
                                     size="sm"
                                     className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                    onClick={() => handleDeleteTenant(tenant)}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleDeleteTenant(tenant);
+                                    }}
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
@@ -980,7 +1411,9 @@ const SuperAdminDashboard = () => {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
                                       const activeTenant = {
                                         ...tenant,
                                         status: "active",
@@ -1015,7 +1448,9 @@ const SuperAdminDashboard = () => {
                   </CardDescription>
                 </div>
                 <Button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     setEditingPack(null);
                     setPackFormData({
                       name: "",
@@ -1079,7 +1514,9 @@ const SuperAdminDashboard = () => {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => {
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
                                     setEditingPack(pack);
                                     setPackFormData({
                                       name: pack.name,
@@ -1115,235 +1552,151 @@ const SuperAdminDashboard = () => {
           </TabsContent>
 
           <TabsContent value="templates" className="mt-6">
-            {showAssessmentBuilder ? (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle>Assessment Builder</CardTitle>
-                      <CardDescription>
-                        Create and manage assessment templates
-                      </CardDescription>
-                    </div>
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowAssessmentBuilder(false)}
-                    >
-                      Back to Templates
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <AssessmentBuilder />
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Assessment Templates</CardTitle>
-                    <CardDescription>
-                      Create and manage assessment templates for all sectors
-                    </CardDescription>
-                  </div>
-                  <Button
-                    onClick={() => setShowAssessmentBuilder(true)}
-                    className="flex items-center gap-2"
-                  >
-                    <Plus className="h-4 w-4" /> Create Template
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  <div className="mb-4">
-                    <Input
-                      type="search"
-                      placeholder="Search templates..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="max-w-sm"
-                    />
-                  </div>
-                  <div className="rounded-md border">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b bg-muted/50 text-left">
-                          <th className="p-2 pl-4">Template Name</th>
-                          <th className="p-2">Type</th>
-                          <th className="p-2">Sector</th>
-                          <th className="p-2">Questions</th>
-                          <th className="p-2">Status</th>
-                          <th className="p-2 text-right pr-4">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {assessmentTemplates.length > 0 ? (
-                          assessmentTemplates
-                            .filter(
-                              (template) =>
-                                template.name
-                                  .toLowerCase()
-                                  .includes(searchQuery.toLowerCase()) ||
-                                template.description
-                                  .toLowerCase()
-                                  .includes(searchQuery.toLowerCase()) ||
-                                template.type
-                                  .toLowerCase()
-                                  .includes(searchQuery.toLowerCase()) ||
-                                (template.sector &&
-                                  template.sector
-                                    .toLowerCase()
-                                    .includes(searchQuery.toLowerCase())),
-                            )
-                            .map((template) => {
-                              const totalQuestions = template.sections.reduce(
-                                (total, section) =>
-                                  total + section.questions.length,
-                                0,
-                              );
-                              return (
-                                <tr key={template.id} className="border-b">
-                                  <td className="p-2 pl-4 font-medium">
-                                    {template.name}
-                                    <div className="text-xs text-muted-foreground">
-                                      {template.description}
-                                    </div>
-                                  </td>
-                                  <td className="p-2">
-                                    <span
-                                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                                        template.type === "introduction"
-                                          ? "bg-blue-100 text-blue-800"
-                                          : template.type === "progress"
-                                            ? "bg-green-100 text-green-800"
-                                            : template.type === "exit"
-                                              ? "bg-purple-100 text-purple-800"
-                                              : "bg-yellow-100 text-yellow-800"
-                                      }`}
-                                    >
-                                      {template.type.charAt(0).toUpperCase() +
-                                        template.type.slice(1)}
-                                    </span>
-                                  </td>
-                                  <td className="p-2">
-                                    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-800">
-                                      {template.sector
-                                        ? sectors.find(
-                                            (s) => s.id === template.sector,
-                                          )?.name || template.sector
-                                        : "General"}
-                                    </span>
-                                  </td>
-                                  <td className="p-2">
-                                    <span className="text-sm text-muted-foreground">
-                                      {totalQuestions} questions
-                                    </span>
-                                  </td>
-                                  <td className="p-2">
-                                    {template.isActive ? (
-                                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800">
-                                        <CheckCircle2 className="mr-1 h-3 w-3" />
-                                        Active
-                                      </span>
-                                    ) : (
-                                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-red-100 text-red-800">
-                                        <XCircle className="mr-1 h-3 w-3" />
-                                        Inactive
-                                      </span>
-                                    )}
-                                  </td>
-                                  <td className="p-2 text-right">
-                                    <div className="flex justify-end gap-2">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                          setShowAssessmentBuilder(true);
-                                        }}
-                                      >
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                          // Duplicate template
-                                          const newTemplate = {
-                                            ...template,
-                                            id: `${template.id}-copy-${Date.now()}`,
-                                            name: `${template.name} (Copy)`,
-                                            createdAt: new Date().toISOString(),
-                                            updatedAt: new Date().toISOString(),
-                                          };
-                                          const updatedTemplates = [
-                                            ...assessmentTemplates,
-                                            newTemplate,
-                                          ];
-                                          setAssessmentTemplates(
-                                            updatedTemplates,
-                                          );
-                                          localStorage.setItem(
-                                            "assessmentTemplates",
-                                            JSON.stringify(updatedTemplates),
-                                          );
-                                          addNotification({
-                                            type: "success",
-                                            title: "Template Duplicated",
-                                            message: `${template.name} has been duplicated successfully`,
-                                            priority: "medium",
-                                          });
-                                        }}
-                                      >
-                                        <Copy className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                        onClick={() => {
-                                          // Delete template
-                                          const updatedTemplates =
-                                            assessmentTemplates.filter(
-                                              (t) => t.id !== template.id,
-                                            );
-                                          setAssessmentTemplates(
-                                            updatedTemplates,
-                                          );
-                                          localStorage.setItem(
-                                            "assessmentTemplates",
-                                            JSON.stringify(updatedTemplates),
-                                          );
-                                          addNotification({
-                                            type: "success",
-                                            title: "Template Deleted",
-                                            message: `${template.name} has been deleted successfully`,
-                                            priority: "high",
-                                          });
-                                        }}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              );
-                            })
-                        ) : (
-                          <tr>
-                            <td
-                              colSpan={6}
-                              className="p-4 text-center text-muted-foreground"
-                            >
-                              No assessment templates found. Create your first
-                              template by clicking the "Create Template" button.
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Assessment Templates</CardTitle>
+                  <CardDescription>
+                    Create and manage assessment templates for all sectors
+                  </CardDescription>
+                </div>
+                <Button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openNewTemplateForm();
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" /> Create Template
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-4">
+                  <Input
+                    type="search"
+                    placeholder="Search templates..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="max-w-sm"
+                  />
+                </div>
+                <div className="rounded-md border">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/50 text-left">
+                        <th className="p-2 pl-4">Name</th>
+                        <th className="p-2">Type</th>
+                        <th className="p-2">Sector</th>
+                        <th className="p-2">Default Due (Days)</th>
+                        <th className="p-2">Required</th>
+                        <th className="p-2">Status</th>
+                        <th className="p-2 text-right pr-4">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredTemplates.length > 0 ? (
+                        filteredTemplates.map((template) => (
+                          <tr key={template.id} className="border-b">
+                            <td className="p-2 pl-4 font-medium">
+                              {template.name}
+                              <div className="text-xs text-muted-foreground">
+                                {template.description}
+                              </div>
+                            </td>
+                            <td className="p-2">
+                              {getTypeBadge(template.type)}
+                            </td>
+                            <td className="p-2">
+                              {template.sector ? (
+                                <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 capitalize">
+                                  {template.sector.replace("-", " ")}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">
+                                  -
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-2">{template.defaultDueInDays}</td>
+                            <td className="p-2">
+                              {template.isRequired ? (
+                                <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800">
+                                  Required
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-800">
+                                  Optional
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-2">
+                              {template.isActive ? (
+                                <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800">
+                                  Active
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-red-100 text-red-800">
+                                  Inactive
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-2 text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleEditTemplate(template);
+                                  }}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleDuplicateTemplate(template);
+                                  }}
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleDeleteTemplate(template);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </td>
                           </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                        ))
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan={7}
+                            className="p-4 text-center text-muted-foreground"
+                          >
+                            No assessment templates found. Create your first
+                            template by clicking the "Create Template" button.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </main>
@@ -1986,6 +2339,603 @@ const SuperAdminDashboard = () => {
               {editingPack ? "Update Pack" : "Create Pack"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Template Form Dialog */}
+      <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingTemplate
+                ? "Edit Assessment Template"
+                : "Create Assessment Template"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingTemplate
+                ? "Update the assessment template details below"
+                : "Fill in the details to create a new assessment template"}
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="h-[calc(90vh-180px)]">
+            <form onSubmit={handleTemplateFormSubmit}>
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Template Name</Label>
+                  <Input
+                    id="name"
+                    placeholder="Assessment name"
+                    value={templateFormData.name}
+                    onChange={handleTemplateFormChange}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Brief description of this assessment"
+                    rows={2}
+                    value={templateFormData.description}
+                    onChange={handleTemplateFormChange}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="type">Assessment Type</Label>
+                  <Select
+                    value={templateFormData.type}
+                    onValueChange={(value) =>
+                      setTemplateFormData((prev) => ({ ...prev, type: value }))
+                    }
+                  >
+                    <SelectTrigger id="type">
+                      <SelectValue placeholder="Select assessment type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="introduction">Introduction</SelectItem>
+                      <SelectItem value="progress">Progress</SelectItem>
+                      <SelectItem value="exit">Exit</SelectItem>
+                      <SelectItem value="perinatal">Perinatal</SelectItem>
+                      <SelectItem value="risk">Risk</SelectItem>
+                      <SelectItem value="custom">Custom</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="sector">Sector</Label>
+                  <Select
+                    value={templateFormData.sector}
+                    onValueChange={(value) =>
+                      setTemplateFormData((prev) => ({
+                        ...prev,
+                        sector: value,
+                      }))
+                    }
+                  >
+                    <SelectTrigger id="sector">
+                      <SelectValue placeholder="Select sector (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">No Sector</SelectItem>
+                      <SelectItem value="healthcare">Healthcare</SelectItem>
+                      <SelectItem value="education">Education</SelectItem>
+                      <SelectItem value="social-services">
+                        Social Services
+                      </SelectItem>
+                      <SelectItem value="mental-health">
+                        Mental Health
+                      </SelectItem>
+                      <SelectItem value="perinatal">Perinatal</SelectItem>
+                      <SelectItem value="youth-services">
+                        Youth Services
+                      </SelectItem>
+                      <SelectItem value="elderly-care">Elderly Care</SelectItem>
+                      <SelectItem value="disability-services">
+                        Disability Services
+                      </SelectItem>
+                      <SelectItem value="housing">Housing</SelectItem>
+                      <SelectItem value="employment">Employment</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="defaultDueInDays">Default Due (Days)</Label>
+                  <Input
+                    id="defaultDueInDays"
+                    type="number"
+                    placeholder="Number of days until due"
+                    value={templateFormData.defaultDueInDays}
+                    onChange={handleTemplateFormChange}
+                    min="0"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Number of days from assignment until the assessment is due
+                  </p>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="isRequired"
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                    checked={templateFormData.isRequired}
+                    onChange={(e) =>
+                      handleTemplateCheckboxChange(
+                        "isRequired",
+                        e.target.checked,
+                      )
+                    }
+                  />
+                  <Label htmlFor="isRequired">Required Assessment</Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="isActive"
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                    checked={templateFormData.isActive}
+                    onChange={(e) =>
+                      handleTemplateCheckboxChange("isActive", e.target.checked)
+                    }
+                  />
+                  <Label htmlFor="isActive">Active</Label>
+                </div>
+
+                <div className="space-y-4 border-t pt-4 mt-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-lg font-medium">
+                      Assessment Sections & Questions
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setTemplateFormData((prev) => ({
+                          ...prev,
+                          sections: [
+                            ...prev.sections,
+                            {
+                              title: `Section ${prev.sections.length + 1}`,
+                              questions: [],
+                            },
+                          ],
+                        }));
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add Section
+                    </Button>
+                  </div>
+
+                  {templateFormData.sections.map((section, sectionIndex) => (
+                    <div
+                      key={sectionIndex}
+                      className="border rounded-md p-4 space-y-4"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-2 flex-1 mr-4">
+                          <Label htmlFor={`section-${sectionIndex}-title`}>
+                            Section Title
+                          </Label>
+                          <Input
+                            id={`section-${sectionIndex}-title`}
+                            value={section.title}
+                            onChange={(e) => {
+                              const newSections = [
+                                ...templateFormData.sections,
+                              ];
+                              newSections[sectionIndex].title = e.target.value;
+                              setTemplateFormData((prev) => ({
+                                ...prev,
+                                sections: newSections,
+                              }));
+                            }}
+                          />
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const newSections = [
+                                ...templateFormData.sections,
+                              ];
+                              newSections[sectionIndex].questions.push({
+                                id: `q-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                                text: "",
+                                type: "text",
+                                required: true,
+                                options: [],
+                              });
+                              setTemplateFormData((prev) => ({
+                                ...prev,
+                                sections: newSections,
+                              }));
+                            }}
+                          >
+                            <Plus className="h-4 w-4 mr-1" /> Add Question
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => {
+                              if (templateFormData.sections.length > 1) {
+                                const newSections =
+                                  templateFormData.sections.filter(
+                                    (_, i) => i !== sectionIndex,
+                                  );
+                                setTemplateFormData((prev) => ({
+                                  ...prev,
+                                  sections: newSections,
+                                }));
+                              } else {
+                                addNotification({
+                                  type: "system",
+                                  title: "Cannot Remove Section",
+                                  message:
+                                    "Assessment must have at least one section",
+                                  priority: "medium",
+                                });
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {section.questions.length === 0 ? (
+                        <div className="text-center p-4 border border-dashed rounded-md">
+                          <p className="text-sm text-muted-foreground">
+                            No questions added yet. Click "Add Question" to
+                            create one.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {section.questions.map((question, questionIndex) => (
+                            <div
+                              key={question.id}
+                              className="border-l-4 border-l-primary/20 pl-4 py-2 space-y-4"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="space-y-4 flex-1 mr-4">
+                                  <div>
+                                    <Label
+                                      htmlFor={`question-${sectionIndex}-${questionIndex}-text`}
+                                    >
+                                      Question Text
+                                    </Label>
+                                    <Textarea
+                                      id={`question-${sectionIndex}-${questionIndex}-text`}
+                                      value={question.text}
+                                      placeholder="Enter question text"
+                                      onChange={(e) => {
+                                        const newSections = [
+                                          ...templateFormData.sections,
+                                        ];
+                                        newSections[sectionIndex].questions[
+                                          questionIndex
+                                        ].text = e.target.value;
+                                        setTemplateFormData((prev) => ({
+                                          ...prev,
+                                          sections: newSections,
+                                        }));
+                                      }}
+                                      className="mt-1"
+                                    />
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <Label
+                                        htmlFor={`question-${sectionIndex}-${questionIndex}-type`}
+                                      >
+                                        Question Type
+                                      </Label>
+                                      <Select
+                                        value={question.type}
+                                        onValueChange={(value) => {
+                                          const newSections = [
+                                            ...templateFormData.sections,
+                                          ];
+                                          newSections[sectionIndex].questions[
+                                            questionIndex
+                                          ].type = value as any;
+                                          // Reset options if changing from a type that uses options to one that doesn't
+                                          if (
+                                            value !== "select" &&
+                                            value !== "radio" &&
+                                            value !== "checkbox"
+                                          ) {
+                                            newSections[sectionIndex].questions[
+                                              questionIndex
+                                            ].options = [];
+                                          } else if (
+                                            newSections[sectionIndex].questions[
+                                              questionIndex
+                                            ].options.length === 0
+                                          ) {
+                                            // Add default options if switching to a type that uses options
+                                            newSections[sectionIndex].questions[
+                                              questionIndex
+                                            ].options = [
+                                              "Option 1",
+                                              "Option 2",
+                                            ];
+                                          }
+                                          setTemplateFormData((prev) => ({
+                                            ...prev,
+                                            sections: newSections,
+                                          }));
+                                        }}
+                                      >
+                                        <SelectTrigger
+                                          id={`question-${sectionIndex}-${questionIndex}-type`}
+                                          className="mt-1"
+                                        >
+                                          <SelectValue placeholder="Select question type" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="text">
+                                            Short Text
+                                          </SelectItem>
+                                          <SelectItem value="textarea">
+                                            Long Text
+                                          </SelectItem>
+                                          <SelectItem value="select">
+                                            Dropdown
+                                          </SelectItem>
+                                          <SelectItem value="radio">
+                                            Single Choice
+                                          </SelectItem>
+                                          <SelectItem value="checkbox">
+                                            Multiple Choice
+                                          </SelectItem>
+                                          <SelectItem value="date">
+                                            Date
+                                          </SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+
+                                    <div className="flex items-center space-x-2 mt-6">
+                                      <input
+                                        type="checkbox"
+                                        id={`question-${sectionIndex}-${questionIndex}-required`}
+                                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                        checked={question.required}
+                                        onChange={(e) => {
+                                          const newSections = [
+                                            ...templateFormData.sections,
+                                          ];
+                                          newSections[sectionIndex].questions[
+                                            questionIndex
+                                          ].required = e.target.checked;
+                                          setTemplateFormData((prev) => ({
+                                            ...prev,
+                                            sections: newSections,
+                                          }));
+                                        }}
+                                      />
+                                      <Label
+                                        htmlFor={`question-${sectionIndex}-${questionIndex}-required`}
+                                      >
+                                        Required
+                                      </Label>
+                                    </div>
+                                  </div>
+
+                                  {(question.type === "select" ||
+                                    question.type === "radio" ||
+                                    question.type === "checkbox") && (
+                                    <div className="space-y-2">
+                                      <Label>Options</Label>
+                                      {question.options.map(
+                                        (option, optionIndex) => (
+                                          <div
+                                            key={optionIndex}
+                                            className="flex items-center space-x-2"
+                                          >
+                                            <Input
+                                              value={option}
+                                              onChange={(e) => {
+                                                const newSections = [
+                                                  ...templateFormData.sections,
+                                                ];
+                                                newSections[
+                                                  sectionIndex
+                                                ].questions[
+                                                  questionIndex
+                                                ].options[optionIndex] =
+                                                  e.target.value;
+                                                setTemplateFormData((prev) => ({
+                                                  ...prev,
+                                                  sections: newSections,
+                                                }));
+                                              }}
+                                              className="flex-1"
+                                            />
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="sm"
+                                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                              onClick={() => {
+                                                if (
+                                                  question.options.length > 1
+                                                ) {
+                                                  const newSections = [
+                                                    ...templateFormData.sections,
+                                                  ];
+                                                  newSections[
+                                                    sectionIndex
+                                                  ].questions[
+                                                    questionIndex
+                                                  ].options = newSections[
+                                                    sectionIndex
+                                                  ].questions[
+                                                    questionIndex
+                                                  ].options.filter(
+                                                    (_, i) => i !== optionIndex,
+                                                  );
+                                                  setTemplateFormData(
+                                                    (prev) => ({
+                                                      ...prev,
+                                                      sections: newSections,
+                                                    }),
+                                                  );
+                                                } else {
+                                                  addNotification({
+                                                    type: "system",
+                                                    title:
+                                                      "Cannot Remove Option",
+                                                    message:
+                                                      "Question must have at least one option",
+                                                    priority: "medium",
+                                                  });
+                                                }
+                                              }}
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                          </div>
+                                        ),
+                                      )}
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="mt-2"
+                                        onClick={() => {
+                                          const newSections = [
+                                            ...templateFormData.sections,
+                                          ];
+                                          newSections[sectionIndex].questions[
+                                            questionIndex
+                                          ].options.push(
+                                            `Option ${question.options.length + 1}`,
+                                          );
+                                          setTemplateFormData((prev) => ({
+                                            ...prev,
+                                            sections: newSections,
+                                          }));
+                                        }}
+                                      >
+                                        <Plus className="h-4 w-4 mr-1" /> Add
+                                        Option
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                  onClick={() => {
+                                    const newSections = [
+                                      ...templateFormData.sections,
+                                    ];
+                                    newSections[sectionIndex].questions =
+                                      newSections[
+                                        sectionIndex
+                                      ].questions.filter(
+                                        (_, i) => i !== questionIndex,
+                                      );
+                                    setTemplateFormData((prev) => ({
+                                      ...prev,
+                                      sections: newSections,
+                                    }));
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowTemplateDialog(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  {editingTemplate ? "Update Template" : "Create Template"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Template Confirmation Dialog */}
+      <AlertDialog
+        open={showDeleteTemplateDialog}
+        onOpenChange={setShowDeleteTemplateDialog}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Assessment Template</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{templateToDelete?.name}"? This
+              action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteTemplate}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Template Form Modal */}
+      <Dialog open={showTemplateForm} onOpenChange={setShowTemplateForm}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden p-0">
+          <DialogHeader className="p-6 pb-0">
+            <DialogTitle>
+              {templateFormMode === "edit"
+                ? "Edit Assessment Template"
+                : "Create Assessment Template"}
+            </DialogTitle>
+            <DialogDescription>
+              {templateFormMode === "edit"
+                ? "Modify the assessment template details and questions"
+                : "Create a new assessment template with custom questions and sections"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden">
+            {showTemplateForm && (
+              <AssessmentTemplateForm
+                template={editingTemplate}
+                onSave={handleTemplateFormSave}
+                onCancel={handleTemplateFormCancel}
+                isEdit={templateFormMode === "edit"}
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

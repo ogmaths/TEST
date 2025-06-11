@@ -59,6 +59,7 @@ const AssessmentBuilder = () => {
     name: "",
     description: "",
     type: "introduction",
+    sector: "",
     defaultDueInDays: "7",
     isRequired: true,
     isActive: true,
@@ -192,6 +193,148 @@ const AssessmentBuilder = () => {
             },
           ],
         },
+        {
+          id: "perinatal-bonding-assessment",
+          name: 'Perinatal Wellbeing – "New Baby" Bonding Scale',
+          description: "Evaluate early bonding between parent and baby.",
+          type: "perinatal",
+          defaultDueInDays: 10,
+          isRequired: true,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          sections: [
+            {
+              title: "Bonding Feelings",
+              questions: [
+                {
+                  id: "q1",
+                  text: "I feel close to my baby.",
+                  type: "select",
+                  required: true,
+                  options: ["1", "2", "3", "4", "5"],
+                },
+                {
+                  id: "q2",
+                  text: "I enjoy spending time with my baby.",
+                  type: "select",
+                  required: true,
+                  options: ["1", "2", "3", "4", "5"],
+                },
+                {
+                  id: "q3",
+                  text: "I feel confident in caring for my baby.",
+                  type: "select",
+                  required: true,
+                  options: ["1", "2", "3", "4", "5"],
+                },
+                {
+                  id: "q4",
+                  text: "I feel irritated with my baby.",
+                  type: "select",
+                  required: true,
+                  options: ["1", "2", "3", "4", "5"],
+                },
+                {
+                  id: "q5",
+                  text: "I feel affectionate toward my baby.",
+                  type: "select",
+                  required: true,
+                  options: ["1", "2", "3", "4", "5"],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: "dash-risk-checklist",
+          name: "Domestic Abuse – DASH Risk Checklist",
+          description:
+            "Domestic Abuse Stalking and Honour-Based Violence risk assessment.",
+          type: "risk",
+          defaultDueInDays: 5,
+          isRequired: true,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          sections: [
+            {
+              title: "Risk Indicators",
+              questions: [
+                {
+                  id: "q1",
+                  text: "Has the current incident resulted in injury?",
+                  type: "radio",
+                  required: true,
+                  options: ["Yes", "No"],
+                },
+                {
+                  id: "q2",
+                  text: "Is the victim frightened?",
+                  type: "radio",
+                  required: true,
+                  options: ["Yes", "No"],
+                },
+                {
+                  id: "q3",
+                  text: "Are you feeling isolated from family/friends?",
+                  type: "radio",
+                  required: true,
+                  options: ["Yes", "No"],
+                },
+                {
+                  id: "q4",
+                  text: "Are there any children or dependants?",
+                  type: "radio",
+                  required: true,
+                  options: ["Yes", "No"],
+                },
+                {
+                  id: "q5",
+                  text: "Has the abuser threatened to harm you or someone else?",
+                  type: "radio",
+                  required: true,
+                  options: ["Yes", "No"],
+                },
+                {
+                  id: "q6",
+                  text: "Is there any history of stalking or harassment?",
+                  type: "radio",
+                  required: true,
+                  options: ["Yes", "No"],
+                },
+                {
+                  id: "q7",
+                  text: "Is the victim experiencing financial control?",
+                  type: "radio",
+                  required: true,
+                  options: ["Yes", "No"],
+                },
+                {
+                  id: "q8",
+                  text: "Has the victim ever been forced into sexual activity?",
+                  type: "radio",
+                  required: true,
+                  options: ["Yes", "No"],
+                },
+                {
+                  id: "q9",
+                  text: "Has the victim tried to leave the relationship recently?",
+                  type: "radio",
+                  required: true,
+                  options: ["Yes", "No"],
+                },
+                {
+                  id: "q10",
+                  text: "Does the victim believe the abuse is escalating?",
+                  type: "radio",
+                  required: true,
+                  options: ["Yes", "No"],
+                },
+              ],
+            },
+          ],
+        },
       ];
 
       setAssessmentTemplates(defaultTemplates);
@@ -235,6 +378,7 @@ const AssessmentBuilder = () => {
       name: template.name,
       description: template.description,
       type: template.type,
+      sector: template.sector || "",
       defaultDueInDays: template.defaultDueInDays.toString(),
       isRequired: template.isRequired,
       isActive: template.isActive,
@@ -297,7 +441,9 @@ const AssessmentBuilder = () => {
         | "introduction"
         | "progress"
         | "exit"
-        | "custom",
+        | "custom"
+        | "risk",
+      sector: templateFormData.sector || undefined,
       defaultDueInDays: parseInt(templateFormData.defaultDueInDays) || 0,
       isRequired: templateFormData.isRequired,
       isActive: templateFormData.isActive,
@@ -397,7 +543,9 @@ const AssessmentBuilder = () => {
     (template) =>
       template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       template.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      template.type.toLowerCase().includes(searchQuery.toLowerCase()),
+      template.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (template.sector &&
+        template.sector.toLowerCase().includes(searchQuery.toLowerCase())),
   );
 
   const getTypeBadge = (type: string) => {
@@ -426,6 +574,18 @@ const AssessmentBuilder = () => {
             Custom
           </span>
         );
+      case "perinatal":
+        return (
+          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-pink-100 text-pink-800">
+            Perinatal
+          </span>
+        );
+      case "risk":
+        return (
+          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-red-100 text-red-800">
+            Risk
+          </span>
+        );
       default:
         return (
           <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-800">
@@ -446,7 +606,11 @@ const AssessmentBuilder = () => {
             </CardDescription>
           </div>
           <Button
-            onClick={openNewTemplateForm}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              openNewTemplateForm();
+            }}
             className="flex items-center gap-2"
           >
             <Plus className="h-4 w-4" /> Create Template
@@ -468,6 +632,7 @@ const AssessmentBuilder = () => {
                 <tr className="border-b bg-muted/50 text-left">
                   <th className="p-2 pl-4">Name</th>
                   <th className="p-2">Type</th>
+                  <th className="p-2">Sector</th>
                   <th className="p-2">Default Due (Days)</th>
                   <th className="p-2">Required</th>
                   <th className="p-2">Status</th>
@@ -485,6 +650,17 @@ const AssessmentBuilder = () => {
                         </div>
                       </td>
                       <td className="p-2">{getTypeBadge(template.type)}</td>
+                      <td className="p-2">
+                        {template.sector ? (
+                          <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 capitalize">
+                            {template.sector.replace("-", " ")}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            -
+                          </span>
+                        )}
+                      </td>
                       <td className="p-2">{template.defaultDueInDays}</td>
                       <td className="p-2">
                         {template.isRequired ? (
@@ -513,14 +689,22 @@ const AssessmentBuilder = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleEditTemplate(template)}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleEditTemplate(template);
+                            }}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDuplicateTemplate(template)}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleDuplicateTemplate(template);
+                            }}
                           >
                             <Copy className="h-4 w-4" />
                           </Button>
@@ -528,7 +712,11 @@ const AssessmentBuilder = () => {
                             variant="ghost"
                             size="sm"
                             className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => handleDeleteTemplate(template)}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleDeleteTemplate(template);
+                            }}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -539,7 +727,7 @@ const AssessmentBuilder = () => {
                 ) : (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={7}
                       className="p-4 text-center text-muted-foreground"
                     >
                       No assessment templates found. Create your first template
@@ -608,7 +796,47 @@ const AssessmentBuilder = () => {
                       <SelectItem value="introduction">Introduction</SelectItem>
                       <SelectItem value="progress">Progress</SelectItem>
                       <SelectItem value="exit">Exit</SelectItem>
+                      <SelectItem value="perinatal">Perinatal</SelectItem>
+                      <SelectItem value="risk">Risk</SelectItem>
                       <SelectItem value="custom">Custom</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="sector">Sector</Label>
+                  <Select
+                    value={templateFormData.sector}
+                    onValueChange={(value) =>
+                      setTemplateFormData((prev) => ({
+                        ...prev,
+                        sector: value,
+                      }))
+                    }
+                  >
+                    <SelectTrigger id="sector">
+                      <SelectValue placeholder="Select sector (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">No Sector</SelectItem>
+                      <SelectItem value="healthcare">Healthcare</SelectItem>
+                      <SelectItem value="education">Education</SelectItem>
+                      <SelectItem value="social-services">
+                        Social Services
+                      </SelectItem>
+                      <SelectItem value="mental-health">
+                        Mental Health
+                      </SelectItem>
+                      <SelectItem value="perinatal">Perinatal</SelectItem>
+                      <SelectItem value="youth-services">
+                        Youth Services
+                      </SelectItem>
+                      <SelectItem value="elderly-care">Elderly Care</SelectItem>
+                      <SelectItem value="disability-services">
+                        Disability Services
+                      </SelectItem>
+                      <SelectItem value="housing">Housing</SelectItem>
+                      <SelectItem value="employment">Employment</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -1080,20 +1080,26 @@ const AdminDashboard = () => {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleChangeRole(user)}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleChangeRole(user);
+                                  }}
                                 >
                                   Change Role
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() =>
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
                                     handleResetPassword(
                                       user.id,
                                       user.email,
                                       user.name,
-                                    )
-                                  }
+                                    );
+                                  }}
                                 >
                                   <KeyRound className="h-4 w-4 mr-1" /> Reset
                                   Password
@@ -1102,7 +1108,11 @@ const AdminDashboard = () => {
                                   variant="ghost"
                                   size="sm"
                                   className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                  onClick={() => handleDeleteUser(user)}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleDeleteUser(user);
+                                  }}
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -1150,7 +1160,11 @@ const AdminDashboard = () => {
                     </CardDescription>
                   </div>
                   <Button
-                    onClick={openNewEventForm}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      openNewEventForm();
+                    }}
                     className="flex items-center gap-2"
                   >
                     <Plus className="h-4 w-4" /> Add Event
