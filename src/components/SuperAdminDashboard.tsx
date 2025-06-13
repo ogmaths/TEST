@@ -987,6 +987,99 @@ const SuperAdminDashboard = () => {
     setEditingTemplate(null);
   };
 
+  // Assessment Trigger functions
+  const handleAddTrigger = () => {
+    setEditingTrigger(null);
+    setTriggerForm({
+      sourceAssessmentId: "",
+      conditionType: "score_gte",
+      conditionValue: "",
+      triggeredAssessmentId: "",
+      notes: "",
+      isActive: true,
+    });
+    setShowTriggerDialog(true);
+  };
+
+  const handleEditTrigger = (trigger: any) => {
+    setEditingTrigger(trigger);
+    setTriggerForm({
+      sourceAssessmentId: trigger.sourceAssessmentId,
+      conditionType: trigger.conditionType,
+      conditionValue: trigger.conditionValue,
+      triggeredAssessmentId: trigger.triggeredAssessmentId,
+      notes: trigger.notes || "",
+      isActive: trigger.isActive,
+    });
+    setShowTriggerDialog(true);
+  };
+
+  const handleSaveTrigger = () => {
+    const trigger = {
+      id: editingTrigger ? editingTrigger.id : `trigger-${Date.now()}`,
+      sourceAssessmentId: triggerForm.sourceAssessmentId,
+      conditionType: triggerForm.conditionType,
+      conditionValue: triggerForm.conditionValue,
+      triggeredAssessmentId: triggerForm.triggeredAssessmentId,
+      notes: triggerForm.notes,
+      isActive: triggerForm.isActive,
+      createdAt: editingTrigger
+        ? editingTrigger.createdAt
+        : new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    let updatedTriggers;
+    if (editingTrigger) {
+      updatedTriggers = assessmentTriggers.map((t) =>
+        t.id === editingTrigger.id ? trigger : t,
+      );
+      addNotification({
+        type: "success",
+        title: "Assessment Trigger Updated",
+        message: "The assessment trigger has been updated successfully",
+        priority: "high",
+      });
+    } else {
+      updatedTriggers = [...assessmentTriggers, trigger];
+      addNotification({
+        type: "success",
+        title: "Assessment Trigger Created",
+        message: "The assessment trigger has been created successfully",
+        priority: "high",
+      });
+    }
+
+    setAssessmentTriggers(updatedTriggers);
+    localStorage.setItem("assessmentTriggers", JSON.stringify(updatedTriggers));
+
+    setShowTriggerDialog(false);
+    setEditingTrigger(null);
+    setTriggerForm({
+      sourceAssessmentId: "",
+      conditionType: "score_gte",
+      conditionValue: "",
+      triggeredAssessmentId: "",
+      notes: "",
+      isActive: true,
+    });
+  };
+
+  const handleDeleteTrigger = (triggerId: string) => {
+    const updatedTriggers = assessmentTriggers.filter(
+      (t) => t.id !== triggerId,
+    );
+    setAssessmentTriggers(updatedTriggers);
+    localStorage.setItem("assessmentTriggers", JSON.stringify(updatedTriggers));
+
+    addNotification({
+      type: "success",
+      title: "Assessment Trigger Deleted",
+      message: "The assessment trigger has been deleted successfully",
+      priority: "medium",
+    });
+  };
+
   const getTypeBadge = (type: string) => {
     switch (type) {
       case "introduction":

@@ -42,6 +42,36 @@ export interface OrganizationSettings {
   journeyStages?: string[];
   features?: Record<string, boolean>;
   areas?: string[];
+  journeyTypes?: JourneyType[];
+}
+
+export interface JourneyType {
+  id: string;
+  name: string;
+  description: string;
+  stages: JourneyStage[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  organizationId: string;
+}
+
+export interface JourneyStage {
+  id: string;
+  name: string;
+  description: string;
+  order: number;
+  dueInDays: number;
+  isRequired: boolean;
+  requiresAssessment: boolean;
+  assessmentTemplateId?: string;
+  type:
+    | "assessment"
+    | "milestone"
+    | "event"
+    | "visit"
+    | "interaction"
+    | "review";
 }
 
 export interface AssessmentTemplate {

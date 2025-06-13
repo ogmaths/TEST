@@ -59,9 +59,11 @@ import {
   LogOut,
   RefreshCw,
   Download,
+  TrendingUp,
+  Save,
 } from "lucide-react";
 import { useUser } from "@/context/UserContext";
-import { User, Organization } from "@/types/admin";
+import { User, Organization, JourneyType, JourneyStage } from "@/types/admin";
 import BackButton from "./BackButton";
 import { Link as RouterLink } from "react-router-dom";
 import { Link } from "react-router-dom";
@@ -201,6 +203,23 @@ const AdminDashboard = () => {
     capacity: "",
   });
 
+  // Journey type management states
+  const [journeyTypes, setJourneyTypes] = useState<JourneyType[]>([]);
+  const [showJourneyTypeDialog, setShowJourneyTypeDialog] = useState(false);
+  const [showDeleteJourneyTypeDialog, setShowDeleteJourneyTypeDialog] =
+    useState(false);
+  const [journeyTypeToDelete, setJourneyTypeToDelete] =
+    useState<JourneyType | null>(null);
+  const [editingJourneyType, setEditingJourneyType] =
+    useState<JourneyType | null>(null);
+  const [journeyTypeFormData, setJourneyTypeFormData] = useState({
+    name: "",
+    description: "",
+  });
+  const [showJourneyStageManager, setShowJourneyStageManager] = useState(false);
+  const [selectedJourneyType, setSelectedJourneyType] =
+    useState<JourneyType | null>(null);
+
   // Mock data for users and clients
   const [users, setUsers] = useState<User[]>([
     {
@@ -285,7 +304,8 @@ const AdminDashboard = () => {
         tab === "events" ||
         tab === "assessments" ||
         tab === "staff" ||
-        tab === "impact")
+        tab === "impact" ||
+        tab === "journey-types")
     ) {
       setActiveTab(tab);
     } else {
@@ -293,6 +313,217 @@ const AdminDashboard = () => {
       setActiveTab("organization");
     }
   }, []);
+
+  // Load journey types from localStorage
+  useEffect(() => {
+    const savedJourneyTypes = localStorage.getItem("journeyTypes");
+    if (savedJourneyTypes) {
+      try {
+        setJourneyTypes(JSON.parse(savedJourneyTypes));
+      } catch (error) {
+        console.error("Failed to parse saved journey types", error);
+      }
+    } else {
+      // Initialize with default journey types
+      const defaultJourneyTypes: JourneyType[] = [
+        {
+          id: "prenatal",
+          name: "Prenatal",
+          description: "Journey for prenatal support",
+          stages: [
+            {
+              id: "initial-contact",
+              name: "Initial Contact",
+              description: "First contact with client",
+              order: 0,
+              dueInDays: 0,
+              isRequired: true,
+              requiresAssessment: true,
+              type: "assessment",
+            },
+            {
+              id: "antenatal-support",
+              name: "Antenatal Support",
+              description: "Ongoing antenatal support",
+              order: 1,
+              dueInDays: 30,
+              isRequired: true,
+              requiresAssessment: false,
+              type: "milestone",
+            },
+            {
+              id: "birth-preparation",
+              name: "Birth Preparation",
+              description: "Preparation for birth",
+              order: 2,
+              dueInDays: 60,
+              isRequired: true,
+              requiresAssessment: false,
+              type: "event",
+            },
+            {
+              id: "exit",
+              name: "Exit",
+              description: "End of prenatal journey",
+              order: 3,
+              dueInDays: 270,
+              isRequired: true,
+              requiresAssessment: true,
+              type: "assessment",
+            },
+          ],
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          organizationId: user?.organizationId || "1",
+        },
+        {
+          id: "postnatal",
+          name: "Postnatal",
+          description: "Journey for postnatal support",
+          stages: [
+            {
+              id: "initial-contact",
+              name: "Initial Contact",
+              description: "First contact with client",
+              order: 0,
+              dueInDays: 0,
+              isRequired: true,
+              requiresAssessment: true,
+              type: "assessment",
+            },
+            {
+              id: "7-day-contact",
+              name: "7 Day Contact",
+              description: "Follow-up contact after 7 days",
+              order: 1,
+              dueInDays: 7,
+              isRequired: true,
+              requiresAssessment: false,
+              type: "visit",
+            },
+            {
+              id: "3-week-contact",
+              name: "3 Week Contact",
+              description: "Follow-up contact after 3 weeks",
+              order: 2,
+              dueInDays: 21,
+              isRequired: true,
+              requiresAssessment: true,
+              type: "assessment",
+            },
+            {
+              id: "3-month-contact",
+              name: "3 Month Contact",
+              description: "Follow-up contact after 3 months",
+              order: 3,
+              dueInDays: 90,
+              isRequired: true,
+              requiresAssessment: true,
+              type: "assessment",
+            },
+            {
+              id: "exit",
+              name: "Exit",
+              description: "End of postnatal journey",
+              order: 4,
+              dueInDays: 365,
+              isRequired: true,
+              requiresAssessment: true,
+              type: "assessment",
+            },
+          ],
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          organizationId: user?.organizationId || "1",
+        },
+        {
+          id: "prenatal-postnatal",
+          name: "Prenatal and Postnatal",
+          description: "Combined journey for prenatal and postnatal support",
+          stages: [
+            {
+              id: "initial-contact",
+              name: "Initial Contact",
+              description: "First contact with client",
+              order: 0,
+              dueInDays: 0,
+              isRequired: true,
+              requiresAssessment: true,
+              type: "assessment",
+            },
+            {
+              id: "antenatal-support",
+              name: "Antenatal Support",
+              description: "Ongoing antenatal support",
+              order: 1,
+              dueInDays: 30,
+              isRequired: true,
+              requiresAssessment: false,
+              type: "milestone",
+            },
+            {
+              id: "birth",
+              name: "Birth",
+              description: "Birth milestone",
+              order: 2,
+              dueInDays: 270,
+              isRequired: true,
+              requiresAssessment: false,
+              type: "milestone",
+            },
+            {
+              id: "7-day-contact",
+              name: "7 Day Contact",
+              description: "Follow-up contact after 7 days",
+              order: 3,
+              dueInDays: 277,
+              isRequired: true,
+              requiresAssessment: false,
+              type: "visit",
+            },
+            {
+              id: "3-week-contact",
+              name: "3 Week Contact",
+              description: "Follow-up contact after 3 weeks",
+              order: 4,
+              dueInDays: 291,
+              isRequired: true,
+              requiresAssessment: true,
+              type: "assessment",
+            },
+            {
+              id: "3-month-contact",
+              name: "3 Month Contact",
+              description: "Follow-up contact after 3 months",
+              order: 5,
+              dueInDays: 360,
+              isRequired: true,
+              requiresAssessment: true,
+              type: "assessment",
+            },
+            {
+              id: "exit",
+              name: "Exit",
+              description: "End of journey",
+              order: 6,
+              dueInDays: 635,
+              isRequired: true,
+              requiresAssessment: true,
+              type: "assessment",
+            },
+          ],
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          organizationId: user?.organizationId || "1",
+        },
+      ];
+      setJourneyTypes(defaultJourneyTypes);
+      localStorage.setItem("journeyTypes", JSON.stringify(defaultJourneyTypes));
+    }
+  }, [user?.organizationId]);
 
   // Load events from localStorage
   useEffect(() => {
@@ -662,6 +893,153 @@ const AdminDashboard = () => {
     alert("Data export functionality would be implemented here.");
   };
 
+  // Journey type management functions
+  const handleEditJourneyType = (journeyType: JourneyType) => {
+    setEditingJourneyType(journeyType);
+    setJourneyTypeFormData({
+      name: journeyType.name,
+      description: journeyType.description,
+    });
+    setShowJourneyTypeDialog(true);
+  };
+
+  const handleDeleteJourneyType = (journeyType: JourneyType) => {
+    setJourneyTypeToDelete(journeyType);
+    setShowDeleteJourneyTypeDialog(true);
+  };
+
+  const confirmDeleteJourneyType = () => {
+    if (journeyTypeToDelete) {
+      const updatedJourneyTypes = journeyTypes.filter(
+        (jt) => jt.id !== journeyTypeToDelete.id,
+      );
+      setJourneyTypes(updatedJourneyTypes);
+      localStorage.setItem("journeyTypes", JSON.stringify(updatedJourneyTypes));
+      setShowDeleteJourneyTypeDialog(false);
+      setJourneyTypeToDelete(null);
+
+      addNotification({
+        type: "success",
+        title: "Journey Type Deleted",
+        message: `${journeyTypeToDelete.name} has been deleted successfully`,
+        priority: "high",
+      });
+    }
+  };
+
+  const handleJourneyTypeFormChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    const { id, value } = e.target;
+    setJourneyTypeFormData((prev) => ({
+      ...prev,
+      [id]: value,
+    }));
+  };
+
+  const handleJourneyTypeFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (editingJourneyType) {
+      // Update existing journey type
+      const updatedJourneyType = {
+        ...editingJourneyType,
+        name: journeyTypeFormData.name,
+        description: journeyTypeFormData.description,
+        updatedAt: new Date().toISOString(),
+      };
+
+      const updatedJourneyTypes = journeyTypes.map((jt) =>
+        jt.id === editingJourneyType.id ? updatedJourneyType : jt,
+      );
+
+      setJourneyTypes(updatedJourneyTypes);
+      localStorage.setItem("journeyTypes", JSON.stringify(updatedJourneyTypes));
+
+      addNotification({
+        type: "success",
+        title: "Journey Type Updated",
+        message: `${updatedJourneyType.name} has been updated successfully`,
+        priority: "high",
+      });
+    } else {
+      // Create new journey type
+      const newJourneyType: JourneyType = {
+        id: Date.now().toString(),
+        name: journeyTypeFormData.name,
+        description: journeyTypeFormData.description,
+        stages: [],
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        organizationId: user?.organizationId || "1",
+      };
+
+      const updatedJourneyTypes = [...journeyTypes, newJourneyType];
+      setJourneyTypes(updatedJourneyTypes);
+      localStorage.setItem("journeyTypes", JSON.stringify(updatedJourneyTypes));
+
+      addNotification({
+        type: "success",
+        title: "Journey Type Created",
+        message: `${newJourneyType.name} has been created successfully`,
+        priority: "high",
+      });
+    }
+
+    // Reset form and close dialog
+    setShowJourneyTypeDialog(false);
+    setEditingJourneyType(null);
+    setJourneyTypeFormData({
+      name: "",
+      description: "",
+    });
+  };
+
+  const openNewJourneyTypeForm = () => {
+    setEditingJourneyType(null);
+    setJourneyTypeFormData({
+      name: "",
+      description: "",
+    });
+    setShowJourneyTypeDialog(true);
+  };
+
+  const handleManageJourneyStages = (journeyType: JourneyType) => {
+    setSelectedJourneyType(journeyType);
+    setShowJourneyStageManager(true);
+  };
+
+  const handleSaveJourneyStages = (stages: any[]) => {
+    if (selectedJourneyType) {
+      const updatedJourneyType = {
+        ...selectedJourneyType,
+        stages: stages.map((stage, index) => ({
+          ...stage,
+          order: index,
+        })),
+        updatedAt: new Date().toISOString(),
+      };
+
+      const updatedJourneyTypes = journeyTypes.map((jt) =>
+        jt.id === selectedJourneyType.id ? updatedJourneyType : jt,
+      );
+
+      setJourneyTypes(updatedJourneyTypes);
+      localStorage.setItem("journeyTypes", JSON.stringify(updatedJourneyTypes));
+
+      addNotification({
+        type: "success",
+        title: "Journey Stages Updated",
+        message: `Stages for ${selectedJourneyType.name} have been updated successfully`,
+        priority: "high",
+      });
+
+      setShowJourneyStageManager(false);
+      setSelectedJourneyType(null);
+    }
+  };
+
   const confirmChangeRole = () => {
     if (selectedUser) {
       const updatedUsers = users.map((u) =>
@@ -880,6 +1258,13 @@ const AdminDashboard = () => {
                     >
                       <UserPlus className="h-4 w-4" />
                       <span className="font-medium">Clients</span>
+                    </div>
+                    <div
+                      className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "journey-types" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                      onClick={() => setActiveTab("journey-types")}
+                    >
+                      <TrendingUp className="h-4 w-4" />
+                      <span className="font-medium">Journey Types</span>
                     </div>
                     <div
                       className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "events" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
@@ -1150,6 +1535,101 @@ const AdminDashboard = () => {
               </Card>
             )}
 
+            {activeTab === "journey-types" && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Journey Progress Tracker Types</CardTitle>
+                    <CardDescription>
+                      Manage journey types and their stages for client progress
+                      tracking
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={openNewJourneyTypeForm}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" /> Add Journey Type
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {journeyTypes.map((journeyType) => (
+                      <div
+                        key={journeyType.id}
+                        className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-lg">
+                              {journeyType.name}
+                            </h3>
+                            <p className="text-gray-600 mt-1">
+                              {journeyType.description}
+                            </p>
+                            <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                              <span>{journeyType.stages.length} stages</span>
+                              <span>
+                                Status:{" "}
+                                {journeyType.isActive ? "Active" : "Inactive"}
+                              </span>
+                              <span>
+                                Updated:{" "}
+                                {new Date(
+                                  journeyType.updatedAt,
+                                ).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                handleManageJourneyStages(journeyType)
+                              }
+                              className="flex items-center gap-2"
+                            >
+                              <Edit className="h-4 w-4" />
+                              Manage Stages
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditJourneyType(journeyType)}
+                              className="flex items-center gap-2"
+                            >
+                              <Edit className="h-4 w-4" />
+                              Edit
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                handleDeleteJourneyType(journeyType)
+                              }
+                              className="flex items-center gap-2 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {journeyTypes.length === 0 && (
+                      <div className="text-center py-8 text-gray-500">
+                        <p>
+                          No journey types found. Create your first journey type
+                          to get started.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {activeTab === "events" && (
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
@@ -1190,10 +1670,13 @@ const AdminDashboard = () => {
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
                     <CardTitle>Assessment Management</CardTitle>
+                    <CardDescription>
+                      Manage and edit client assessments
+                    </CardDescription>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex justify-center py-8">
+                  <div className="flex flex-col items-center gap-4 py-8">
                     <Link to="/assessments">
                       <Button
                         variant="outline"
@@ -1202,6 +1685,11 @@ const AdminDashboard = () => {
                         <FileText className="h-4 w-4" /> View All Assessments
                       </Button>
                     </Link>
+                    <p className="text-sm text-muted-foreground text-center max-w-md">
+                      Access all client assessments with full editing
+                      capabilities. You can view, edit, and manage assessment
+                      records from the assessments page.
+                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -1653,6 +2141,129 @@ const AdminDashboard = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Journey Type Form Dialog */}
+      <Dialog
+        open={showJourneyTypeDialog}
+        onOpenChange={setShowJourneyTypeDialog}
+      >
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingJourneyType
+                ? "Edit Journey Type"
+                : "Create New Journey Type"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingJourneyType
+                ? "Update the journey type details below"
+                : "Fill in the details to create a new journey type"}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleJourneyTypeFormSubmit}>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Journey Type Name</Label>
+                <Input
+                  id="name"
+                  placeholder="e.g. Prenatal, Postnatal"
+                  value={journeyTypeFormData.name}
+                  onChange={handleJourneyTypeFormChange}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  placeholder="Describe this journey type and when it should be used"
+                  rows={3}
+                  value={journeyTypeFormData.description}
+                  onChange={handleJourneyTypeFormChange}
+                  required
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowJourneyTypeDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">
+                <Save className="mr-2 h-4 w-4" />
+                {editingJourneyType
+                  ? "Update Journey Type"
+                  : "Create Journey Type"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Journey Type Confirmation Dialog */}
+      <AlertDialog
+        open={showDeleteJourneyTypeDialog}
+        onOpenChange={setShowDeleteJourneyTypeDialog}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Journey Type</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{journeyTypeToDelete?.name}"?
+              This action cannot be undone and will affect all clients using
+              this journey type.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteJourneyType}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Journey Stage Manager Dialog */}
+      <Dialog
+        open={showJourneyStageManager}
+        onOpenChange={setShowJourneyStageManager}
+      >
+        <DialogContent className="sm:max-w-[1200px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Manage Stages for {selectedJourneyType?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Configure the stages and their order for this journey type
+            </DialogDescription>
+          </DialogHeader>
+          {selectedJourneyType && (
+            <JourneyStageManager
+              initialStages={selectedJourneyType.stages.map((stage) => ({
+                ...stage,
+                organizationId: selectedJourneyType.organizationId,
+              }))}
+              onSave={handleSaveJourneyStages}
+              organizationId={selectedJourneyType.organizationId}
+            />
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowJourneyStageManager(false)}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

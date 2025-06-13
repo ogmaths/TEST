@@ -439,6 +439,18 @@ const AssessmentsPage: React.FC = () => {
                         <Button
                           variant="ghost"
                           size="sm"
+                          onClick={() =>
+                            window.open(
+                              `/assessment/edit/${assessment.id}`,
+                              "_blank",
+                            )
+                          }
+                        >
+                          Edit Assessment
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="flex items-center gap-1"
                           onClick={() => generateAssessmentPDF(assessment)}
                         >
