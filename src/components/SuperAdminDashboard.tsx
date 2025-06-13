@@ -2933,6 +2933,7 @@ const SuperAdminDashboard = () => {
                 onSave={handleTemplateFormSave}
                 onCancel={handleTemplateFormCancel}
                 isEdit={templateFormMode === "edit"}
+                availableTemplates={assessmentTemplates}
               />
             )}
           </div>

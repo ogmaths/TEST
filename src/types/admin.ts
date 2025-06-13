@@ -60,6 +60,19 @@ export interface AssessmentTemplate {
   tags?: string[];
   version?: string;
   author?: string;
+  triggerRules?: AssessmentTriggerRule[];
+}
+
+export interface AssessmentTriggerRule {
+  id: string;
+  conditionType:
+    | "score_gte"
+    | "score_lte"
+    | "question_value"
+    | "question_contains";
+  conditionValue: string;
+  triggeredAssessmentId: string;
+  isActive: boolean;
 }
 
 export interface AssessmentSection {

@@ -13,13 +13,25 @@ export interface JourneyStage {
   name: string;
   description: string;
   isRequired: boolean;
+  requiresAssessment: boolean;
   order: number;
-  type: "assessment" | "milestone" | "event" | "visit" | "interaction";
+  type:
+    | "assessment"
+    | "milestone"
+    | "event"
+    | "visit"
+    | "interaction"
+    | "review";
+  organizationId?: string;
+  dueInDays?: number;
+  assessmentTemplateId?: string;
 }
 
 interface JourneyStageManagerProps {
   initialStages?: JourneyStage[];
   onSave?: (stages: JourneyStage[]) => void;
+  organizationId?: string;
+  availableAssessmentTemplates?: { id: string; name: string }[];
 }
 
 const JourneyStageManager: React.FC<JourneyStageManagerProps> = ({
@@ -29,50 +41,74 @@ const JourneyStageManager: React.FC<JourneyStageManagerProps> = ({
       name: "Introduction Assessment",
       description: "Initial assessment covering all six key areas",
       isRequired: true,
+      requiresAssessment: true,
       order: 0,
       type: "assessment",
+      dueInDays: 7,
     },
     {
       id: "2",
       name: "Financial Workshop",
       description: "Budgeting basics workshop",
       isRequired: true,
+      requiresAssessment: false,
       order: 1,
       type: "event",
+      dueInDays: 30,
     },
     {
       id: "3",
       name: "Progress Check-in",
       description: "Regular check-in with case worker",
       isRequired: false,
+      requiresAssessment: false,
       order: 2,
       type: "visit",
+      dueInDays: 60,
     },
     {
       id: "4",
-      name: "Mental Health Improvement",
-      description: "Significant improvement in mental health metrics",
+      name: "6-Month Review",
+      description: "Mid-journey progress review and goal adjustment",
       isRequired: true,
+      requiresAssessment: true,
       order: 3,
-      type: "milestone",
+      type: "review",
+      dueInDays: 180,
     },
     {
       id: "5",
-      name: "Exit Assessment",
-      description: "Final assessment covering all six key areas",
+      name: "12-Month Review",
+      description: "Annual comprehensive review of client progress",
       isRequired: true,
+      requiresAssessment: true,
       order: 4,
+      type: "review",
+      dueInDays: 365,
+    },
+    {
+      id: "6",
+      name: "Exit Assessment",
+      description: "Final assessment covering all key areas",
+      isRequired: true,
+      requiresAssessment: true,
+      order: 5,
       type: "assessment",
+      dueInDays: 730,
     },
   ],
   onSave = () => {},
+  organizationId,
+  availableAssessmentTemplates = [],
 }) => {
   const [stages, setStages] = useState<JourneyStage[]>(initialStages);
   const [newStage, setNewStage] = useState<Partial<JourneyStage>>({
     name: "",
     description: "",
     isRequired: false,
+    requiresAssessment: false,
     type: "milestone",
+    dueInDays: 30,
   });
 
   const handleDragEnd = (result: any) => {
@@ -99,13 +135,18 @@ const JourneyStageManager: React.FC<JourneyStageManagerProps> = ({
       name: newStage.name,
       description: newStage.description || "",
       isRequired: newStage.isRequired || false,
+      requiresAssessment: newStage.requiresAssessment || false,
       order: stages.length,
       type: newStage.type as
         | "assessment"
         | "milestone"
         | "event"
         | "visit"
-        | "interaction",
+        | "interaction"
+        | "review",
+      organizationId,
+      dueInDays: newStage.dueInDays || 30,
+      assessmentTemplateId: newStage.assessmentTemplateId,
     };
 
     setStages([...stages, newStageComplete]);
@@ -113,7 +154,9 @@ const JourneyStageManager: React.FC<JourneyStageManagerProps> = ({
       name: "",
       description: "",
       isRequired: false,
+      requiresAssessment: false,
       type: "milestone",
+      dueInDays: 30,
     });
   };
 
@@ -158,58 +201,104 @@ const JourneyStageManager: React.FC<JourneyStageManagerProps> = ({
           <CardTitle>Add New Stage</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="stage-name">Stage Name</Label>
-                <Input
-                  id="stage-name"
-                  value={newStage.name}
-                  onChange={(e) =>
-                    setNewStage({ ...newStage, name: e.target.value })
-                  }
-                  placeholder="Enter stage name"
-                />
-              </div>
-              <div>
-                <Label htmlFor="stage-type">Stage Type</Label>
-                <select
-                  id="stage-type"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  value={newStage.type}
-                  onChange={(e) =>
-                    setNewStage({ ...newStage, type: e.target.value as any })
-                  }
-                >
-                  <option value="assessment">Assessment</option>
-                  <option value="milestone">Milestone</option>
-                  <option value="event">Event</option>
-                  <option value="visit">Visit</option>
-                  <option value="interaction">Interaction</option>
-                </select>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="stage-name">Stage Name</Label>
+              <Input
+                id="stage-name"
+                value={newStage.name}
+                onChange={(e) =>
+                  setNewStage({ ...newStage, name: e.target.value })
+                }
+                placeholder="Enter stage name"
+              />
             </div>
             <div>
-              <Label htmlFor="stage-description">Description</Label>
-              <Input
-                id="stage-description"
-                value={newStage.description}
+              <Label htmlFor="stage-type">Stage Type</Label>
+              <select
+                id="stage-type"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                value={newStage.type}
                 onChange={(e) =>
-                  setNewStage({ ...newStage, description: e.target.value })
+                  setNewStage({ ...newStage, type: e.target.value as any })
                 }
-                placeholder="Enter stage description"
+              >
+                <option value="assessment">Assessment</option>
+                <option value="milestone">Milestone</option>
+                <option value="event">Event</option>
+                <option value="visit">Visit</option>
+                <option value="interaction">Interaction</option>
+                <option value="review">Review</option>
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="stage-due-days">Due in Days</Label>
+              <Input
+                id="stage-due-days"
+                type="number"
+                min="1"
+                value={newStage.dueInDays || 30}
+                onChange={(e) =>
+                  setNewStage({
+                    ...newStage,
+                    dueInDays: parseInt(e.target.value) || 30,
+                  })
+                }
+                placeholder="30"
               />
             </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="stage-required"
-                checked={newStage.isRequired}
-                onCheckedChange={(checked) =>
-                  setNewStage({ ...newStage, isRequired: !!checked })
-                }
-              />
-              <Label htmlFor="stage-required">Required Stage</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="stage-required"
+                  checked={newStage.isRequired}
+                  onCheckedChange={(checked) =>
+                    setNewStage({ ...newStage, isRequired: !!checked })
+                  }
+                />
+                <Label htmlFor="stage-required">Required Stage</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="stage-requires-assessment"
+                  checked={newStage.requiresAssessment}
+                  onCheckedChange={(checked) =>
+                    setNewStage({ ...newStage, requiresAssessment: !!checked })
+                  }
+                />
+                <Label htmlFor="stage-requires-assessment">
+                  Requires Assessment
+                </Label>
+              </div>
             </div>
+            {newStage.requiresAssessment &&
+              availableAssessmentTemplates.length > 0 && (
+                <div>
+                  <Label htmlFor="assessment-template">
+                    Assessment Template
+                  </Label>
+                  <select
+                    id="assessment-template"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    value={newStage.assessmentTemplateId || ""}
+                    onChange={(e) =>
+                      setNewStage({
+                        ...newStage,
+                        assessmentTemplateId: e.target.value || undefined,
+                      })
+                    }
+                  >
+                    <option value="">
+                      Select Assessment Template (Optional)
+                    </option>
+                    {availableAssessmentTemplates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             <Button onClick={handleAddStage} className="w-full">
               <Plus className="mr-2 h-4 w-4" /> Add Stage
             </Button>
@@ -261,6 +350,14 @@ const JourneyStageManager: React.FC<JourneyStageManagerProps> = ({
                                       Required
                                     </span>
                                   )}
+                                  {stage.requiresAssessment && (
+                                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+                                      Assessment
+                                    </span>
+                                  )}
+                                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                                    {stage.dueInDays} days
+                                  </span>
                                 </div>
                                 <p className="text-sm text-muted-foreground">
                                   {stage.description}
@@ -277,47 +374,70 @@ const JourneyStageManager: React.FC<JourneyStageManagerProps> = ({
                               </Button>
                             </div>
                           </div>
-                          <div className="mt-2 pt-2 border-t grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <Label htmlFor={`stage-name-${stage.id}`}>
-                                Stage Name
-                              </Label>
-                              <Input
-                                id={`stage-name-${stage.id}`}
-                                value={stage.name}
-                                onChange={(e) =>
-                                  handleStageChange(
-                                    stage.id,
-                                    "name",
-                                    e.target.value,
-                                  )
-                                }
-                              />
+                          <div className="mt-2 pt-2 border-t space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div>
+                                <Label htmlFor={`stage-name-${stage.id}`}>
+                                  Stage Name
+                                </Label>
+                                <Input
+                                  id={`stage-name-${stage.id}`}
+                                  value={stage.name}
+                                  onChange={(e) =>
+                                    handleStageChange(
+                                      stage.id,
+                                      "name",
+                                      e.target.value,
+                                    )
+                                  }
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor={`stage-type-${stage.id}`}>
+                                  Stage Type
+                                </Label>
+                                <select
+                                  id={`stage-type-${stage.id}`}
+                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                  value={stage.type}
+                                  onChange={(e) =>
+                                    handleStageChange(
+                                      stage.id,
+                                      "type",
+                                      e.target.value,
+                                    )
+                                  }
+                                >
+                                  <option value="assessment">Assessment</option>
+                                  <option value="milestone">Milestone</option>
+                                  <option value="event">Event</option>
+                                  <option value="visit">Visit</option>
+                                  <option value="interaction">
+                                    Interaction
+                                  </option>
+                                  <option value="review">Review</option>
+                                </select>
+                              </div>
+                              <div>
+                                <Label htmlFor={`stage-due-days-${stage.id}`}>
+                                  Due in Days
+                                </Label>
+                                <Input
+                                  id={`stage-due-days-${stage.id}`}
+                                  type="number"
+                                  min="1"
+                                  value={stage.dueInDays || 30}
+                                  onChange={(e) =>
+                                    handleStageChange(
+                                      stage.id,
+                                      "dueInDays",
+                                      parseInt(e.target.value) || 30,
+                                    )
+                                  }
+                                />
+                              </div>
                             </div>
                             <div>
-                              <Label htmlFor={`stage-type-${stage.id}`}>
-                                Stage Type
-                              </Label>
-                              <select
-                                id={`stage-type-${stage.id}`}
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                value={stage.type}
-                                onChange={(e) =>
-                                  handleStageChange(
-                                    stage.id,
-                                    "type",
-                                    e.target.value,
-                                  )
-                                }
-                              >
-                                <option value="assessment">Assessment</option>
-                                <option value="milestone">Milestone</option>
-                                <option value="event">Event</option>
-                                <option value="visit">Visit</option>
-                                <option value="interaction">Interaction</option>
-                              </select>
-                            </div>
-                            <div className="md:col-span-2">
                               <Label htmlFor={`stage-description-${stage.id}`}>
                                 Description
                               </Label>
@@ -333,22 +453,78 @@ const JourneyStageManager: React.FC<JourneyStageManagerProps> = ({
                                 }
                               />
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <Checkbox
-                                id={`stage-required-${stage.id}`}
-                                checked={stage.isRequired}
-                                onCheckedChange={(checked) =>
-                                  handleStageChange(
-                                    stage.id,
-                                    "isRequired",
-                                    !!checked,
-                                  )
-                                }
-                              />
-                              <Label htmlFor={`stage-required-${stage.id}`}>
-                                Required Stage
-                              </Label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`stage-required-${stage.id}`}
+                                  checked={stage.isRequired}
+                                  onCheckedChange={(checked) =>
+                                    handleStageChange(
+                                      stage.id,
+                                      "isRequired",
+                                      !!checked,
+                                    )
+                                  }
+                                />
+                                <Label htmlFor={`stage-required-${stage.id}`}>
+                                  Required Stage
+                                </Label>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`stage-requires-assessment-${stage.id}`}
+                                  checked={stage.requiresAssessment || false}
+                                  onCheckedChange={(checked) =>
+                                    handleStageChange(
+                                      stage.id,
+                                      "requiresAssessment",
+                                      !!checked,
+                                    )
+                                  }
+                                />
+                                <Label
+                                  htmlFor={`stage-requires-assessment-${stage.id}`}
+                                >
+                                  Requires Assessment
+                                </Label>
+                              </div>
                             </div>
+                            {stage.requiresAssessment &&
+                              availableAssessmentTemplates.length > 0 && (
+                                <div>
+                                  <Label
+                                    htmlFor={`assessment-template-${stage.id}`}
+                                  >
+                                    Assessment Template
+                                  </Label>
+                                  <select
+                                    id={`assessment-template-${stage.id}`}
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                    value={stage.assessmentTemplateId || ""}
+                                    onChange={(e) =>
+                                      handleStageChange(
+                                        stage.id,
+                                        "assessmentTemplateId",
+                                        e.target.value || undefined,
+                                      )
+                                    }
+                                  >
+                                    <option value="">
+                                      Select Assessment Template (Optional)
+                                    </option>
+                                    {availableAssessmentTemplates.map(
+                                      (template) => (
+                                        <option
+                                          key={template.id}
+                                          value={template.id}
+                                        >
+                                          {template.name}
+                                        </option>
+                                      ),
+                                    )}
+                                  </select>
+                                </div>
+                              )}
                           </div>
                         </div>
                       )}

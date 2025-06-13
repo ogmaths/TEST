@@ -19,11 +19,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Trash2, Save, X } from "lucide-react";
+import { Plus, Trash2, Save, X, Zap } from "lucide-react";
 import {
   AssessmentTemplate,
   AssessmentSection,
   AssessmentQuestion,
+  AssessmentTriggerRule,
 } from "@/types/admin";
 
 interface AssessmentTemplateFormProps {
@@ -31,6 +32,7 @@ interface AssessmentTemplateFormProps {
   onSave: (template: AssessmentTemplate) => void;
   onCancel: () => void;
   isEdit?: boolean;
+  availableTemplates?: AssessmentTemplate[];
 }
 
 const AssessmentTemplateForm: React.FC<AssessmentTemplateFormProps> = ({
@@ -38,6 +40,7 @@ const AssessmentTemplateForm: React.FC<AssessmentTemplateFormProps> = ({
   onSave,
   onCancel,
   isEdit = false,
+  availableTemplates = [],
 }) => {
   const { addNotification } = useNotifications();
   const [isLoading, setIsLoading] = useState(false);
@@ -69,6 +72,7 @@ const AssessmentTemplateForm: React.FC<AssessmentTemplateFormProps> = ({
         ],
       },
     ] as AssessmentSection[],
+    triggerRules: [] as AssessmentTriggerRule[],
   });
 
   // Load template data when editing
@@ -96,6 +100,7 @@ const AssessmentTemplateForm: React.FC<AssessmentTemplateFormProps> = ({
             ],
           },
         ],
+        triggerRules: template.triggerRules || [],
       });
     }
   }, [isEdit, template]);
@@ -326,6 +331,7 @@ const AssessmentTemplateForm: React.FC<AssessmentTemplateFormProps> = ({
         isEdit && template ? template.createdAt : new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       sections: formData.sections,
+      triggerRules: formData.triggerRules,
     };
 
     // Simulate save delay
@@ -333,6 +339,41 @@ const AssessmentTemplateForm: React.FC<AssessmentTemplateFormProps> = ({
       onSave(templateData);
       setIsLoading(false);
     }, 500);
+  };
+
+  const addTriggerRule = () => {
+    const newRule: AssessmentTriggerRule = {
+      id: `rule-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      conditionType: "score_gte",
+      conditionValue: "",
+      triggeredAssessmentId: "",
+      isActive: true,
+    };
+
+    setFormData((prev) => ({
+      ...prev,
+      triggerRules: [...prev.triggerRules, newRule],
+    }));
+  };
+
+  const removeTriggerRule = (ruleIndex: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      triggerRules: prev.triggerRules.filter((_, index) => index !== ruleIndex),
+    }));
+  };
+
+  const handleTriggerRuleChange = (
+    ruleIndex: number,
+    field: string,
+    value: any,
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      triggerRules: prev.triggerRules.map((rule, index) =>
+        index === ruleIndex ? { ...rule, [field]: value } : rule,
+      ),
+    }));
   };
 
   if (isEdit && !template) {
@@ -726,6 +767,172 @@ const AssessmentTemplateForm: React.FC<AssessmentTemplateFormProps> = ({
                     )}
                   </div>
                 ))}
+              </CardContent>
+            </Card>
+
+            {/* Trigger Rules */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Zap className="h-5 w-5" />
+                    Trigger Rules
+                  </CardTitle>
+                  <CardDescription>
+                    Define conditions that will automatically trigger other
+                    assessments
+                  </CardDescription>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={addTriggerRule}
+                >
+                  <Plus className="h-4 w-4 mr-2" /> Add Trigger Rule
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {formData.triggerRules.length === 0 ? (
+                  <div className="text-center p-4 border border-dashed rounded-md">
+                    <p className="text-sm text-muted-foreground">
+                      No trigger rules defined. Click "Add Trigger Rule" to
+                      create automatic assessment triggers.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {formData.triggerRules.map((rule, ruleIndex) => (
+                      <div
+                        key={rule.id}
+                        className="border rounded-lg p-4 space-y-4"
+                      >
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-medium">
+                            Trigger Rule {ruleIndex + 1}
+                          </h4>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => removeTriggerRule(ruleIndex)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor={`trigger-condition-${ruleIndex}`}>
+                              Trigger Condition
+                            </Label>
+                            <Select
+                              value={rule.conditionType}
+                              onValueChange={(value) =>
+                                handleTriggerRuleChange(
+                                  ruleIndex,
+                                  "conditionType",
+                                  value,
+                                )
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select condition" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="score_gte">
+                                  Score ≥ (Greater than or equal)
+                                </SelectItem>
+                                <SelectItem value="score_lte">
+                                  Score ≤ (Less than or equal)
+                                </SelectItem>
+                                <SelectItem value="question_value">
+                                  Question equals specific value
+                                </SelectItem>
+                                <SelectItem value="question_contains">
+                                  Question contains text
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor={`trigger-value-${ruleIndex}`}>
+                              Value
+                            </Label>
+                            <Input
+                              id={`trigger-value-${ruleIndex}`}
+                              value={rule.conditionValue}
+                              onChange={(e) =>
+                                handleTriggerRuleChange(
+                                  ruleIndex,
+                                  "conditionValue",
+                                  e.target.value,
+                                )
+                              }
+                              placeholder={
+                                rule.conditionType.startsWith("score")
+                                  ? "e.g., 10"
+                                  : "e.g., Yes"
+                              }
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor={`trigger-assessment-${ruleIndex}`}>
+                              Assessment to Trigger
+                            </Label>
+                            <Select
+                              value={rule.triggeredAssessmentId}
+                              onValueChange={(value) =>
+                                handleTriggerRuleChange(
+                                  ruleIndex,
+                                  "triggeredAssessmentId",
+                                  value,
+                                )
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select assessment" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availableTemplates
+                                  .filter((t) => t.id !== template?.id)
+                                  .map((availableTemplate) => (
+                                    <SelectItem
+                                      key={availableTemplate.id}
+                                      value={availableTemplate.id}
+                                    >
+                                      {availableTemplate.name}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id={`trigger-active-${ruleIndex}`}
+                            checked={rule.isActive}
+                            onChange={(e) =>
+                              handleTriggerRuleChange(
+                                ruleIndex,
+                                "isActive",
+                                e.target.checked,
+                              )
+                            }
+                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                          />
+                          <Label htmlFor={`trigger-active-${ruleIndex}`}>
+                            Active Rule
+                          </Label>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
