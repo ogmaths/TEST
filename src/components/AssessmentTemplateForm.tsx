@@ -347,10 +347,10 @@ const AssessmentTemplateForm: React.FC<AssessmentTemplateFormProps> = ({
   }
 
   return (
-    <div className="bg-background w-full max-w-6xl mx-auto">
-      <form onSubmit={handleSubmit}>
-        <ScrollArea className="h-[calc(90vh-120px)]">
-          <div className="p-6 space-y-6">
+    <div className="bg-background w-full max-w-6xl mx-auto relative">
+      <form onSubmit={handleSubmit} className="flex flex-col h-full">
+        <ScrollArea className="h-[calc(90vh-200px)] overflow-y-auto">
+          <div className="p-6 space-y-6 pb-20">
             {/* Basic Information */}
             <Card>
               <CardHeader>
@@ -732,7 +732,7 @@ const AssessmentTemplateForm: React.FC<AssessmentTemplateFormProps> = ({
         </ScrollArea>
 
         {/* Form Actions */}
-        <div className="flex justify-end space-x-2 p-6 border-t bg-background">
+        <div className="sticky bottom-0 flex justify-end space-x-2 p-6 border-t bg-background shadow-lg z-10">
           <Button
             type="button"
             variant="outline"
