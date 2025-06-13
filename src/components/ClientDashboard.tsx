@@ -14,6 +14,40 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   CheckCircle,
   Circle,
@@ -27,7 +61,14 @@ import {
   User,
   Mail,
   MapPin,
+  Edit,
+  Trash2,
+  Plus,
+  Save,
+  X,
+  CalendarIcon,
 } from "lucide-react";
+import { format } from "date-fns";
 import BackButton from "@/components/BackButton";
 
 interface Client {
@@ -100,6 +141,38 @@ const ClientDashboard: React.FC = () => {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Edit states
+  const [showEditJourneyDialog, setShowEditJourneyDialog] = useState(false);
+  const [showScheduleAssessmentDialog, setShowScheduleAssessmentDialog] =
+    useState(false);
+  const [showAddTimelineDialog, setShowAddTimelineDialog] = useState(false);
+  const [showDeleteTimelineDialog, setShowDeleteTimelineDialog] =
+    useState(false);
+  const [editingTimelineEvent, setEditingTimelineEvent] =
+    useState<TimelineEvent | null>(null);
+  const [deletingTimelineEvent, setDeletingTimelineEvent] =
+    useState<TimelineEvent | null>(null);
+
+  // Form states
+  const [journeyEditForm, setJourneyEditForm] = useState({
+    stage: "",
+    completedDate: new Date(),
+    status: "Pending" as "Pending" | "In Progress" | "Completed",
+  });
+
+  const [assessmentForm, setAssessmentForm] = useState({
+    formId: "",
+    dueDate: new Date(),
+    status: "scheduled" as "scheduled" | "completed" | "cancelled",
+  });
+
+  const [timelineForm, setTimelineForm] = useState({
+    type: "Contact" as "Assessment" | "Contact" | "Note" | "Referral",
+    title: "",
+    description: "",
+    date: new Date(),
+  });
+
   // Default journey stages
   const defaultStages = [
     "Initial Contact",
@@ -109,6 +182,26 @@ const ClientDashboard: React.FC = () => {
     "3-Month Check-In",
     "Exit",
   ];
+
+  // Available assessment forms
+  const availableAssessmentForms = [
+    { id: "epds", name: "EPDS Assessment" },
+    { id: "gad7", name: "GAD-7 Assessment" },
+    { id: "bonding", name: "Bonding Scale" },
+    { id: "progress", name: "Progress Review" },
+    { id: "exit", name: "Exit Assessment" },
+  ];
+
+  // Check if user can edit (Support Workers, Admins, Super Admins)
+  const canEdit =
+    user?.role === "support_worker" ||
+    user?.role === "admin" ||
+    user?.role === "super_admin" ||
+    user?.role === "org_admin";
+  const canDelete =
+    user?.role === "admin" ||
+    user?.role === "super_admin" ||
+    user?.role === "org_admin";
 
   useEffect(() => {
     loadClientData();
@@ -337,6 +430,261 @@ const ClientDashboard: React.FC = () => {
     setRecommendations(newRecommendations);
   };
 
+  // Journey stage editing functions
+  const handleEditJourney = () => {
+    if (journeyProgress) {
+      setJourneyEditForm({
+        stage: journeyProgress.stages[journeyProgress.currentStage] || "",
+        completedDate: new Date(),
+        status: "In Progress",
+      });
+      setShowEditJourneyDialog(true);
+    }
+  };
+
+  const handleSaveJourneyStage = async () => {
+    try {
+      const updatedProgress = {
+        ...journeyProgress!,
+        currentStage: journeyProgress!.stages.indexOf(journeyEditForm.stage),
+        completedStages:
+          journeyEditForm.status === "Completed"
+            ? [
+                ...journeyProgress!.completedStages,
+                journeyProgress!.stages.indexOf(journeyEditForm.stage),
+              ]
+            : journeyProgress!.completedStages,
+        updatedAt: new Date().toISOString(),
+      };
+
+      setJourneyProgress(updatedProgress);
+      localStorage.setItem(
+        `journey_progress_${clientId}`,
+        JSON.stringify(updatedProgress),
+      );
+
+      // Add timeline event
+      const newTimelineEvent: TimelineEvent = {
+        id: `timeline_${Date.now()}`,
+        clientId,
+        type: "Milestone",
+        title: `Journey Stage Updated: ${journeyEditForm.stage}`,
+        description: `Stage status changed to ${journeyEditForm.status}`,
+        date: new Date().toISOString(),
+      };
+
+      const updatedTimeline = [newTimelineEvent, ...timelineEvents];
+      setTimelineEvents(updatedTimeline);
+      localStorage.setItem(
+        `timeline_events_${clientId}`,
+        JSON.stringify(updatedTimeline),
+      );
+
+      setShowEditJourneyDialog(false);
+      addNotification({
+        type: "success",
+        title: "Journey Updated",
+        message: "Client journey stage has been updated successfully",
+      });
+    } catch (error) {
+      addNotification({
+        type: "system",
+        title: "Error",
+        message: "Failed to update journey stage",
+      });
+    }
+  };
+
+  // Assessment scheduling functions
+  const handleScheduleAssessment = () => {
+    setAssessmentForm({
+      formId: "",
+      dueDate: new Date(),
+      status: "scheduled",
+    });
+    setShowScheduleAssessmentDialog(true);
+  };
+
+  const handleSaveScheduledAssessment = async () => {
+    try {
+      const selectedForm = availableAssessmentForms.find(
+        (f) => f.id === assessmentForm.formId,
+      );
+      if (!selectedForm) return;
+
+      const newAssessment: AssessmentResult = {
+        id: `assess_${Date.now()}`,
+        clientId,
+        type: selectedForm.name,
+        score: 0,
+        riskLevel: "pending",
+        completedAt: "",
+        status: assessmentForm.status,
+      };
+
+      const updatedAssessments = [...assessmentResults, newAssessment];
+      setAssessmentResults(updatedAssessments);
+      localStorage.setItem(
+        `assessment_results_${clientId}`,
+        JSON.stringify(updatedAssessments),
+      );
+
+      // Add timeline event
+      const newTimelineEvent: TimelineEvent = {
+        id: `timeline_${Date.now()}`,
+        clientId,
+        type: "Assessment",
+        title: `${selectedForm.name} Scheduled`,
+        description: `Assessment scheduled for ${format(assessmentForm.dueDate, "PPP")}`,
+        date: new Date().toISOString(),
+      };
+
+      const updatedTimeline = [newTimelineEvent, ...timelineEvents];
+      setTimelineEvents(updatedTimeline);
+      localStorage.setItem(
+        `timeline_events_${clientId}`,
+        JSON.stringify(updatedTimeline),
+      );
+
+      setShowScheduleAssessmentDialog(false);
+      addNotification({
+        type: "success",
+        title: "Assessment Scheduled",
+        message: `${selectedForm.name} has been scheduled successfully`,
+      });
+    } catch (error) {
+      addNotification({
+        type: "system",
+        title: "Error",
+        message: "Failed to schedule assessment",
+      });
+    }
+  };
+
+  const handleCancelAssessment = async (assessmentId: string) => {
+    try {
+      const updatedAssessments = assessmentResults.map((a) =>
+        a.id === assessmentId ? { ...a, status: "cancelled" } : a,
+      );
+      setAssessmentResults(updatedAssessments);
+      localStorage.setItem(
+        `assessment_results_${clientId}`,
+        JSON.stringify(updatedAssessments),
+      );
+
+      addNotification({
+        type: "success",
+        title: "Assessment Cancelled",
+        message: "Assessment has been cancelled successfully",
+      });
+    } catch (error) {
+      addNotification({
+        type: "system",
+        title: "Error",
+        message: "Failed to cancel assessment",
+      });
+    }
+  };
+
+  // Timeline editing functions
+  const handleAddTimelineEvent = () => {
+    setTimelineForm({
+      type: "Contact",
+      title: "",
+      description: "",
+      date: new Date(),
+    });
+    setEditingTimelineEvent(null);
+    setShowAddTimelineDialog(true);
+  };
+
+  const handleEditTimelineEvent = (event: TimelineEvent) => {
+    setTimelineForm({
+      type: event.type as "Assessment" | "Contact" | "Note" | "Referral",
+      title: event.title,
+      description: event.description || "",
+      date: new Date(event.date),
+    });
+    setEditingTimelineEvent(event);
+    setShowAddTimelineDialog(true);
+  };
+
+  const handleSaveTimelineEvent = async () => {
+    try {
+      const eventData: TimelineEvent = {
+        id: editingTimelineEvent?.id || `timeline_${Date.now()}`,
+        clientId,
+        type: timelineForm.type,
+        title: timelineForm.title,
+        description: timelineForm.description,
+        date: timelineForm.date.toISOString(),
+      };
+
+      let updatedTimeline;
+      if (editingTimelineEvent) {
+        updatedTimeline = timelineEvents.map((e) =>
+          e.id === editingTimelineEvent.id ? eventData : e,
+        );
+      } else {
+        updatedTimeline = [eventData, ...timelineEvents];
+      }
+
+      setTimelineEvents(updatedTimeline);
+      localStorage.setItem(
+        `timeline_events_${clientId}`,
+        JSON.stringify(updatedTimeline),
+      );
+
+      setShowAddTimelineDialog(false);
+      setEditingTimelineEvent(null);
+      addNotification({
+        type: "success",
+        title: editingTimelineEvent ? "Event Updated" : "Event Added",
+        message: `Timeline event has been ${editingTimelineEvent ? "updated" : "added"} successfully`,
+      });
+    } catch (error) {
+      addNotification({
+        type: "system",
+        title: "Error",
+        message: `Failed to ${editingTimelineEvent ? "update" : "add"} timeline event`,
+      });
+    }
+  };
+
+  const handleDeleteTimelineEvent = (event: TimelineEvent) => {
+    setDeletingTimelineEvent(event);
+    setShowDeleteTimelineDialog(true);
+  };
+
+  const confirmDeleteTimelineEvent = async () => {
+    if (!deletingTimelineEvent) return;
+
+    try {
+      const updatedTimeline = timelineEvents.filter(
+        (e) => e.id !== deletingTimelineEvent.id,
+      );
+      setTimelineEvents(updatedTimeline);
+      localStorage.setItem(
+        `timeline_events_${clientId}`,
+        JSON.stringify(updatedTimeline),
+      );
+
+      setShowDeleteTimelineDialog(false);
+      setDeletingTimelineEvent(null);
+      addNotification({
+        type: "success",
+        title: "Event Deleted",
+        message: "Timeline event has been deleted successfully",
+      });
+    } catch (error) {
+      addNotification({
+        type: "system",
+        title: "Error",
+        message: "Failed to delete timeline event",
+      });
+    }
+  };
+
   const getStageIcon = (
     stageIndex: number,
     currentStage: number,
@@ -506,19 +854,34 @@ const ClientDashboard: React.FC = () => {
           {/* 2. Journey Progress Bar */}
           <Card className="bg-white">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                Journey Progress
-              </CardTitle>
-              <CardDescription>
-                Current stage:{" "}
-                {journeyProgress?.stages[journeyProgress.currentStage]}(
-                {getProgressPercentage(
-                  journeyProgress?.currentStage || 0,
-                  journeyProgress?.stages.length || 6,
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Journey Progress
+                  </CardTitle>
+                  <CardDescription>
+                    Current stage:{" "}
+                    {journeyProgress?.stages[journeyProgress.currentStage]}(
+                    {getProgressPercentage(
+                      journeyProgress?.currentStage || 0,
+                      journeyProgress?.stages.length || 6,
+                    )}
+                    % complete)
+                  </CardDescription>
+                </div>
+                {canEdit && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleEditJourney}
+                    className="flex items-center gap-2"
+                  >
+                    <Edit className="h-4 w-4" />
+                    Edit Journey
+                  </Button>
                 )}
-                % complete)
-              </CardDescription>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -609,27 +972,44 @@ const ClientDashboard: React.FC = () => {
           {/* 4. Assessments Snapshot */}
           <Card className="bg-white">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Assessments Snapshot
-              </CardTitle>
-              <CardDescription>
-                Overview of completed and upcoming assessments
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Assessments Snapshot
+                  </CardTitle>
+                  <CardDescription>
+                    Overview of completed and upcoming assessments
+                  </CardDescription>
+                </div>
+                {canEdit && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleScheduleAssessment}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Schedule Assessment
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-4">
                 {assessmentResults.map((assessment) => (
                   <div
                     key={assessment.id}
-                    className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg"
+                    className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg group relative"
                   >
                     {assessment.status === "completed" ? (
                       <CheckCircle className="h-5 w-5 text-green-500" />
+                    ) : assessment.status === "cancelled" ? (
+                      <X className="h-5 w-5 text-red-500" />
                     ) : (
                       <Clock className="h-5 w-5 text-yellow-500" />
                     )}
-                    <div>
+                    <div className="flex-1">
                       <span className="font-medium">{assessment.type}</span>
                       {assessment.status === "completed" && (
                         <>
@@ -652,7 +1032,24 @@ const ClientDashboard: React.FC = () => {
                           ⏳ Scheduled
                         </span>
                       )}
+                      {assessment.status === "cancelled" && (
+                        <span className="ml-2 text-sm text-red-600">
+                          ❌ Cancelled
+                        </span>
+                      )}
                     </div>
+                    {canEdit && assessment.status === "scheduled" && (
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleCancelAssessment(assessment.id)}
+                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))}
                 <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg border-2 border-dashed border-blue-200">
@@ -668,13 +1065,28 @@ const ClientDashboard: React.FC = () => {
           {/* 5. Client Timeline Table */}
           <Card className="bg-white">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Client Timeline
-              </CardTitle>
-              <CardDescription>
-                Chronological log of all key events and interactions
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    Client Timeline
+                  </CardTitle>
+                  <CardDescription>
+                    Chronological log of all key events and interactions
+                  </CardDescription>
+                </div>
+                {canEdit && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAddTimelineEvent}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Timeline Event
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -686,7 +1098,7 @@ const ClientDashboard: React.FC = () => {
                   .map((event) => (
                     <div
                       key={event.id}
-                      className="flex items-start gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                      className="flex items-start gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors group"
                     >
                       <div className="flex-shrink-0 mt-1">
                         <div className="p-2 bg-primary/10 rounded-full text-primary">
@@ -695,7 +1107,7 @@ const ClientDashboard: React.FC = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between">
-                          <div>
+                          <div className="flex-1">
                             <h4 className="font-medium text-gray-900">
                               {event.title}
                             </h4>
@@ -730,6 +1142,30 @@ const ClientDashboard: React.FC = () => {
                               )}
                             </div>
                           </div>
+                          {canEdit && (
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 ml-4">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditTimelineEvent(event)}
+                                className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              {canDelete && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleDeleteTimelineEvent(event)
+                                  }
+                                  className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -739,6 +1175,310 @@ const ClientDashboard: React.FC = () => {
           </Card>
         </div>
       </div>
+
+      {/* Edit Journey Stage Dialog */}
+      <Dialog
+        open={showEditJourneyDialog}
+        onOpenChange={setShowEditJourneyDialog}
+      >
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Update Journey Stage</DialogTitle>
+            <DialogDescription>
+              Update the client's current journey stage and status.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="stage">Journey Stage</Label>
+              <Select
+                value={journeyEditForm.stage}
+                onValueChange={(value) =>
+                  setJourneyEditForm((prev) => ({ ...prev, stage: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select stage" />
+                </SelectTrigger>
+                <SelectContent>
+                  {defaultStages.map((stage) => (
+                    <SelectItem key={stage} value={stage}>
+                      {stage}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="completedDate">Stage Completed Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(journeyEditForm.completedDate, "PPP")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <CalendarComponent
+                    mode="single"
+                    selected={journeyEditForm.completedDate}
+                    onSelect={(date) =>
+                      date &&
+                      setJourneyEditForm((prev) => ({
+                        ...prev,
+                        completedDate: date,
+                      }))
+                    }
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <Select
+                value={journeyEditForm.status}
+                onValueChange={(
+                  value: "Pending" | "In Progress" | "Completed",
+                ) => setJourneyEditForm((prev) => ({ ...prev, status: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Pending">Pending</SelectItem>
+                  <SelectItem value="In Progress">In Progress</SelectItem>
+                  <SelectItem value="Completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowEditJourneyDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSaveJourneyStage}>
+              <Save className="mr-2 h-4 w-4" />
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Schedule Assessment Dialog */}
+      <Dialog
+        open={showScheduleAssessmentDialog}
+        onOpenChange={setShowScheduleAssessmentDialog}
+      >
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Schedule New Assessment</DialogTitle>
+            <DialogDescription>
+              Schedule a new assessment for this client.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="formId">Assessment Type</Label>
+              <Select
+                value={assessmentForm.formId}
+                onValueChange={(value) =>
+                  setAssessmentForm((prev) => ({ ...prev, formId: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select assessment" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableAssessmentForms.map((form) => (
+                    <SelectItem key={form.id} value={form.id}>
+                      {form.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dueDate">Due Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(assessmentForm.dueDate, "PPP")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <CalendarComponent
+                    mode="single"
+                    selected={assessmentForm.dueDate}
+                    onSelect={(date) =>
+                      date &&
+                      setAssessmentForm((prev) => ({ ...prev, dueDate: date }))
+                    }
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowScheduleAssessmentDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveScheduledAssessment}
+              disabled={!assessmentForm.formId}
+            >
+              <Save className="mr-2 h-4 w-4" />
+              Schedule Assessment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add/Edit Timeline Event Dialog */}
+      <Dialog
+        open={showAddTimelineDialog}
+        onOpenChange={setShowAddTimelineDialog}
+      >
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingTimelineEvent ? "Edit" : "Add"} Timeline Event
+            </DialogTitle>
+            <DialogDescription>
+              {editingTimelineEvent ? "Update" : "Add"} a timeline event for
+              this client.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="eventType">Event Type</Label>
+              <Select
+                value={timelineForm.type}
+                onValueChange={(
+                  value: "Assessment" | "Contact" | "Note" | "Referral",
+                ) => setTimelineForm((prev) => ({ ...prev, type: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select event type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Assessment">Assessment</SelectItem>
+                  <SelectItem value="Contact">Contact</SelectItem>
+                  <SelectItem value="Note">Note</SelectItem>
+                  <SelectItem value="Referral">Referral</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="eventTitle">Event Title</Label>
+              <Input
+                id="eventTitle"
+                value={timelineForm.title}
+                onChange={(e) =>
+                  setTimelineForm((prev) => ({
+                    ...prev,
+                    title: e.target.value,
+                  }))
+                }
+                placeholder="Enter event title"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="eventDescription">Description</Label>
+              <Textarea
+                id="eventDescription"
+                value={timelineForm.description}
+                onChange={(e) =>
+                  setTimelineForm((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
+                }
+                placeholder="Enter event description"
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="eventDate">Event Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(timelineForm.date, "PPP")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <CalendarComponent
+                    mode="single"
+                    selected={timelineForm.date}
+                    onSelect={(date) =>
+                      date && setTimelineForm((prev) => ({ ...prev, date }))
+                    }
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowAddTimelineDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveTimelineEvent}
+              disabled={!timelineForm.title}
+            >
+              <Save className="mr-2 h-4 w-4" />
+              {editingTimelineEvent ? "Update" : "Add"} Event
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Timeline Event Dialog */}
+      <AlertDialog
+        open={showDeleteTimelineDialog}
+        onOpenChange={setShowDeleteTimelineDialog}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Timeline Event</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{deletingTimelineEvent?.title}"?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteTimelineEvent}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

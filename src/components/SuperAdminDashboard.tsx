@@ -96,6 +96,23 @@ const SuperAdminDashboard = () => {
     useState<AssessmentTemplate | null>(null);
   const [showDeleteTemplateDialog, setShowDeleteTemplateDialog] =
     useState(false);
+
+  // Assessment Trigger Builder states
+  const [assessmentTriggers, setAssessmentTriggers] = useState<any[]>([]);
+  const [showTriggerDialog, setShowTriggerDialog] = useState(false);
+  const [editingTrigger, setEditingTrigger] = useState<any>(null);
+  const [triggerForm, setTriggerForm] = useState({
+    sourceAssessmentId: "",
+    conditionType: "score_gte" as
+      | "score_gte"
+      | "score_lte"
+      | "question_value"
+      | "question_contains",
+    conditionValue: "",
+    triggeredAssessmentId: "",
+    notes: "",
+    isActive: true,
+  });
   const [showTemplateForm, setShowTemplateForm] = useState(false);
   const [templateFormMode, setTemplateFormMode] = useState<"create" | "edit">(
     "create",
@@ -367,6 +384,16 @@ const SuperAdminDashboard = () => {
         }));
         setAssessmentPacks(defaultPacks);
         localStorage.setItem("assessmentPacks", JSON.stringify(defaultPacks));
+      }
+
+      // Load assessment triggers
+      const savedTriggers = localStorage.getItem("assessmentTriggers");
+      if (savedTriggers) {
+        try {
+          setAssessmentTriggers(JSON.parse(savedTriggers));
+        } catch (error) {
+          console.error("Failed to parse saved assessment triggers", error);
+        }
       }
     }
   }, [isAuthenticated]);
@@ -1137,11 +1164,12 @@ const SuperAdminDashboard = () => {
           onValueChange={setActiveTab}
           className="w-full"
         >
-          <TabsList className="grid w-full max-w-2xl grid-cols-4">
+          <TabsList className="grid w-full max-w-3xl grid-cols-5">
             <TabsTrigger value="tenants">Active Tenants</TabsTrigger>
             <TabsTrigger value="archived">Archived Tenants</TabsTrigger>
             <TabsTrigger value="packs">Assessment Packs</TabsTrigger>
             <TabsTrigger value="templates">Templates</TabsTrigger>
+            <TabsTrigger value="triggers">Assessment Triggers</TabsTrigger>
           </TabsList>
 
           <TabsContent value="tenants" className="mt-6">
@@ -1689,6 +1717,128 @@ const SuperAdminDashboard = () => {
                           >
                             No assessment templates found. Create your first
                             template by clicking the "Create Template" button.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="triggers" className="mt-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Assessment Trigger Builder</CardTitle>
+                  <CardDescription>
+                    Create automatic assessment triggers based on conditions and
+                    responses
+                  </CardDescription>
+                </div>
+                <Button
+                  onClick={handleAddTrigger}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" /> Create Trigger
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/50 text-left">
+                        <th className="p-2 pl-4">Source Assessment</th>
+                        <th className="p-2">Condition</th>
+                        <th className="p-2">Triggered Assessment</th>
+                        <th className="p-2">Status</th>
+                        <th className="p-2 text-right pr-4">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {assessmentTriggers.length > 0 ? (
+                        assessmentTriggers.map((trigger) => {
+                          const sourceTemplate = assessmentTemplates.find(
+                            (t) => t.id === trigger.sourceAssessmentId,
+                          );
+                          const triggeredTemplate = assessmentTemplates.find(
+                            (t) => t.id === trigger.triggeredAssessmentId,
+                          );
+
+                          return (
+                            <tr key={trigger.id} className="border-b">
+                              <td className="p-2 pl-4 font-medium">
+                                {sourceTemplate?.name || "Unknown Assessment"}
+                              </td>
+                              <td className="p-2">
+                                <div className="text-sm">
+                                  <div className="font-medium">
+                                    {trigger.conditionType === "score_gte" &&
+                                      "Score ≥"}
+                                    {trigger.conditionType === "score_lte" &&
+                                      "Score ≤"}
+                                    {trigger.conditionType ===
+                                      "question_value" && "Question ="}
+                                    {trigger.conditionType ===
+                                      "question_contains" &&
+                                      "Question contains"}{" "}
+                                    {trigger.conditionValue}
+                                  </div>
+                                  {trigger.notes && (
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      {trigger.notes}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-2">
+                                {triggeredTemplate?.name ||
+                                  "Unknown Assessment"}
+                              </td>
+                              <td className="p-2">
+                                {trigger.isActive ? (
+                                  <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800">
+                                    Active
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-red-100 text-red-800">
+                                    Inactive
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-2 text-right">
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEditTrigger(trigger)}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                    onClick={() =>
+                                      handleDeleteTrigger(trigger.id)
+                                    }
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan={5}
+                            className="p-4 text-center text-muted-foreground"
+                          >
+                            No assessment triggers found. Create your first
+                            trigger by clicking the "Create Trigger" button.
                           </td>
                         </tr>
                       )}
@@ -2937,6 +3087,177 @@ const SuperAdminDashboard = () => {
               />
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assessment Trigger Dialog */}
+      <Dialog open={showTriggerDialog} onOpenChange={setShowTriggerDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingTrigger ? "Edit" : "Create"} Assessment Trigger
+            </DialogTitle>
+            <DialogDescription>
+              Define conditions that will automatically trigger other
+              assessments
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="sourceAssessment">Source Assessment</Label>
+              <Select
+                value={triggerForm.sourceAssessmentId}
+                onValueChange={(value) =>
+                  setTriggerForm((prev) => ({
+                    ...prev,
+                    sourceAssessmentId: value,
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select source assessment" />
+                </SelectTrigger>
+                <SelectContent>
+                  {assessmentTemplates.map((template) => (
+                    <SelectItem key={template.id} value={template.id}>
+                      {template.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="conditionType">Condition Type</Label>
+                <Select
+                  value={triggerForm.conditionType}
+                  onValueChange={(
+                    value:
+                      | "score_gte"
+                      | "score_lte"
+                      | "question_value"
+                      | "question_contains",
+                  ) =>
+                    setTriggerForm((prev) => ({
+                      ...prev,
+                      conditionType: value,
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select condition" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="score_gte">
+                      Score ≥ (Greater than or equal)
+                    </SelectItem>
+                    <SelectItem value="score_lte">
+                      Score ≤ (Less than or equal)
+                    </SelectItem>
+                    <SelectItem value="question_value">
+                      Question equals specific value
+                    </SelectItem>
+                    <SelectItem value="question_contains">
+                      Question contains text
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="conditionValue">Value</Label>
+                <Input
+                  id="conditionValue"
+                  value={triggerForm.conditionValue}
+                  onChange={(e) =>
+                    setTriggerForm((prev) => ({
+                      ...prev,
+                      conditionValue: e.target.value,
+                    }))
+                  }
+                  placeholder={
+                    triggerForm.conditionType.startsWith("score")
+                      ? "e.g., 10"
+                      : "e.g., Yes"
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="triggeredAssessment">Assessment to Trigger</Label>
+              <Select
+                value={triggerForm.triggeredAssessmentId}
+                onValueChange={(value) =>
+                  setTriggerForm((prev) => ({
+                    ...prev,
+                    triggeredAssessmentId: value,
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select assessment to trigger" />
+                </SelectTrigger>
+                <SelectContent>
+                  {assessmentTemplates
+                    .filter((t) => t.id !== triggerForm.sourceAssessmentId)
+                    .map((template) => (
+                      <SelectItem key={template.id} value={template.id}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes (Optional)</Label>
+              <Textarea
+                id="notes"
+                value={triggerForm.notes}
+                onChange={(e) =>
+                  setTriggerForm((prev) => ({ ...prev, notes: e.target.value }))
+                }
+                placeholder="Add notes or description for this trigger"
+                rows={3}
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="isActive"
+                checked={triggerForm.isActive}
+                onChange={(e) =>
+                  setTriggerForm((prev) => ({
+                    ...prev,
+                    isActive: e.target.checked,
+                  }))
+                }
+                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <Label htmlFor="isActive">Active Trigger</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowTriggerDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveTrigger}
+              disabled={
+                !triggerForm.sourceAssessmentId ||
+                !triggerForm.conditionValue ||
+                !triggerForm.triggeredAssessmentId
+              }
+            >
+              {editingTrigger ? "Update" : "Create"} Trigger
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
