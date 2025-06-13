@@ -16,7 +16,7 @@ import ClientsPage from "./components/ClientsPage";
 import AssessmentsPage from "./components/AssessmentsPage";
 import WorkerAssessments from "./components/WorkerAssessments";
 import EventsPage from "./components/EventsPage";
-import ClientProfile from "./components/ClientProfile";
+import ClientDashboard from "./components/ClientDashboard";
 import EventAttendanceRegister from "./components/EventAttendanceRegister";
 import NewClientForm from "./components/NewClientForm";
 import NewEventForm from "./components/NewEventForm";
@@ -717,7 +717,7 @@ function App() {
                   path="/client/:id"
                   element={
                     <ProtectedRoute>
-                      <ClientProfile />
+                      <ClientDashboard />
                     </ProtectedRoute>
                   }
                 />
