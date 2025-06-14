@@ -135,4 +135,27 @@
   .thrive-text-accent {
     @apply text-muted-teal;
   }
+
+  /* Modal styles */
+  .modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.95);
+    z-index: 40;
+  }
+
+  .modal-open {
+    overflow: hidden;
+    padding-right: 15px; /* Prevent layout shift from scrollbar removal */
+  }
+
+  /* Ensure sidebar and other elements don't overlap modal */
+  .sidebar,
+  nav,
+  header {
+    z-index: 30 !important;
+  }
 }
