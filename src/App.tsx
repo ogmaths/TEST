@@ -273,7 +273,7 @@ function App() {
     return <>{children}</>;
   };
 
-  // Admin route component with enhanced debugging
+  // Admin route component with enhanced debugging and worker restriction
   const AdminRoute = ({ children }: { children: React.ReactNode }) => {
     console.log("🔍 AdminRoute - user:", user);
     console.log("🔍 AdminRoute - user role:", user?.role);
@@ -311,6 +311,14 @@ function App() {
       user.role === "org_admin";
     console.log("🔍 AdminRoute - Is admin check:", isAdmin);
 
+    // CRITICAL: Workers cannot access admin routes
+    if (user.role === "support_worker") {
+      console.log(
+        "🔍 AdminRoute - Worker access denied, redirecting to support dashboard",
+      );
+      return <Navigate to="/support-dashboard" replace />;
+    }
+
     if (!isAdmin) {
       console.log(
         "🔍 AdminRoute - Access denied, redirecting to appropriate dashboard",
@@ -318,8 +326,6 @@ function App() {
       // Redirect to appropriate dashboard based on role
       if (user.role === "sales") {
         return <Navigate to="/sales-dashboard" replace />;
-      } else if (user.role === "support_worker") {
-        return <Navigate to="/support-dashboard" replace />;
       } else {
         return <Navigate to="/support-dashboard" replace />;
       }
@@ -806,9 +812,9 @@ function App() {
                 <Route
                   path="/admin/users/new"
                   element={
-                    <ProtectedRoute>
+                    <AdminRoute>
                       <NewUserForm />
-                    </ProtectedRoute>
+                    </AdminRoute>
                   }
                 />
 

@@ -58,7 +58,7 @@ const AssessmentsPage: React.FC = () => {
     // If we have saved assessments, use them
     if (savedAssessments.length > 0) {
       // Map the saved assessments to match our Assessment interface
-      return savedAssessments.map((assessment: any) => {
+      const mappedAssessments = savedAssessments.map((assessment: any) => {
         // Find the client by ID to get the full name
         const client = savedClients.find(
           (c: any) => c.id === assessment.clientId,
@@ -74,8 +74,25 @@ const AssessmentsPage: React.FC = () => {
           score: assessment.score || assessment.overallScore,
           status:
             assessment.status || (assessment.score ? "completed" : "pending"),
+          // Add client organization info for filtering
+          clientOrganizationId: client?.organizationId,
+          clientOrganizationSlug: client?.organizationSlug,
         };
       });
+
+      // Filter assessments based on user's tenant_id for security
+      if (user?.role === "super_admin" || user?.tenantId === "0") {
+        // Super admin can see all assessments
+        return mappedAssessments;
+      } else {
+        // Workers can only see assessments for clients from their organization
+        return mappedAssessments.filter((assessment: any) => {
+          return (
+            assessment.clientOrganizationId === user?.tenantId ||
+            assessment.clientOrganizationSlug === user?.organizationSlug
+          );
+        });
+      }
     }
 
     // Fallback to mock data if no assessments found

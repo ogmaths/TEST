@@ -168,14 +168,28 @@ const ClientsPage: React.FC = () => {
     }
   }, []);
 
-  // Show all clients by default, but allow filtering by assigned worker
-  const displayClients = clients;
+  // Filter clients based on user's tenant_id for security
+  const tenantFilteredClients =
+    user?.role === "super_admin" || user?.tenantId === "0"
+      ? clients // Super admin can see all clients
+      : clients.filter((client) => {
+          // Workers can only see clients from their organization
+          return (
+            client.organizationId === user?.tenantId ||
+            client.organizationSlug === user?.organizationSlug
+          );
+        });
+
+  // Show filtered clients by default, but allow filtering by assigned worker
+  const displayClients = tenantFilteredClients;
 
   // Filter clients based on worker assignment for metrics calculation
   const metricsClients =
     workerFilter === "mine" && user
-      ? clients.filter((client) => client.caseWorker === user.name)
-      : clients;
+      ? tenantFilteredClients.filter(
+          (client) => client.caseWorker === user.name,
+        )
+      : tenantFilteredClients;
 
   const filteredClients = displayClients
     .filter((client) => {

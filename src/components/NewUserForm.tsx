@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
   Card,
@@ -20,18 +20,52 @@ import {
 } from "@/components/ui/select";
 import BackButton from "./BackButton";
 import { Users } from "lucide-react";
+import { useUser } from "@/context/UserContext";
 
 const NewUserForm = () => {
   const navigate = useNavigate();
+  const { user } = useUser();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
-    organization: "",
+    organization: user?.tenantId || "",
     role: "support_worker",
     status: "active",
   });
+
+  // Initialize organization for managers
+  useEffect(() => {
+    if (user?.role === "manager" && user?.tenantId) {
+      setFormData((prev) => ({
+        ...prev,
+        organization: user.tenantId,
+      }));
+    }
+  }, [user]);
+
+  // Check if user has permission to create users
+  useEffect(() => {
+    if (user?.role === "support_worker") {
+      // Workers cannot create users - redirect them
+      navigate("/clients");
+      return;
+    }
+
+    // Managers can only create users within their organization
+    if (
+      user?.role === "manager" &&
+      formData.organization &&
+      formData.organization !== user?.tenantId
+    ) {
+      // Reset organization to manager's tenant if they try to select a different one
+      setFormData((prev) => ({
+        ...prev,
+        organization: user?.tenantId || "",
+      }));
+    }
+  }, [user, navigate, formData.organization]);
 
   const handleSelectChange = (field: string, value: string) => {
     setFormData((prev) => ({
@@ -42,7 +76,39 @@ const NewUserForm = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Only admins, super admins, and managers can create users
+    if (user?.role === "support_worker") {
+      alert("You do not have permission to create users.");
+      return;
+    }
+
+    // Managers can only create users within their own organization
+    if (user?.role === "manager" && formData.organization !== user?.tenantId) {
+      alert("You can only create users within your own organization.");
+      return;
+    }
+
+    // Create user with proper tenant_id assignment
+    const newUser = {
+      id: Date.now().toString(),
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: formData.email,
+      role: formData.role,
+      status: formData.status,
+      organization: formData.organization,
+      // Managers and org_admins can only assign to their own organization
+      tenantId:
+        user?.role === "super_admin" ? formData.organization : user?.tenantId,
+      organizationId: user?.organizationId,
+      organizationSlug: user?.organizationSlug,
+      createdAt: new Date().toISOString(),
+      createdBy: user?.id,
+    };
+
     // In a real app, this would save the user data to the database
+    console.log("Creating user:", newUser);
     alert("User created successfully!");
     navigate("/admin?tab=users");
   };
@@ -84,11 +150,33 @@ const NewUserForm = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">First Name</Label>
-                  <Input id="firstName" placeholder="First name" required />
+                  <Input
+                    id="firstName"
+                    placeholder="First name"
+                    value={formData.firstName}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        firstName: e.target.value,
+                      }))
+                    }
+                    required
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="lastName">Last Name</Label>
-                  <Input id="lastName" placeholder="Last name" required />
+                  <Input
+                    id="lastName"
+                    placeholder="Last name"
+                    value={formData.lastName}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        lastName: e.target.value,
+                      }))
+                    }
+                    required
+                  />
                 </div>
               </div>
 
@@ -98,37 +186,68 @@ const NewUserForm = () => {
                   id="email"
                   type="email"
                   placeholder="user@example.com"
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, email: e.target.value }))
+                  }
                   required
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="organization">Organization</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select organization" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {organizations.map((org) => (
-                      <SelectItem key={org.id} value={org.id}>
-                        {org.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {user?.role === "manager" ? (
+                  <Input
+                    value={user?.organizationName || "Your Organization"}
+                    disabled
+                    className="bg-muted"
+                  />
+                ) : (
+                  <Select
+                    value={formData.organization}
+                    onValueChange={(value) =>
+                      handleSelectChange("organization", value)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select organization" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {user?.role === "super_admin" ? (
+                        organizations.map((org) => (
+                          <SelectItem key={org.id} value={org.id}>
+                            {org.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value={user?.tenantId || ""}>
+                          {user?.organizationName || "Your Organization"}
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="role">Role</Label>
-                <Select defaultValue="support_worker">
+                <Select
+                  value={formData.role}
+                  onValueChange={(value) => handleSelectChange("role", value)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="org_admin">
-                      Organization Admin
-                    </SelectItem>
+                    {user?.role === "super_admin" && (
+                      <SelectItem value="admin">Admin</SelectItem>
+                    )}
+                    {(user?.role === "super_admin" ||
+                      user?.role === "admin") && (
+                      <SelectItem value="org_admin">
+                        Organization Admin
+                      </SelectItem>
+                    )}
                     <SelectItem value="support_worker">
                       Support Worker
                     </SelectItem>
@@ -136,6 +255,12 @@ const NewUserForm = () => {
                     <SelectItem value="readonly">Read Only</SelectItem>
                   </SelectContent>
                 </Select>
+                {user?.role === "manager" && (
+                  <p className="text-xs text-muted-foreground">
+                    As a manager, you can create support workers, managers, and
+                    read-only users within your organization.
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">

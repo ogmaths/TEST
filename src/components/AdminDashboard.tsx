@@ -117,11 +117,12 @@ const AdminDashboard = () => {
     );
   }
 
-  // Check if user has admin role
+  // Check if user has admin role (including managers)
   if (
     user.role !== "admin" &&
     user.role !== "super_admin" &&
-    user.role !== "org_admin"
+    user.role !== "org_admin" &&
+    user.role !== "manager"
   ) {
     console.log(
       "🔍 AdminDashboard - User does not have admin role:",
@@ -220,39 +221,69 @@ const AdminDashboard = () => {
   const [selectedJourneyType, setSelectedJourneyType] =
     useState<JourneyType | null>(null);
 
-  // Mock data for users and clients
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: "1",
-      name: "Stacy Williams",
-      email: "stacy.williams@example.com",
-      role: "admin",
-      lastLogin: "2023-06-10T14:30:00Z",
-      status: "active",
-      organizationId: "1",
-      area: "North Region",
-    },
-    {
-      id: "2",
-      name: "John Doe",
-      email: "john.doe@example.com",
-      role: "support_worker",
-      lastLogin: "2023-06-09T10:15:00Z",
-      status: "active",
-      organizationId: "1",
-      area: "South Region",
-    },
-    {
-      id: "3",
-      name: "Jane Smith",
-      email: "jane.smith@example.com",
-      role: "support_worker",
-      lastLogin: "2023-06-08T09:45:00Z",
-      status: "active",
-      organizationId: "1",
-      area: "East Region",
-    },
-  ]);
+  // Mock data for users - filtered by organization
+  const [users, setUsers] = useState<User[]>(() => {
+    const allUsers = [
+      {
+        id: "1",
+        name: "Stacy Williams",
+        email: "stacy.williams@example.com",
+        role: "admin",
+        lastLogin: "2023-06-10T14:30:00Z",
+        status: "active",
+        organizationId: "1",
+        tenantId: "1",
+        area: "North Region",
+      },
+      {
+        id: "2",
+        name: "John Doe",
+        email: "john.doe@example.com",
+        role: "support_worker",
+        lastLogin: "2023-06-09T10:15:00Z",
+        status: "active",
+        organizationId: "1",
+        tenantId: "1",
+        area: "South Region",
+      },
+      {
+        id: "3",
+        name: "Jane Smith",
+        email: "jane.smith@example.com",
+        role: "support_worker",
+        lastLogin: "2023-06-08T09:45:00Z",
+        status: "active",
+        organizationId: "1",
+        tenantId: "1",
+        area: "East Region",
+      },
+      {
+        id: "4",
+        name: "Bob Wilson",
+        email: "bob.wilson@parents1st.com",
+        role: "support_worker",
+        lastLogin: "2023-06-08T09:45:00Z",
+        status: "active",
+        organizationId: "2",
+        tenantId: "2",
+        area: "West Region",
+      },
+    ];
+
+    // Filter users based on current user's tenant_id for security
+    if (user?.role === "super_admin" || user?.tenantId === "0") {
+      // Super admin can see all users
+      return allUsers;
+    } else {
+      // Admins, org_admins, and managers can only see users from their organization
+      return allUsers.filter((u) => {
+        return (
+          u.tenantId === user?.tenantId ||
+          u.organizationId === user?.organizationId
+        );
+      });
+    }
+  });
 
   // Mock areas data
   const [areas] = useState([
@@ -265,31 +296,52 @@ const AdminDashboard = () => {
 
   const [clients, setClients] = useState(() => {
     const savedClients = JSON.parse(localStorage.getItem("clients") || "[]");
-    return savedClients.length > 0
-      ? savedClients
-      : [
-          {
-            id: "1",
-            name: "Michael Johnson",
-            email: "michael.j@example.com",
-            status: "Active",
-            lastActivity: "2023-06-10T14:30:00Z",
-          },
-          {
-            id: "2",
-            name: "Sarah Brown",
-            email: "sarah.b@example.com",
-            status: "In Progress",
-            lastActivity: "2023-06-09T10:15:00Z",
-          },
-          {
-            id: "3",
-            name: "David Wilson",
-            email: "david.w@example.com",
-            status: "New",
-            lastActivity: "2023-06-08T09:45:00Z",
-          },
-        ];
+    let clientsData =
+      savedClients.length > 0
+        ? savedClients
+        : [
+            {
+              id: "1",
+              name: "Michael Johnson",
+              email: "michael.j@example.com",
+              status: "Active",
+              lastActivity: "2023-06-10T14:30:00Z",
+              tenantId: "1",
+              organizationId: "1",
+            },
+            {
+              id: "2",
+              name: "Sarah Brown",
+              email: "sarah.b@example.com",
+              status: "In Progress",
+              lastActivity: "2023-06-09T10:15:00Z",
+              tenantId: "1",
+              organizationId: "1",
+            },
+            {
+              id: "3",
+              name: "David Wilson",
+              email: "david.w@example.com",
+              status: "New",
+              lastActivity: "2023-06-08T09:45:00Z",
+              tenantId: "1",
+              organizationId: "1",
+            },
+          ];
+
+    // Filter clients based on user's tenant_id for security
+    if (user?.role === "super_admin" || user?.tenantId === "0") {
+      // Super admin can see all clients
+      return clientsData;
+    } else {
+      // Admins, org_admins, and managers can only see clients from their organization
+      return clientsData.filter((client: any) => {
+        return (
+          client.tenantId === user?.tenantId ||
+          client.organizationId === user?.organizationId
+        );
+      });
+    }
   });
 
   // Check URL parameters for tab selection
@@ -811,7 +863,8 @@ const AdminDashboard = () => {
         role: staffFormData.role,
         lastLogin: new Date().toISOString(),
         status: "active",
-        organizationId: "1",
+        organizationId: user?.organizationId,
+        tenantId: user?.tenantId,
         area: staffFormData.area,
       };
 
@@ -1293,11 +1346,14 @@ const AdminDashboard = () => {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div>
                     <h1 className="text-3xl font-bold">
-                      Organization Dashboard
+                      {user?.role === "manager"
+                        ? "Management Dashboard"
+                        : "Organization Dashboard"}
                     </h1>
                     <p className="text-muted-foreground">
-                      Comprehensive overview of your organization's activities
-                      and impact
+                      {user?.role === "manager"
+                        ? `Managing ${user?.organizationName || "your organization"}'s activities and data`
+                        : "Comprehensive overview of your organization's activities and impact"}
                     </p>
                   </div>
 

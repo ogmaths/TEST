@@ -177,6 +177,19 @@ const SuperAdminDashboard = () => {
   });
   // Logo functionality removed
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [showUserDialog, setShowUserDialog] = useState(false);
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [userFormData, setUserFormData] = useState({
+    name: "",
+    email: "",
+    role: "support_worker",
+    tenantId: "",
+    organizationName: "",
+    status: "active",
+  });
+  const [showDeleteUserDialog, setShowDeleteUserDialog] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<any>(null);
 
   // Check if user is super admin
   useEffect(() => {
@@ -449,6 +462,9 @@ const SuperAdminDashboard = () => {
 
       // Set the predefined tenants
       setTenants(predefinedTenants);
+
+      // Load all users across organizations for super admin
+      loadAllUsers();
     }
   }, [isAuthenticated]);
 
@@ -701,6 +717,158 @@ const SuperAdminDashboard = () => {
         priority: "high",
       });
     }
+  };
+
+  const loadAllUsers = () => {
+    // Mock users from all organizations for super admin view
+    const mockUsers = [
+      {
+        id: "1",
+        name: "Stacy Williams",
+        email: "stacy.williams@b3.org",
+        role: "admin",
+        lastLogin: "2023-06-10T14:30:00Z",
+        status: "active",
+        tenantId: "1",
+        organizationId: "b3-tenant",
+      },
+      {
+        id: "2",
+        name: "John Doe",
+        email: "john.doe@b3.org",
+        role: "support_worker",
+        lastLogin: "2023-06-09T10:15:00Z",
+        status: "active",
+        tenantId: "1",
+        organizationId: "b3-tenant",
+      },
+      {
+        id: "3",
+        name: "Jane Smith",
+        email: "jane.smith@parents1st.org",
+        role: "manager",
+        lastLogin: "2023-06-08T09:45:00Z",
+        status: "active",
+        tenantId: "2",
+        organizationId: "parents1st-tenant",
+      },
+      {
+        id: "4",
+        name: "Bob Wilson",
+        email: "bob.wilson@parents1st.org",
+        role: "support_worker",
+        lastLogin: "2023-06-08T09:45:00Z",
+        status: "active",
+        tenantId: "2",
+        organizationId: "parents1st-tenant",
+      },
+      {
+        id: "5",
+        name: "Demo User",
+        email: "demo@thriveperinatal.com",
+        role: "support_worker",
+        lastLogin: "2023-06-07T08:30:00Z",
+        status: "active",
+        tenantId: "3",
+        organizationId: "demo-tenant",
+      },
+    ];
+    setAllUsers(mockUsers);
+  };
+
+  const handleEditUser = (user: any) => {
+    setEditingUser(user);
+    const userOrg = tenants.find((t) => t.tenant_id === user.tenantId);
+    setUserFormData({
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      tenantId: user.tenantId,
+      organizationName: userOrg?.name || "",
+      status: user.status,
+    });
+    setShowUserDialog(true);
+  };
+
+  const handleDeleteUser = (user: any) => {
+    setUserToDelete(user);
+    setShowDeleteUserDialog(true);
+  };
+
+  const confirmDeleteUser = () => {
+    if (userToDelete) {
+      const updatedUsers = allUsers.filter((u) => u.id !== userToDelete.id);
+      setAllUsers(updatedUsers);
+      setShowDeleteUserDialog(false);
+      setUserToDelete(null);
+
+      addNotification({
+        type: "success",
+        title: "User Deleted",
+        message: `${userToDelete.name} has been deleted successfully`,
+        priority: "high",
+      });
+    }
+  };
+
+  const handleUserFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (editingUser) {
+      // Update existing user
+      const updatedUsers = allUsers.map((u) =>
+        u.id === editingUser.id
+          ? {
+              ...u,
+              name: userFormData.name,
+              email: userFormData.email,
+              role: userFormData.role,
+              tenantId: userFormData.tenantId,
+              status: userFormData.status,
+            }
+          : u,
+      );
+      setAllUsers(updatedUsers);
+
+      addNotification({
+        type: "success",
+        title: "User Updated",
+        message: `${userFormData.name} has been updated successfully`,
+        priority: "high",
+      });
+    } else {
+      // Create new user
+      const newUser = {
+        id: Date.now().toString(),
+        name: userFormData.name,
+        email: userFormData.email,
+        role: userFormData.role,
+        tenantId: userFormData.tenantId,
+        status: userFormData.status,
+        lastLogin: null,
+        organizationId:
+          tenants.find((t) => t.tenant_id === userFormData.tenantId)?.id || "",
+      };
+      setAllUsers([...allUsers, newUser]);
+
+      addNotification({
+        type: "success",
+        title: "User Created",
+        message: `${userFormData.name} has been created successfully`,
+        priority: "high",
+      });
+    }
+
+    setShowUserDialog(false);
+    setEditingUser(null);
+    setUserFormData({
+      name: "",
+      email: "",
+      role: "support_worker",
+      tenantId: "",
+      organizationName: "",
+      status: "active",
+    });
   };
 
   const handleLogout = () => {
@@ -1259,8 +1427,9 @@ const SuperAdminDashboard = () => {
           onValueChange={setActiveTab}
           className="w-full"
         >
-          <TabsList className="grid w-full max-w-3xl grid-cols-5">
+          <TabsList className="grid w-full max-w-4xl grid-cols-6">
             <TabsTrigger value="tenants">Active Tenants</TabsTrigger>
+            <TabsTrigger value="users">All Users</TabsTrigger>
             <TabsTrigger value="archived">Archived Tenants</TabsTrigger>
             <TabsTrigger value="packs">Assessment Packs</TabsTrigger>
             <TabsTrigger value="templates">Templates</TabsTrigger>
@@ -1430,6 +1599,161 @@ const SuperAdminDashboard = () => {
                               </td>
                             </tr>
                           ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="users" className="mt-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>User Management</CardTitle>
+                  <CardDescription>
+                    Manage users across all organizations
+                  </CardDescription>
+                </div>
+                <Button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setEditingUser(null);
+                    setUserFormData({
+                      name: "",
+                      email: "",
+                      role: "support_worker",
+                      tenantId: "",
+                      organizationName: "",
+                      status: "active",
+                    });
+                    setShowUserDialog(true);
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" /> Add User
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="flex justify-center items-center py-8">
+                    <p className="text-muted-foreground">Loading users...</p>
+                  </div>
+                ) : allUsers.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <Users className="h-12 w-12 text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground text-center">
+                      No users found. Create your first user to get started.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-md border">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/50 text-left">
+                          <th className="p-2 pl-4">User</th>
+                          <th className="p-2">Organization</th>
+                          <th className="p-2">Role</th>
+                          <th className="p-2">Status</th>
+                          <th className="p-2">Last Login</th>
+                          <th className="p-2 text-right pr-4">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {allUsers
+                          .filter(
+                            (user) =>
+                              user.name
+                                ?.toLowerCase()
+                                .includes(searchQuery.toLowerCase()) ||
+                              user.email
+                                ?.toLowerCase()
+                                .includes(searchQuery.toLowerCase()),
+                          )
+                          .map((user) => {
+                            const userOrg = tenants.find(
+                              (t) => t.tenant_id === user.tenantId,
+                            );
+                            return (
+                              <tr key={user.id} className="border-b">
+                                <td className="p-2 pl-4">
+                                  <div>
+                                    <p className="font-medium">{user.name}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {user.email}
+                                    </p>
+                                  </div>
+                                </td>
+                                <td className="p-2">
+                                  <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800">
+                                    {userOrg?.name || "Unknown Org"}
+                                  </span>
+                                </td>
+                                <td className="p-2">
+                                  <span
+                                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                                      user.role === "super_admin"
+                                        ? "bg-red-100 text-red-800"
+                                        : user.role === "admin"
+                                          ? "bg-purple-100 text-purple-800"
+                                          : user.role === "manager"
+                                            ? "bg-orange-100 text-orange-800"
+                                            : "bg-gray-100 text-gray-800"
+                                    }`}
+                                  >
+                                    {user.role}
+                                  </span>
+                                </td>
+                                <td className="p-2">
+                                  <span
+                                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                                      user.status === "active"
+                                        ? "bg-green-100 text-green-800"
+                                        : "bg-red-100 text-red-800"
+                                    }`}
+                                  >
+                                    {user.status}
+                                  </span>
+                                </td>
+                                <td className="p-2">
+                                  {user.lastLogin
+                                    ? new Date(
+                                        user.lastLogin,
+                                      ).toLocaleDateString()
+                                    : "Never"}
+                                </td>
+                                <td className="p-2 text-right">
+                                  <div className="flex justify-end gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleEditUser(user);
+                                      }}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleDeleteUser(user);
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
                       </tbody>
                     </table>
                   </div>
@@ -3355,6 +3679,174 @@ const SuperAdminDashboard = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* User Form Dialog */}
+      <Dialog open={showUserDialog} onOpenChange={setShowUserDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingUser ? "Edit User" : "Create New User"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingUser
+                ? "Update the user's details and organization assignment"
+                : "Create a new user and assign them to an organization"}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUserFormSubmit}>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="user-name">Name</Label>
+                <Input
+                  id="user-name"
+                  value={userFormData.name}
+                  onChange={(e) =>
+                    setUserFormData({ ...userFormData, name: e.target.value })
+                  }
+                  placeholder="User's full name"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="user-email">Email</Label>
+                <Input
+                  id="user-email"
+                  type="email"
+                  value={userFormData.email}
+                  onChange={(e) =>
+                    setUserFormData({ ...userFormData, email: e.target.value })
+                  }
+                  placeholder="user@example.com"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="user-organization">Organization</Label>
+                <Select
+                  value={userFormData.tenantId}
+                  onValueChange={(value) => {
+                    const selectedOrg = tenants.find(
+                      (t) => t.tenant_id === value,
+                    );
+                    setUserFormData({
+                      ...userFormData,
+                      tenantId: value,
+                      organizationName: selectedOrg?.name || "",
+                    });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select organization" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tenants
+                      .filter((t) => t.status !== "archived")
+                      .map((tenant) => (
+                        <SelectItem
+                          key={tenant.id}
+                          value={tenant.tenant_id || ""}
+                        >
+                          {tenant.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="user-role">Role</Label>
+                <Select
+                  value={userFormData.role}
+                  onValueChange={(value) =>
+                    setUserFormData({ ...userFormData, role: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="super_admin">Super Admin</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="org_admin">
+                      Organization Admin
+                    </SelectItem>
+                    <SelectItem value="manager">Manager</SelectItem>
+                    <SelectItem value="support_worker">
+                      Support Worker
+                    </SelectItem>
+                    <SelectItem value="readonly">Read Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="user-status">Status</Label>
+                <Select
+                  value={userFormData.status}
+                  onValueChange={(value) =>
+                    setUserFormData({ ...userFormData, status: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowUserDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={
+                  !userFormData.name ||
+                  !userFormData.email ||
+                  !userFormData.tenantId
+                }
+              >
+                {editingUser ? "Update User" : "Create User"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Confirmation Dialog */}
+      <AlertDialog
+        open={showDeleteUserDialog}
+        onOpenChange={setShowDeleteUserDialog}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {userToDelete?.name}? This will
+              permanently remove their account and all associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteUser}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

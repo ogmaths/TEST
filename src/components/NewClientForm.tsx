@@ -202,6 +202,8 @@ const NewClientForm = () => {
       organizationId: user?.tenantId || "",
       organizationName: user?.organizationName || "",
       organizationSlug: user?.organizationSlug || "",
+      // Ensure tenant_id is set for proper data isolation
+      tenantId: user?.tenantId || "",
       area: formData.area || "Unspecified",
       assessmentDates: {
         introduction: assignedAssessments.find((a) => a.type === "introduction")
