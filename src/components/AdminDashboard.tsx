@@ -221,54 +221,65 @@ const AdminDashboard = () => {
   const [selectedJourneyType, setSelectedJourneyType] =
     useState<JourneyType | null>(null);
 
-  // Mock data for users - filtered by organization
+  // Load users from localStorage with proper initialization
   const [users, setUsers] = useState<User[]>(() => {
-    const allUsers = [
-      {
-        id: "1",
-        name: "Stacy Williams",
-        email: "stacy.williams@example.com",
-        role: "admin",
-        lastLogin: "2023-06-10T14:30:00Z",
-        status: "active",
-        organizationId: "1",
-        tenantId: "1",
-        area: "North Region",
-      },
-      {
-        id: "2",
-        name: "John Doe",
-        email: "john.doe@example.com",
-        role: "support_worker",
-        lastLogin: "2023-06-09T10:15:00Z",
-        status: "active",
-        organizationId: "1",
-        tenantId: "1",
-        area: "South Region",
-      },
-      {
-        id: "3",
-        name: "Jane Smith",
-        email: "jane.smith@example.com",
-        role: "support_worker",
-        lastLogin: "2023-06-08T09:45:00Z",
-        status: "active",
-        organizationId: "1",
-        tenantId: "1",
-        area: "East Region",
-      },
-      {
-        id: "4",
-        name: "Bob Wilson",
-        email: "bob.wilson@parents1st.com",
-        role: "support_worker",
-        lastLogin: "2023-06-08T09:45:00Z",
-        status: "active",
-        organizationId: "2",
-        tenantId: "2",
-        area: "West Region",
-      },
-    ];
+    const savedUsers = localStorage.getItem("users");
+    let allUsers: User[] = [];
+
+    if (savedUsers) {
+      try {
+        allUsers = JSON.parse(savedUsers);
+      } catch (error) {
+        console.error("Failed to parse saved users", error);
+      }
+    }
+
+    // Initialize with default users if none exist
+    if (allUsers.length === 0) {
+      allUsers = [
+        {
+          id: "1",
+          name: "Stacy Williams",
+          email: "stacy.williams@example.com",
+          role: "admin",
+          lastLogin: "2023-06-10T14:30:00Z",
+          status: "active",
+          organizationId: "1",
+          area: "North Region",
+        },
+        {
+          id: "2",
+          name: "John Doe",
+          email: "john.doe@example.com",
+          role: "support_worker",
+          lastLogin: "2023-06-09T10:15:00Z",
+          status: "active",
+          organizationId: "1",
+          area: "South Region",
+        },
+        {
+          id: "3",
+          name: "Jane Smith",
+          email: "jane.smith@example.com",
+          role: "support_worker",
+          lastLogin: "2023-06-08T09:45:00Z",
+          status: "active",
+          organizationId: "1",
+          area: "East Region",
+        },
+        {
+          id: "4",
+          name: "Bob Wilson",
+          email: "bob.wilson@parents1st.com",
+          role: "support_worker",
+          lastLogin: "2023-06-08T09:45:00Z",
+          status: "active",
+          organizationId: "2",
+          area: "West Region",
+        },
+      ];
+      localStorage.setItem("users", JSON.stringify(allUsers));
+    }
 
     // Filter users based on current user's tenant_id for security
     if (user?.role === "super_admin" || user?.tenantId === "0") {
@@ -277,13 +288,15 @@ const AdminDashboard = () => {
     } else {
       // Admins, org_admins, and managers can only see users from their organization
       return allUsers.filter((u) => {
-        return (
-          u.tenantId === user?.tenantId ||
-          u.organizationId === user?.organizationId
-        );
+        return u.organizationId === user?.organizationId;
       });
     }
   });
+
+  // Save users to localStorage whenever users state changes
+  useEffect(() => {
+    localStorage.setItem("users", JSON.stringify(users));
+  }, [users]);
 
   // Mock areas data
   const [areas] = useState([
@@ -833,14 +846,64 @@ const AdminDashboard = () => {
   const handleStaffFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validation
+    if (!staffFormData.name.trim()) {
+      addNotification({
+        type: "error",
+        title: "Validation Error",
+        message: "Name is required",
+        priority: "high",
+      });
+      return;
+    }
+
+    if (!staffFormData.email.trim()) {
+      addNotification({
+        type: "error",
+        title: "Validation Error",
+        message: "Email is required",
+        priority: "high",
+      });
+      return;
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(staffFormData.email)) {
+      addNotification({
+        type: "error",
+        title: "Validation Error",
+        message: "Please enter a valid email address",
+        priority: "high",
+      });
+      return;
+    }
+
+    // Check for duplicate email (excluding current user if editing)
+    const existingUser = users.find(
+      (u) =>
+        u.email.toLowerCase() === staffFormData.email.toLowerCase() &&
+        u.id !== selectedUser?.id,
+    );
+
+    if (existingUser) {
+      addNotification({
+        type: "error",
+        title: "Validation Error",
+        message: "A user with this email already exists",
+        priority: "high",
+      });
+      return;
+    }
+
     if (selectedUser) {
       // Update existing staff
       const updatedUsers = users.map((u) =>
         u.id === selectedUser.id
           ? {
               ...u,
-              name: staffFormData.name,
-              email: staffFormData.email,
+              name: staffFormData.name.trim(),
+              email: staffFormData.email.trim().toLowerCase(),
               role: staffFormData.role,
               area: staffFormData.area,
             }
@@ -850,7 +913,7 @@ const AdminDashboard = () => {
 
       addNotification({
         type: "success",
-        title: "Staff Updated",
+        title: "User Updated",
         message: `${staffFormData.name} has been updated successfully`,
         priority: "high",
       });
@@ -858,13 +921,12 @@ const AdminDashboard = () => {
       // Add new staff
       const newStaff: User = {
         id: Date.now().toString(),
-        name: staffFormData.name,
-        email: staffFormData.email,
+        name: staffFormData.name.trim(),
+        email: staffFormData.email.trim().toLowerCase(),
         role: staffFormData.role,
         lastLogin: new Date().toISOString(),
         status: "active",
-        organizationId: user?.organizationId,
-        tenantId: user?.tenantId,
+        organizationId: user?.organizationId || "1",
         area: staffFormData.area,
       };
 
@@ -872,7 +934,7 @@ const AdminDashboard = () => {
 
       addNotification({
         type: "success",
-        title: "Staff Added",
+        title: "User Added",
         message: `${newStaff.name} has been added successfully`,
         priority: "high",
       });
@@ -1099,9 +1161,32 @@ const AdminDashboard = () => {
         u.id === selectedUser.id ? { ...u, role: selectedRole } : u,
       );
       setUsers(updatedUsers);
+
+      addNotification({
+        type: "success",
+        title: "Role Updated",
+        message: `${selectedUser.name}'s role has been changed to ${selectedRole.replace("_", " ")}`,
+        priority: "high",
+      });
+
       setShowRoleDialog(false);
       setSelectedUser(null);
     }
+  };
+
+  const handleToggleUserStatus = (userItem: User) => {
+    const newStatus = userItem.status === "active" ? "inactive" : "active";
+    const updatedUsers = users.map((u) =>
+      u.id === userItem.id ? { ...u, status: newStatus } : u,
+    );
+    setUsers(updatedUsers);
+
+    addNotification({
+      type: "success",
+      title: "Status Updated",
+      message: `${userItem.name} has been ${newStatus === "active" ? "activated" : "deactivated"}`,
+      priority: "medium",
+    });
   };
 
   const filteredUsers = users.filter(
@@ -1473,97 +1558,195 @@ const AdminDashboard = () => {
 
             {activeTab === "users" && (
               <Card>
-                <CardHeader>
-                  <CardTitle>User Management</CardTitle>
-                  <CardDescription>
-                    Manage user accounts and permissions
-                  </CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>User Management</CardTitle>
+                    <CardDescription>
+                      Manage user accounts and permissions
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={() => {
+                      setSelectedUser(null);
+                      setStaffFormData({
+                        name: "",
+                        email: "",
+                        role: "support_worker",
+                        area: "",
+                      });
+                      setShowStaffDialog(true);
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <UserPlus className="h-4 w-4" /> Add User
+                  </Button>
                 </CardHeader>
                 <CardContent>
-                  <div className="rounded-md border">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b bg-muted/50 text-left">
-                          <th className="p-2 pl-4">Name</th>
-                          <th className="p-2">Email</th>
-                          <th className="p-2">Role</th>
-                          <th className="p-2">Status</th>
-                          <th className="p-2">Last Login</th>
-                          <th className="p-2 text-right pr-4">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredUsers.map((user) => (
-                          <tr key={user.id} className="border-b">
-                            <td className="p-2 pl-4 font-medium">
-                              {user.name}
-                            </td>
-                            <td className="p-2">{user.email}</td>
-                            <td className="p-2">
-                              <span
-                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${user.role === "admin" ? "bg-purple-100 text-purple-800" : user.role === "support_worker" ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"}`}
-                              >
-                                {user.role}
-                              </span>
-                            </td>
-                            <td className="p-2">
-                              <span
-                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${user.status === "active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
-                              >
-                                {user.status}
-                              </span>
-                            </td>
-                            <td className="p-2">
-                              {new Date(user.lastLogin).toLocaleDateString()}
-                            </td>
-                            <td className="p-2 text-right">
-                              <div className="flex justify-end gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleChangeRole(user);
-                                  }}
-                                >
-                                  Change Role
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleResetPassword(
-                                      user.id,
-                                      user.email,
-                                      user.name,
-                                    );
-                                  }}
-                                >
-                                  <KeyRound className="h-4 w-4 mr-1" /> Reset
-                                  Password
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleDeleteUser(user);
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="mb-4">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search users by name or email..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-8"
+                      />
+                    </div>
                   </div>
+
+                  {filteredUsers.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p className="text-lg font-medium mb-2">No users found</p>
+                      <p className="text-sm">
+                        {searchQuery
+                          ? "Try adjusting your search terms"
+                          : "Get started by adding your first user"}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="rounded-md border">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b bg-muted/50 text-left">
+                            <th className="p-3 pl-4 font-medium">Name</th>
+                            <th className="p-3 font-medium">Email</th>
+                            <th className="p-3 font-medium">Role</th>
+                            <th className="p-3 font-medium">Area</th>
+                            <th className="p-3 font-medium">Status</th>
+                            <th className="p-3 font-medium">Last Login</th>
+                            <th className="p-3 text-right pr-4 font-medium">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredUsers.map((userItem) => (
+                            <tr
+                              key={userItem.id}
+                              className="border-b hover:bg-muted/25 transition-colors"
+                            >
+                              <td className="p-3 pl-4">
+                                <div className="font-medium">
+                                  {userItem.name}
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <div className="text-muted-foreground">
+                                  {userItem.email}
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <span
+                                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                                    userItem.role === "admin"
+                                      ? "bg-purple-100 text-purple-800"
+                                      : userItem.role === "org_admin"
+                                        ? "bg-indigo-100 text-indigo-800"
+                                        : userItem.role === "support_worker"
+                                          ? "bg-blue-100 text-blue-800"
+                                          : userItem.role === "manager"
+                                            ? "bg-green-100 text-green-800"
+                                            : "bg-gray-100 text-gray-800"
+                                  }`}
+                                >
+                                  {userItem.role
+                                    .replace("_", " ")
+                                    .replace(/\b\w/g, (l) => l.toUpperCase())}
+                                </span>
+                              </td>
+                              <td className="p-3">
+                                <span className="text-sm text-muted-foreground">
+                                  {userItem.area || "Not assigned"}
+                                </span>
+                              </td>
+                              <td className="p-3">
+                                <span
+                                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                                    userItem.status === "active"
+                                      ? "bg-green-100 text-green-800"
+                                      : userItem.status === "inactive"
+                                        ? "bg-red-100 text-red-800"
+                                        : "bg-yellow-100 text-yellow-800"
+                                  }`}
+                                >
+                                  {userItem.status.charAt(0).toUpperCase() +
+                                    userItem.status.slice(1)}
+                                </span>
+                              </td>
+                              <td className="p-3">
+                                <div className="text-sm text-muted-foreground">
+                                  {new Date(
+                                    userItem.lastLogin,
+                                  ).toLocaleDateString("en-US", {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                  })}
+                                </div>
+                              </td>
+                              <td className="p-3 text-right">
+                                <div className="flex justify-end gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleEditStaff(userItem);
+                                    }}
+                                    className="h-8 px-2"
+                                  >
+                                    <Edit className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleChangeRole(userItem);
+                                    }}
+                                    className="h-8 px-2"
+                                  >
+                                    <Settings className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleResetPassword(
+                                        userItem.id,
+                                        userItem.email,
+                                        userItem.name,
+                                      );
+                                    }}
+                                    className="h-8 px-2"
+                                  >
+                                    <KeyRound className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 px-2"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleDeleteUser(userItem);
+                                    }}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}

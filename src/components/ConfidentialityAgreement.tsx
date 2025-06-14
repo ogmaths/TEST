@@ -69,8 +69,8 @@ export default function ConfidentialityAgreement() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
-      <Card className="w-full max-w-3xl">
-        <CardHeader>
+      <Card className="w-full max-w-3xl h-[80vh] flex flex-col">
+        <CardHeader className="flex-shrink-0">
           <CardTitle className="text-center text-2xl font-bold">
             CONFIDENTIALITY AND NON-DISCLOSURE AGREEMENT
           </CardTitle>
@@ -78,12 +78,12 @@ export default function ConfidentialityAgreement() {
             Effective Date: Upon acceptance by the User.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex-1 flex flex-col min-h-0">
           <ScrollArea
             ref={scrollViewportRef}
-            className="h-[400px] rounded-md border p-4"
+            className="flex-1 rounded-md border p-4"
           >
-            <div className="space-y-4 text-sm">
+            <div className="space-y-4 text-sm pb-4">
               <p>
                 By clicking "I Agree," you ("User") acknowledge and agree to the
                 following terms with OG MATHS LIMITED ("Company") regarding your
@@ -174,7 +174,7 @@ export default function ConfidentialityAgreement() {
             </div>
           </ScrollArea>
         </CardContent>
-        <CardFooter className="flex flex-col items-center space-y-3">
+        <CardFooter className="flex-shrink-0 flex flex-col items-center space-y-3 bg-white border-t pt-4 mt-2">
           {!hasScrolledToBottom && (
             <p className="text-sm text-muted-foreground text-center">
               Please scroll to the bottom to read the complete agreement
@@ -183,7 +183,7 @@ export default function ConfidentialityAgreement() {
           <Button
             onClick={handleAgree}
             size="lg"
-            className="w-full max-w-xs"
+            className="w-full max-w-xs text-black"
             disabled={!hasScrolledToBottom}
           >
             I AGREE

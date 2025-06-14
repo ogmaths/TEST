@@ -1464,7 +1464,6 @@ const SuperAdminDashboard = () => {
                       <thead>
                         <tr className="border-b bg-muted/50 text-left">
                           <th className="p-2 pl-4">Organization</th>
-                          <th className="p-2">Subdomain</th>
                           <th className="p-2">Tenant ID</th>
                           <th className="p-2">Sector</th>
                           <th className="p-2">Status</th>
@@ -1498,17 +1497,7 @@ const SuperAdminDashboard = () => {
                                   </div>
                                 </div>
                               </td>
-                              <td className="p-2">
-                                {tenant.subdomain ? (
-                                  <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
-                                    {tenant.subdomain}.thriveperinatal.com
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground text-xs">
-                                    Not set
-                                  </span>
-                                )}
-                              </td>
+
                               <td className="p-2">
                                 <span className="font-mono text-xs">
                                   {tenant.tenant_id || "Not set"}
@@ -1791,7 +1780,6 @@ const SuperAdminDashboard = () => {
                       <thead>
                         <tr className="border-b bg-muted/50 text-left">
                           <th className="p-2 pl-4">Organization</th>
-                          <th className="p-2">Subdomain</th>
                           <th className="p-2">Tenant ID</th>
                           <th className="p-2">Sector</th>
                           <th className="p-2">Archived Date</th>
@@ -1826,17 +1814,7 @@ const SuperAdminDashboard = () => {
                                   </div>
                                 </div>
                               </td>
-                              <td className="p-2 text-muted-foreground">
-                                {tenant.subdomain ? (
-                                  <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
-                                    {tenant.subdomain}.thriveperinatal.com
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground text-xs">
-                                    Not set
-                                  </span>
-                                )}
-                              </td>
+
                               <td className="p-2 text-muted-foreground">
                                 <span className="font-mono text-xs">
                                   {tenant.tenant_id || "Not set"}

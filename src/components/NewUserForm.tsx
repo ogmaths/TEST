@@ -76,41 +76,82 @@ const NewUserForm = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
 
     // Only admins, super admins, and managers can create users
     if (user?.role === "support_worker") {
       alert("You do not have permission to create users.");
+      setIsLoading(false);
+      return;
+    }
+
+    // Validation
+    if (!formData.firstName.trim() || !formData.lastName.trim()) {
+      alert("First name and last name are required.");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!formData.email.trim()) {
+      alert("Email is required.");
+      setIsLoading(false);
+      return;
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      alert("Please enter a valid email address.");
+      setIsLoading(false);
       return;
     }
 
     // Managers can only create users within their own organization
     if (user?.role === "manager" && formData.organization !== user?.tenantId) {
       alert("You can only create users within your own organization.");
+      setIsLoading(false);
       return;
     }
 
-    // Create user with proper tenant_id assignment
+    // Get existing users to check for duplicates
+    const existingUsers = JSON.parse(localStorage.getItem("users") || "[]");
+    const emailExists = existingUsers.some(
+      (u: any) => u.email.toLowerCase() === formData.email.toLowerCase(),
+    );
+
+    if (emailExists) {
+      alert("A user with this email already exists.");
+      setIsLoading(false);
+      return;
+    }
+
+    // Create user with proper data structure
     const newUser = {
       id: Date.now().toString(),
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      email: formData.email,
+      name: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
+      email: formData.email.trim().toLowerCase(),
       role: formData.role,
       status: formData.status,
-      organization: formData.organization,
-      // Managers and org_admins can only assign to their own organization
-      tenantId:
-        user?.role === "super_admin" ? formData.organization : user?.tenantId,
-      organizationId: user?.organizationId,
-      organizationSlug: user?.organizationSlug,
+      lastLogin: new Date().toISOString(),
+      organizationId:
+        user?.role === "super_admin"
+          ? formData.organization
+          : user?.organizationId,
+      area: "", // Can be assigned later
       createdAt: new Date().toISOString(),
       createdBy: user?.id,
     };
 
-    // In a real app, this would save the user data to the database
-    console.log("Creating user:", newUser);
-    alert("User created successfully!");
-    navigate("/admin?tab=users");
+    // Save to localStorage
+    const updatedUsers = [...existingUsers, newUser];
+    localStorage.setItem("users", JSON.stringify(updatedUsers));
+
+    // Simulate API delay
+    setTimeout(() => {
+      setIsLoading(false);
+      alert("User created successfully!");
+      navigate("/admin?tab=users");
+    }, 1000);
   };
 
   // Mock data for organizations
