@@ -27,6 +27,7 @@ import AddInteractionPage from "./components/AddInteractionPage";
 import routes from "tempo-routes";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUser } from "./context/UserContext";
+import Logo from "./components/Logo";
 
 import { NotificationProvider } from "./context/NotificationContext";
 import { TenantProvider } from "./context/TenantContext";
@@ -576,7 +577,7 @@ function App() {
                       </Sheet>
                     )}
                     {shouldShowSidebar && (
-                      <div className="text-lg font-semibold ml-2">CRM</div>
+                      <Logo size="sm" showTagline={false} />
                     )}
                   </div>
 

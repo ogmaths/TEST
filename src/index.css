@@ -5,7 +5,19 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    /* Thrive Perinatal Brand Colors as CSS Variables */
+    --thrive-soft-lavender: 230 230 250;
+    --thrive-muted-teal: 76 166 168;
+    --thrive-dusty-rose: 221 165 182;
+    --thrive-warm-grey: 111 111 111;
+    --thrive-off-white: 250 250 250;
+    --thrive-moss-green: 163 177 138;
+    --thrive-peach-beige: 244 227 215;
+    --thrive-sky-blue: 199 232 243;
+    --thrive-soft-coral: 255 181 167;
+
+    /* Updated color scheme using Thrive Perinatal brand colors */
+    --background: var(--thrive-off-white);
     --foreground: 222.2 84% 4.9%;
 
     --card: 0 0% 100%;
@@ -14,16 +26,19 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 222.2 47.4% 11.2%;
+    /* Primary color using muted teal */
+    --primary: var(--thrive-muted-teal);
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 210 40% 96.1%;
+    /* Secondary using soft lavender */
+    --secondary: var(--thrive-soft-lavender);
     --secondary-foreground: 222.2 47.4% 11.2%;
 
     --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted-foreground: var(--thrive-warm-grey);
 
-    --accent: 210 40% 96.1%;
+    /* Accent using dusty rose */
+    --accent: var(--thrive-dusty-rose);
     --accent-foreground: 222.2 47.4% 11.2%;
 
     --destructive: 0 84.2% 60.2%;
@@ -31,9 +46,9 @@
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --ring: var(--thrive-muted-teal);
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
   }
 
   .dark {
@@ -46,7 +61,7 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
+    --primary: var(--thrive-muted-teal);
     --primary-foreground: 222.2 47.4% 11.2%;
 
     --secondary: 217.2 32.6% 17.5%;
@@ -55,7 +70,7 @@
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 217.2 32.6% 17.5%;
+    --accent: var(--thrive-dusty-rose);
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 30.6%;
@@ -63,7 +78,7 @@
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --ring: var(--thrive-muted-teal);
   }
 }
 
@@ -86,5 +101,38 @@
       "Droid Sans",
       "Helvetica Neue",
       sans-serif;
+  }
+
+  /* Thrive Perinatal specific styling */
+  .thrive-gradient {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--thrive-soft-lavender)) 0%,
+      hsl(var(--thrive-sky-blue)) 100%
+    );
+  }
+
+  .thrive-card {
+    @apply bg-white border border-gray-200 rounded-xl shadow-sm;
+  }
+
+  .thrive-button-primary {
+    @apply bg-muted-teal hover:bg-muted-teal/90 text-white font-medium rounded-xl transition-all duration-200 shadow-sm hover:shadow-md;
+  }
+
+  .thrive-button-secondary {
+    @apply bg-soft-lavender hover:bg-soft-lavender/80 text-gray-800 font-medium rounded-xl transition-all duration-200;
+  }
+
+  .thrive-text-primary {
+    @apply text-gray-900 font-semibold;
+  }
+
+  .thrive-text-secondary {
+    @apply text-warm-grey;
+  }
+
+  .thrive-text-accent {
+    @apply text-muted-teal;
   }
 }

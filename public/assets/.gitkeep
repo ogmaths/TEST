@@ -1,0 +1,7 @@
+# This file ensures the assets directory is tracked by git
+# Place your screenshot images here:
+# - screenshot-dashboard.png
+# - screenshot-journey.png
+# - screenshot-assessment.png
+# - screenshot-alerts.png
+# - screenshot-admin.png
