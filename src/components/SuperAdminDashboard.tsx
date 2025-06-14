@@ -437,7 +437,7 @@ const SuperAdminDashboard = () => {
           status: "trial" as "trial",
           plan: "trial" as "trial",
           createdAt: new Date().toISOString(),
-          email: "demo@ogstat.app",
+          email: "demo@thriveperinatal.com",
           subdomain: "demo",
           tenant_id: "3",
           primary_color: "#f59e0b",
@@ -1145,7 +1145,9 @@ const SuperAdminDashboard = () => {
             <Link to="/admin" className="ml-4">
               <Logo size="md" />
             </Link>
-            <h1 className="ml-4 text-3xl font-bold">OG Control Panel</h1>
+            <h1 className="ml-4 text-3xl font-bold">
+              Thrive Perinatal Control Panel
+            </h1>
           </div>
         </header>
 
@@ -1330,7 +1332,7 @@ const SuperAdminDashboard = () => {
                               <td className="p-2">
                                 {tenant.subdomain ? (
                                   <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
-                                    {tenant.subdomain}.ogstat.app
+                                    {tenant.subdomain}.thriveperinatal.com
                                   </span>
                                 ) : (
                                   <span className="text-muted-foreground text-xs">
@@ -1503,7 +1505,7 @@ const SuperAdminDashboard = () => {
                               <td className="p-2 text-muted-foreground">
                                 {tenant.subdomain ? (
                                   <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
-                                    {tenant.subdomain}.ogstat.app
+                                    {tenant.subdomain}.thriveperinatal.com
                                   </span>
                                 ) : (
                                   <span className="text-muted-foreground text-xs">
@@ -1995,7 +1997,7 @@ const SuperAdminDashboard = () => {
                     }
                   />
                   <span className="ml-2 text-muted-foreground">
-                    .ogstat.app
+                    .thriveperinatal.com
                   </span>
                 </div>
               </div>
@@ -2199,7 +2201,7 @@ const SuperAdminDashboard = () => {
                     required
                   />
                   <span className="ml-2 text-muted-foreground">
-                    .ogstat.app
+                    .thriveperinatal.com
                   </span>
                 </div>
               </div>

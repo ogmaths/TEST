@@ -3,7 +3,7 @@ export const createWelcomeEmailTemplate = (userName: string) => `
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Welcome to Impact CRM</title>
+  <title>Welcome to Thrive Perinatal</title>
   <style>
     body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
     .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -15,15 +15,15 @@ export const createWelcomeEmailTemplate = (userName: string) => `
 <body>
   <div class="container">
     <div class="header">
-      <h1>Welcome to Impact CRM</h1>
+      <h1>Welcome to Thrive Perinatal</h1>
     </div>
     <div class="content">
       <h2>Hello ${userName}!</h2>
-      <p>Welcome to Impact CRM. We're excited to have you on board.</p>
+      <p>Welcome to Thrive Perinatal. We're excited to have you on board.</p>
       <p>You can now access your dashboard and start managing your client relationships effectively.</p>
     </div>
     <div class="footer">
-      <p>© 2024 Impact CRM. All rights reserved.</p>
+      <p>© 2024 Thrive Perinatal. All rights reserved.</p>
     </div>
   </div>
 </body>
@@ -62,7 +62,7 @@ export const createAssessmentNotificationTemplate = (
       </p>
     </div>
     <div class="footer">
-      <p>© 2024 Impact CRM. All rights reserved.</p>
+      <p>© 2024 Thrive Perinatal. All rights reserved.</p>
     </div>
   </div>
 </body>
@@ -101,7 +101,7 @@ export const createPasswordResetTemplate = (resetLink: string) => `
       </div>
     </div>
     <div class="footer">
-      <p>© 2024 Impact CRM. All rights reserved.</p>
+      <p>© 2024 Thrive Perinatal. All rights reserved.</p>
     </div>
   </div>
 </body>
@@ -137,10 +137,10 @@ export const createFormEmailTemplate = (
       <p style="text-align: center; margin: 30px 0;">
         <a href="${formLink}" class="button">Start ${type} form</a>
       </p>
-      <p>Thank you,<br/>OGSTAT Team</p>
+      <p>Thank you,<br/>Thrive Perinatal Team</p>
     </div>
     <div class="footer">
-      <p>© 2024 OGSTAT. All rights reserved.</p>
+      <p>© 2024 Thrive Perinatal. All rights reserved.</p>
     </div>
   </div>
 </body>

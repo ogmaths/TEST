@@ -64,6 +64,16 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Thrive Perinatal Brand Colors
+        "soft-lavender": "#E6E6FA",
+        "muted-teal": "#4CA6A8",
+        "dusty-rose": "#DDA5B6",
+        "warm-grey": "#6F6F6F",
+        "off-white": "#FAFAFA",
+        "moss-green": "#A3B18A",
+        "peach-beige": "#F4E3D7",
+        "sky-blue": "#C7E8F3",
+        "soft-coral": "#FFB5A7",
       },
       borderRadius: {
         lg: "var(--radius)",

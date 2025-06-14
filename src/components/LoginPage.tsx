@@ -281,7 +281,7 @@ export default function LoginPage() {
       <footer className="border-t border-gray-100 py-6">
         <div className="text-center">
           <p className="text-sm text-gray-500">
-            © 2024 Impact CRM. All rights reserved.
+            © 2024 Thrive Perinatal. All rights reserved.
           </p>
         </div>
       </footer>

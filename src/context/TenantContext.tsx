@@ -23,7 +23,9 @@ interface TenantProviderProps {
 
 export const TenantProvider: React.FC<TenantProviderProps> = ({ children }) => {
   const [tenantId, setTenantId] = useState<string>("0"); // Default to super admin tenant
-  const [tenantName, setTenantName] = useState<string>("OG Control Panel");
+  const [tenantName, setTenantName] = useState<string>(
+    "Thrive Perinatal Control Panel",
+  );
 
   useEffect(() => {
     // Get the current subdomain
@@ -34,7 +36,7 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children }) => {
       console.log("Development environment detected, using default tenant");
       // For development, set the super admin tenant for testing
       setTenantId("0"); // Using "0" as the super admin tenant ID
-      setTenantName("OG Control Panel (Dev)");
+      setTenantName("Thrive Perinatal Control Panel (Dev)");
       return;
     }
 
@@ -70,7 +72,7 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children }) => {
           break;
         case "admin":
           setTenantId("0"); // Using "0" as the super admin tenant ID
-          setTenantName("OG Control Panel");
+          setTenantName("Thrive Perinatal Control Panel");
           console.log("Admin tenant detected, setting tenant ID: 0");
 
           // Auto-redirect to super admin dashboard if on admin subdomain
@@ -85,13 +87,13 @@ export const TenantProvider: React.FC<TenantProviderProps> = ({ children }) => {
           console.error("Unknown subdomain:", subdomain);
           // Default to super admin tenant if subdomain is unknown
           setTenantId("0");
-          setTenantName("OG Control Panel (Unknown Subdomain)");
+          setTenantName("Thrive Perinatal Control Panel (Unknown Subdomain)");
       }
     } else {
-      // No subdomain - main domain (ogstat.app)
+      // No subdomain - main domain (thriveperinatal.com)
       console.log("Main domain detected, setting super admin tenant");
       setTenantId("0");
-      setTenantName("OG Control Panel");
+      setTenantName("Thrive Perinatal Control Panel");
     }
   }, []);
 
