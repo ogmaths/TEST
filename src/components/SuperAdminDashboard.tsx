@@ -1390,7 +1390,7 @@ const SuperAdminDashboard = () => {
           onValueChange={setActiveTab}
           className="w-full"
         >
-          <TabsList className="grid w-full max-w-4xl grid-cols-5">
+          <TabsList className="grid w-full max-w-5xl grid-cols-5">
             <TabsTrigger value="tenants">Active Tenants</TabsTrigger>
             <TabsTrigger value="users">All Users</TabsTrigger>
             <TabsTrigger value="archived">Archived Tenants</TabsTrigger>
@@ -2090,6 +2090,40 @@ const SuperAdminDashboard = () => {
                       )}
                     </tbody>
                   </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="journeys" className="mt-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Journey Types</CardTitle>
+                  <CardDescription>
+                    Journey Types functionality has been moved to a dedicated
+                    page for better performance
+                  </CardDescription>
+                </div>
+                <Button
+                  onClick={() => navigate("/journey-types")}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" /> Manage Journey Types
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground mb-4">
+                    Journey Types management has been moved to a dedicated page
+                    for better performance and user experience.
+                  </p>
+                  <Button
+                    onClick={() => navigate("/journey-types")}
+                    variant="outline"
+                  >
+                    Go to Journey Types Page
+                  </Button>
                 </div>
               </CardContent>
             </Card>
