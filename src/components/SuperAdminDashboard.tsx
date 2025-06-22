@@ -69,6 +69,8 @@ import {
   AssessmentTemplate,
   Sector,
   AssessmentSection,
+  JourneyType,
+  JourneyStage,
 } from "@/types/admin";
 import BackButton from "./BackButton";
 import { Link } from "react-router-dom";
@@ -83,7 +85,7 @@ const SuperAdminDashboard = () => {
   const { tenantId } = useTenant();
   const { addNotification } = useNotifications();
   const [activeTab, setActiveTab] = useState("tenants");
-  const [assessmentPacks, setAssessmentPacks] = useState<AssessmentPack[]>([]);
+
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [assessmentTemplates, setAssessmentTemplates] = useState<
     AssessmentTemplate[]
@@ -101,6 +103,21 @@ const SuperAdminDashboard = () => {
   const [assessmentTriggers, setAssessmentTriggers] = useState<any[]>([]);
   const [showTriggerDialog, setShowTriggerDialog] = useState(false);
   const [editingTrigger, setEditingTrigger] = useState<any>(null);
+
+  // Journey Types states
+  const [journeyTypes, setJourneyTypes] = useState<JourneyType[]>([]);
+  const [showJourneyDialog, setShowJourneyDialog] = useState(false);
+  const [editingJourney, setEditingJourney] = useState<JourneyType | null>(
+    null,
+  );
+  const [journeyForm, setJourneyForm] = useState({
+    name: "",
+    description: "",
+    stages: [] as JourneyStage[],
+    defaultAssessments: [] as string[],
+    assignedTenants: [] as string[],
+    isActive: true,
+  });
   const [triggerForm, setTriggerForm] = useState({
     sourceAssessmentId: "",
     conditionType: "score_gte" as
@@ -140,14 +157,7 @@ const SuperAdminDashboard = () => {
       },
     ],
   });
-  const [showPackDialog, setShowPackDialog] = useState(false);
-  const [editingPack, setEditingPack] = useState<AssessmentPack | null>(null);
-  const [packFormData, setPackFormData] = useState({
-    name: "",
-    description: "",
-    sector: "",
-    templateIds: [] as string[],
-  });
+
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
@@ -372,33 +382,6 @@ const SuperAdminDashboard = () => {
         );
       }
 
-      // Load assessment packs
-      const savedPacks = localStorage.getItem("assessmentPacks");
-      if (savedPacks) {
-        try {
-          setAssessmentPacks(JSON.parse(savedPacks));
-        } catch (error) {
-          console.error("Failed to parse saved assessment packs", error);
-        }
-      } else {
-        // Initialize with default packs
-        const defaultPacks: AssessmentPack[] = defaultSectors.map((sector) => ({
-          id: `pack-${sector.id}`,
-          name: `${sector.name} Assessment Pack`,
-          description: sector.description,
-          sector: sector.id,
-          templateIds: [
-            ...sector.defaultTemplates,
-            ...sector.additionalTemplates,
-          ],
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }));
-        setAssessmentPacks(defaultPacks);
-        localStorage.setItem("assessmentPacks", JSON.stringify(defaultPacks));
-      }
-
       // Load assessment triggers
       const savedTriggers = localStorage.getItem("assessmentTriggers");
       if (savedTriggers) {
@@ -407,6 +390,133 @@ const SuperAdminDashboard = () => {
         } catch (error) {
           console.error("Failed to parse saved assessment triggers", error);
         }
+      }
+
+      // Load journey types
+      const savedJourneyTypes = localStorage.getItem("journeyTypes");
+      if (savedJourneyTypes) {
+        try {
+          setJourneyTypes(JSON.parse(savedJourneyTypes));
+        } catch (error) {
+          console.error("Failed to parse saved journey types", error);
+        }
+      } else {
+        // Initialize with default journey types
+        const defaultJourneyTypes: JourneyType[] = [
+          {
+            id: "perinatal-journey",
+            name: "Perinatal Support Journey",
+            description: "Standard perinatal support pathway",
+            stages: [
+              {
+                id: "booking",
+                name: "Booking",
+                description: "Initial booking and assessment",
+                order: 1,
+                dueInDays: 0,
+                isRequired: true,
+                requiresAssessment: true,
+                assessmentTemplateId: "intro-assessment",
+                type: "assessment",
+              },
+              {
+                id: "28-week-review",
+                name: "28-week Review",
+                description: "Mid-pregnancy review",
+                order: 2,
+                dueInDays: 196,
+                isRequired: true,
+                requiresAssessment: true,
+                assessmentTemplateId: "progress-assessment",
+                type: "review",
+              },
+              {
+                id: "birth-preparation",
+                name: "Birth Preparation",
+                description: "Pre-birth preparation session",
+                order: 3,
+                dueInDays: 252,
+                isRequired: false,
+                requiresAssessment: false,
+                type: "event",
+              },
+              {
+                id: "postnatal-check",
+                name: "Postnatal Check",
+                description: "Post-birth follow-up",
+                order: 4,
+                dueInDays: 294,
+                isRequired: true,
+                requiresAssessment: true,
+                assessmentTemplateId: "exit-assessment",
+                type: "assessment",
+              },
+            ],
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            organizationId: "default",
+          },
+          {
+            id: "youth-support-journey",
+            name: "Youth Support Journey",
+            description: "Youth development and support pathway",
+            stages: [
+              {
+                id: "initial-assessment",
+                name: "Initial Assessment",
+                description: "First contact and needs assessment",
+                order: 1,
+                dueInDays: 0,
+                isRequired: true,
+                requiresAssessment: true,
+                assessmentTemplateId: "intro-assessment",
+                type: "assessment",
+              },
+              {
+                id: "goal-setting",
+                name: "Goal Setting",
+                description: "Collaborative goal setting session",
+                order: 2,
+                dueInDays: 14,
+                isRequired: true,
+                requiresAssessment: false,
+                type: "milestone",
+              },
+              {
+                id: "monthly-review",
+                name: "Monthly Review",
+                description: "Regular progress review",
+                order: 3,
+                dueInDays: 30,
+                isRequired: false,
+                requiresAssessment: true,
+                assessmentTemplateId: "progress-assessment",
+                type: "review",
+              },
+              {
+                id: "completion",
+                name: "Program Completion",
+                description: "Final assessment and closure",
+                order: 4,
+                dueInDays: 180,
+                isRequired: true,
+                requiresAssessment: true,
+                assessmentTemplateId: "exit-assessment",
+                type: "assessment",
+              },
+            ],
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            organizationId: "default",
+          },
+        ];
+        setJourneyTypes(defaultJourneyTypes);
+        localStorage.setItem(
+          "journeyTypes",
+          JSON.stringify(defaultJourneyTypes),
+        );
       }
     }
   }, [isAuthenticated]);
@@ -428,7 +538,6 @@ const SuperAdminDashboard = () => {
           primary_color: "#4f46e5",
           secondary_color: "#6366f1",
           sector: "general",
-          assessmentPackId: "pack-general",
         },
         {
           id: "parents1st-tenant",
@@ -442,7 +551,6 @@ const SuperAdminDashboard = () => {
           primary_color: "#10b981",
           secondary_color: "#34d399",
           sector: "parenting-support",
-          assessmentPackId: "pack-parenting-support",
         },
         {
           id: "demo-tenant",
@@ -456,7 +564,6 @@ const SuperAdminDashboard = () => {
           primary_color: "#f59e0b",
           secondary_color: "#fbbf24",
           sector: "general",
-          assessmentPackId: "pack-general",
         },
       ];
 
@@ -1427,13 +1534,13 @@ const SuperAdminDashboard = () => {
           onValueChange={setActiveTab}
           className="w-full"
         >
-          <TabsList className="grid w-full max-w-4xl grid-cols-6">
+          <TabsList className="grid w-full max-w-5xl grid-cols-6">
             <TabsTrigger value="tenants">Active Tenants</TabsTrigger>
             <TabsTrigger value="users">All Users</TabsTrigger>
             <TabsTrigger value="archived">Archived Tenants</TabsTrigger>
-            <TabsTrigger value="packs">Assessment Packs</TabsTrigger>
             <TabsTrigger value="templates">Templates</TabsTrigger>
             <TabsTrigger value="triggers">Assessment Triggers</TabsTrigger>
+            <TabsTrigger value="journeys">Journey Types</TabsTrigger>
           </TabsList>
 
           <TabsContent value="tenants" className="mt-6">
@@ -1863,119 +1970,6 @@ const SuperAdminDashboard = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="packs" className="mt-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Assessment Packs</CardTitle>
-                  <CardDescription>
-                    Manage sector-specific assessment template packs
-                  </CardDescription>
-                </div>
-                <Button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setEditingPack(null);
-                    setPackFormData({
-                      name: "",
-                      description: "",
-                      sector: "",
-                      templateIds: [],
-                    });
-                    setShowPackDialog(true);
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <Plus className="h-4 w-4" /> Create Pack
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-md border">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b bg-muted/50 text-left">
-                        <th className="p-2 pl-4">Pack Name</th>
-                        <th className="p-2">Sector</th>
-                        <th className="p-2">Templates</th>
-                        <th className="p-2">Status</th>
-                        <th className="p-2 text-right pr-4">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {assessmentPacks.length > 0 ? (
-                        assessmentPacks.map((pack) => (
-                          <tr key={pack.id} className="border-b">
-                            <td className="p-2 pl-4 font-medium">
-                              {pack.name}
-                              <div className="text-xs text-muted-foreground">
-                                {pack.description}
-                              </div>
-                            </td>
-                            <td className="p-2">
-                              <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800">
-                                {sectors.find((s) => s.id === pack.sector)
-                                  ?.name || pack.sector}
-                              </span>
-                            </td>
-                            <td className="p-2">
-                              <span className="text-sm text-muted-foreground">
-                                {pack.templateIds.length} templates
-                              </span>
-                            </td>
-                            <td className="p-2">
-                              {pack.isActive ? (
-                                <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800">
-                                  Active
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-red-100 text-red-800">
-                                  Inactive
-                                </span>
-                              )}
-                            </td>
-                            <td className="p-2 text-right">
-                              <div className="flex justify-end gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setEditingPack(pack);
-                                    setPackFormData({
-                                      name: pack.name,
-                                      description: pack.description,
-                                      sector: pack.sector,
-                                      templateIds: pack.templateIds,
-                                    });
-                                    setShowPackDialog(true);
-                                  }}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td
-                            colSpan={5}
-                            className="p-4 text-center text-muted-foreground"
-                          >
-                            No assessment packs found. Create your first pack by
-                            clicking the "Create Pack" button.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
           <TabsContent value="templates" className="mt-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
@@ -2114,6 +2108,176 @@ const SuperAdminDashboard = () => {
                           >
                             No assessment templates found. Create your first
                             template by clicking the "Create Template" button.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="journeys" className="mt-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Journey Types</CardTitle>
+                  <CardDescription>
+                    Create and manage client journey types with stages and
+                    assessments
+                  </CardDescription>
+                </div>
+                <Button
+                  onClick={handleAddJourney}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" /> Create Journey
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/50 text-left">
+                        <th className="p-2 pl-4">Journey Name</th>
+                        <th className="p-2">Assigned Stages</th>
+                        <th className="p-2">Linked Assessments</th>
+                        <th className="p-2">Assigned Tenants</th>
+                        <th className="p-2">Status</th>
+                        <th className="p-2 text-right pr-4">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {journeyTypes.length > 0 ? (
+                        journeyTypes.map((journey) => {
+                          const linkedAssessments = journey.stages
+                            .filter(
+                              (stage) =>
+                                stage.requiresAssessment &&
+                                stage.assessmentTemplateId,
+                            )
+                            .map((stage) => {
+                              const template = assessmentTemplates.find(
+                                (t) => t.id === stage.assessmentTemplateId,
+                              );
+                              return template?.name || "Unknown";
+                            });
+
+                          const assignedTenantNames =
+                            journey.stages.length > 0
+                              ? tenants
+                                  .filter((t) => t.status !== "archived")
+                                  .map((t) => t.name)
+                                  .slice(0, 2)
+                              : [];
+
+                          return (
+                            <tr key={journey.id} className="border-b">
+                              <td className="p-2 pl-4 font-medium">
+                                {journey.name}
+                                <div className="text-xs text-muted-foreground">
+                                  {journey.description}
+                                </div>
+                              </td>
+                              <td className="p-2">
+                                <div className="flex flex-wrap gap-1">
+                                  {journey.stages.slice(0, 3).map((stage) => (
+                                    <span
+                                      key={stage.id}
+                                      className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800"
+                                    >
+                                      {stage.name}
+                                    </span>
+                                  ))}
+                                  {journey.stages.length > 3 && (
+                                    <span className="text-xs text-muted-foreground">
+                                      +{journey.stages.length - 3} more
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-2">
+                                <div className="flex flex-wrap gap-1">
+                                  {linkedAssessments
+                                    .slice(0, 2)
+                                    .map((assessment, idx) => (
+                                      <span
+                                        key={idx}
+                                        className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800"
+                                      >
+                                        {assessment}
+                                      </span>
+                                    ))}
+                                  {linkedAssessments.length > 2 && (
+                                    <span className="text-xs text-muted-foreground">
+                                      +{linkedAssessments.length - 2} more
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-2">
+                                <div className="flex flex-wrap gap-1">
+                                  {assignedTenantNames.map(
+                                    (tenantName, idx) => (
+                                      <span
+                                        key={idx}
+                                        className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-800"
+                                      >
+                                        {tenantName}
+                                      </span>
+                                    ),
+                                  )}
+                                  {assignedTenantNames.length === 0 && (
+                                    <span className="text-xs text-muted-foreground">
+                                      All Tenants
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-2">
+                                {journey.isActive ? (
+                                  <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800">
+                                    Active
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-red-100 text-red-800">
+                                    Inactive
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-2 text-right">
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEditJourney(journey)}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                    onClick={() =>
+                                      handleDeleteJourney(journey.id)
+                                    }
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan={6}
+                            className="p-4 text-center text-muted-foreground"
+                          >
+                            No journey types found. Create your first journey
+                            type by clicking the "Create Journey" button.
                           </td>
                         </tr>
                       )}
@@ -2680,214 +2844,6 @@ const SuperAdminDashboard = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Assessment Pack Dialog */}
-      <Dialog open={showPackDialog} onOpenChange={setShowPackDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {editingPack ? "Edit Assessment Pack" : "Create Assessment Pack"}
-            </DialogTitle>
-            <DialogDescription>
-              {editingPack
-                ? "Update the assessment pack details"
-                : "Create a new sector-specific assessment pack"}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-6 py-4">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="pack-name">Pack Name</Label>
-                <Input
-                  id="pack-name"
-                  value={packFormData.name}
-                  onChange={(e) =>
-                    setPackFormData({ ...packFormData, name: e.target.value })
-                  }
-                  placeholder="Assessment pack name"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="pack-description">Description</Label>
-                <Textarea
-                  id="pack-description"
-                  value={packFormData.description}
-                  onChange={(e) =>
-                    setPackFormData({
-                      ...packFormData,
-                      description: e.target.value,
-                    })
-                  }
-                  placeholder="Brief description of this assessment pack"
-                  rows={3}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="pack-sector">Sector</Label>
-                <Select
-                  value={packFormData.sector}
-                  onValueChange={(value) =>
-                    setPackFormData({ ...packFormData, sector: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select sector" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sectors.map((sector) => (
-                      <SelectItem key={sector.id} value={sector.id}>
-                        {sector.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Available Templates</Label>
-                <div className="border rounded-md p-4 max-h-60 overflow-y-auto">
-                  <div className="space-y-3">
-                    <div>
-                      <h4 className="text-sm font-medium text-green-700 mb-2">
-                        Standard Templates (Always Included)
-                      </h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        {["introduction", "progress", "exit"].map(
-                          (template) => (
-                            <div
-                              key={template}
-                              className="flex items-center space-x-2"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={true}
-                                disabled={true}
-                                className="h-4 w-4 rounded border-gray-300 text-green-600"
-                              />
-                              <span className="text-sm text-green-700">
-                                {template.charAt(0).toUpperCase() +
-                                  template.slice(1)}
-                              </span>
-                            </div>
-                          ),
-                        )}
-                      </div>
-                    </div>
-
-                    {packFormData.sector &&
-                      sectors.find((s) => s.id === packFormData.sector)
-                        ?.additionalTemplates.length > 0 && (
-                        <div>
-                          <h4 className="text-sm font-medium text-blue-700 mb-2">
-                            Sector-Specific Templates
-                          </h4>
-                          <div className="grid grid-cols-1 gap-2">
-                            {sectors
-                              .find((s) => s.id === packFormData.sector)
-                              ?.additionalTemplates.map((template) => (
-                                <div
-                                  key={template}
-                                  className="flex items-center space-x-2"
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={packFormData.templateIds.includes(
-                                      template,
-                                    )}
-                                    onChange={(e) => {
-                                      const newTemplateIds = e.target.checked
-                                        ? [
-                                            ...packFormData.templateIds,
-                                            template,
-                                          ]
-                                        : packFormData.templateIds.filter(
-                                            (id) => id !== template,
-                                          );
-                                      setPackFormData({
-                                        ...packFormData,
-                                        templateIds: newTemplateIds,
-                                      });
-                                    }}
-                                    className="h-4 w-4 rounded border-gray-300 text-blue-600"
-                                  />
-                                  <span className="text-sm">
-                                    {template.toUpperCase().replace(/-/g, " ")}
-                                  </span>
-                                </div>
-                              )) || []}
-                          </div>
-                        </div>
-                      )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPackDialog(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                const pack: AssessmentPack = {
-                  id: editingPack ? editingPack.id : `pack-${Date.now()}`,
-                  name: packFormData.name,
-                  description: packFormData.description,
-                  sector: packFormData.sector,
-                  templateIds: [
-                    "introduction",
-                    "progress",
-                    "exit",
-                    ...packFormData.templateIds,
-                  ],
-                  isActive: true,
-                  createdAt: editingPack
-                    ? editingPack.createdAt
-                    : new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
-                };
-
-                let updatedPacks;
-                if (editingPack) {
-                  updatedPacks = assessmentPacks.map((p) =>
-                    p.id === editingPack.id ? pack : p,
-                  );
-                } else {
-                  updatedPacks = [...assessmentPacks, pack];
-                }
-
-                setAssessmentPacks(updatedPacks);
-                localStorage.setItem(
-                  "assessmentPacks",
-                  JSON.stringify(updatedPacks),
-                );
-
-                addNotification({
-                  title: "Success",
-                  message: `Assessment pack ${pack.name} has been ${editingPack ? "updated" : "created"}.`,
-                  type: "success",
-                  priority: "medium",
-                });
-
-                setShowPackDialog(false);
-                setEditingPack(null);
-                setPackFormData({
-                  name: "",
-                  description: "",
-                  sector: "",
-                  templateIds: [],
-                });
-              }}
-              disabled={!packFormData.name || !packFormData.sector}
-            >
-              {editingPack ? "Update Pack" : "Create Pack"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Template Form Dialog */}
       <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
@@ -3825,6 +3781,273 @@ const SuperAdminDashboard = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Journey Type Dialog */}
+      <Dialog open={showJourneyDialog} onOpenChange={setShowJourneyDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>
+              {editingJourney ? "Edit Journey Type" : "Create Journey Type"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingJourney
+                ? "Modify the journey type details and stages"
+                : "Create a new journey type with custom stages and assessments"}
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="h-[calc(90vh-180px)]">
+            <div className="grid gap-6 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="journey-name">Journey Name</Label>
+                  <Input
+                    id="journey-name"
+                    value={journeyForm.name}
+                    onChange={(e) =>
+                      setJourneyForm((prev) => ({
+                        ...prev,
+                        name: e.target.value,
+                      }))
+                    }
+                    placeholder="Enter journey name"
+                    required
+                  />
+                </div>
+                <div className="flex items-center space-x-2 mt-6">
+                  <input
+                    type="checkbox"
+                    id="journey-active"
+                    checked={journeyForm.isActive}
+                    onChange={(e) =>
+                      setJourneyForm((prev) => ({
+                        ...prev,
+                        isActive: e.target.checked,
+                      }))
+                    }
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <Label htmlFor="journey-active">Active Journey</Label>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="journey-description">Description</Label>
+                <Textarea
+                  id="journey-description"
+                  value={journeyForm.description}
+                  onChange={(e) =>
+                    setJourneyForm((prev) => ({
+                      ...prev,
+                      description: e.target.value,
+                    }))
+                  }
+                  placeholder="Brief description of this journey type"
+                  rows={2}
+                />
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-lg font-medium">Journey Stages</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addStageToJourney}
+                  >
+                    <Plus className="h-4 w-4 mr-1" /> Add Stage
+                  </Button>
+                </div>
+
+                {journeyForm.stages.map((stage, index) => (
+                  <div
+                    key={stage.id}
+                    className="border rounded-md p-4 space-y-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium">Stage {index + 1}</h4>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => removeStageFromJourney(stage.id)}
+                        disabled={journeyForm.stages.length === 1}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor={`stage-${stage.id}-name`}>
+                          Stage Name
+                        </Label>
+                        <Input
+                          id={`stage-${stage.id}-name`}
+                          value={stage.name}
+                          onChange={(e) =>
+                            updateJourneyStage(stage.id, {
+                              name: e.target.value,
+                            })
+                          }
+                          placeholder="Stage name"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`stage-${stage.id}-due`}>
+                          Due in Days
+                        </Label>
+                        <Input
+                          id={`stage-${stage.id}-due`}
+                          type="number"
+                          value={stage.dueInDays}
+                          onChange={(e) =>
+                            updateJourneyStage(stage.id, {
+                              dueInDays: parseInt(e.target.value) || 0,
+                            })
+                          }
+                          placeholder="0"
+                          min="0"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor={`stage-${stage.id}-description`}>
+                        Description
+                      </Label>
+                      <Textarea
+                        id={`stage-${stage.id}-description`}
+                        value={stage.description}
+                        onChange={(e) =>
+                          updateJourneyStage(stage.id, {
+                            description: e.target.value,
+                          })
+                        }
+                        placeholder="Stage description"
+                        rows={2}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor={`stage-${stage.id}-type`}>
+                          Stage Type
+                        </Label>
+                        <Select
+                          value={stage.type}
+                          onValueChange={(value) =>
+                            updateJourneyStage(stage.id, {
+                              type: value as JourneyStage["type"],
+                            })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select stage type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="assessment">
+                              Assessment
+                            </SelectItem>
+                            <SelectItem value="milestone">Milestone</SelectItem>
+                            <SelectItem value="event">Event</SelectItem>
+                            <SelectItem value="visit">Visit</SelectItem>
+                            <SelectItem value="interaction">
+                              Interaction
+                            </SelectItem>
+                            <SelectItem value="review">Review</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {stage.requiresAssessment && (
+                        <div className="space-y-2">
+                          <Label htmlFor={`stage-${stage.id}-assessment`}>
+                            Assessment Template
+                          </Label>
+                          <Select
+                            value={stage.assessmentTemplateId || ""}
+                            onValueChange={(value) =>
+                              updateJourneyStage(stage.id, {
+                                assessmentTemplateId: value,
+                              })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select assessment" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {assessmentTemplates.map((template) => (
+                                <SelectItem
+                                  key={template.id}
+                                  value={template.id}
+                                >
+                                  {template.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={`stage-${stage.id}-required`}
+                          checked={stage.isRequired}
+                          onChange={(e) =>
+                            updateJourneyStage(stage.id, {
+                              isRequired: e.target.checked,
+                            })
+                          }
+                          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <Label htmlFor={`stage-${stage.id}-required`}>
+                          Required
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={`stage-${stage.id}-assessment-required`}
+                          checked={stage.requiresAssessment}
+                          onChange={(e) =>
+                            updateJourneyStage(stage.id, {
+                              requiresAssessment: e.target.checked,
+                            })
+                          }
+                          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <Label
+                          htmlFor={`stage-${stage.id}-assessment-required`}
+                        >
+                          Requires Assessment
+                        </Label>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowJourneyDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveJourney}
+              disabled={!journeyForm.name || journeyForm.stages.length === 0}
+            >
+              {editingJourney ? "Update Journey" : "Create Journey"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
