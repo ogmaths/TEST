@@ -1424,11 +1424,12 @@ const SuperAdminDashboard = () => {
           onValueChange={setActiveTab}
           className="w-full"
         >
-          <TabsList className="grid w-full max-w-4xl grid-cols-4">
+          <TabsList className="grid w-full max-w-5xl grid-cols-5">
             <TabsTrigger value="tenants">Active Tenants</TabsTrigger>
             <TabsTrigger value="users">All Users</TabsTrigger>
             <TabsTrigger value="archived">Archived Tenants</TabsTrigger>
             <TabsTrigger value="templates">Templates</TabsTrigger>
+            <TabsTrigger value="journey-types">Journey Types</TabsTrigger>
           </TabsList>
 
           <TabsContent value="tenants" className="mt-6">
@@ -2128,11 +2129,11 @@ const SuperAdminDashboard = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="journeys" className="mt-6">
+          <TabsContent value="journey-types" className="mt-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle>Journey Types</CardTitle>
+                  <CardTitle>Journey Types Management</CardTitle>
                   <CardDescription>
                     Journey Types functionality has been moved to a dedicated
                     page for better performance

@@ -46,6 +46,9 @@ const NewClientForm = () => {
   const [availableAreas, setAvailableAreas] = useState<
     Array<{ id: string; name: string }>
   >([]);
+  const [availableJourneyTypes, setAvailableJourneyTypes] = useState<
+    Array<{ id: string; name: string; stages: string[] }>
+  >([]);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -56,6 +59,7 @@ const NewClientForm = () => {
     caseWorker: "",
     status: "new",
     notes: "",
+    journeyType: "",
   });
 
   const [assignedAssessments, setAssignedAssessments] = useState<
@@ -67,8 +71,9 @@ const NewClientForm = () => {
     },
   ]);
 
-  // Load areas from localStorage
+  // Load areas and journey types from localStorage
   useEffect(() => {
+    // Load areas
     const savedAreas = localStorage.getItem("areas");
     if (savedAreas) {
       try {
@@ -97,7 +102,36 @@ const NewClientForm = () => {
         { id: "central", name: "Central District" },
       ]);
     }
-  }, []);
+
+    // Load journey types from Super Admin area
+    const savedJourneyTypes = localStorage.getItem("journeyTypes");
+    if (savedJourneyTypes) {
+      try {
+        const journeyTypes = JSON.parse(savedJourneyTypes);
+        // Filter journey types based on user's tenant and active status
+        const filteredJourneyTypes = journeyTypes.filter((journey: any) => {
+          return (
+            journey.isActive &&
+            journey.assignedTenants &&
+            journey.assignedTenants.includes(user?.tenantId || "")
+          );
+        });
+
+        setAvailableJourneyTypes(
+          filteredJourneyTypes.map((journey: any) => ({
+            id: journey.id,
+            name: journey.name,
+            stages: journey.stages || [],
+          })),
+        );
+      } catch (error) {
+        console.error("Failed to parse saved journey types", error);
+        setAvailableJourneyTypes([]);
+      }
+    } else {
+      setAvailableJourneyTypes([]);
+    }
+  }, [user?.tenantId]);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -205,6 +239,10 @@ const NewClientForm = () => {
       // Ensure tenant_id is set for proper data isolation
       tenantId: user?.tenantId || "",
       area: formData.area || "Unspecified",
+      journeyTypeId: formData.journeyType,
+      journeyTypeName:
+        availableJourneyTypes.find((j) => j.id === formData.journeyType)
+          ?.name || "",
       assessmentDates: {
         introduction: assignedAssessments.find((a) => a.type === "introduction")
           ? formatDate(
@@ -253,6 +291,7 @@ const NewClientForm = () => {
       caseWorker: "",
       status: "new",
       notes: "",
+      journeyType: "",
     });
     setAssignedAssessments([
       {
@@ -460,6 +499,34 @@ const NewClientForm = () => {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="journeyType">Journey Type *</Label>
+                <Select
+                  value={formData.journeyType}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({ ...prev, journeyType: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select journey type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableJourneyTypes.length > 0 ? (
+                      availableJourneyTypes.map((journey) => (
+                        <SelectItem key={journey.id} value={journey.id}>
+                          {journey.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="" disabled>
+                        No journeys available. Please contact your
+                        administrator.
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="notes">Notes</Label>
                 <Textarea
                   id="notes"
@@ -641,7 +708,14 @@ const NewClientForm = () => {
               >
                 Cancel
               </Button>
-              <Button type="submit">Save Client</Button>
+              <Button
+                type="submit"
+                disabled={
+                  !formData.journeyType || availableJourneyTypes.length === 0
+                }
+              >
+                Save Client
+              </Button>
             </CardFooter>
           </form>
         </Card>

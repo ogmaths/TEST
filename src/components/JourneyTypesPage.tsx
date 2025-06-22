@@ -213,10 +213,22 @@ const JourneyTypesPage = () => {
 
   const handleEditJourney = (journey: JourneyType) => {
     setEditingJourney(journey);
+
+    // Convert stages to strings if they are objects
+    const stagesAsStrings = journey.stages?.map((stage: any) => {
+      if (typeof stage === "string") {
+        return stage;
+      } else if (stage && typeof stage === "object" && stage.name) {
+        return stage.name;
+      } else {
+        return String(stage || "");
+      }
+    }) || [""];
+
     setJourneyForm({
       name: journey.name,
       description: journey.description || "",
-      stages: journey.stages || [""],
+      stages: stagesAsStrings.length > 0 ? stagesAsStrings : [""],
       linkedAssessments: journey.linkedAssessments || [],
       assignedTenants: journey.assignedTenants || [],
       isActive: journey.isActive,

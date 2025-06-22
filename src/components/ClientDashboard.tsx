@@ -162,6 +162,7 @@ const ClientDashboard: React.FC = () => {
     useState<TimelineEvent | null>(null);
   const [showJourneyTypeDialog, setShowJourneyTypeDialog] = useState(false);
   const [availableJourneyTypes, setAvailableJourneyTypes] = useState<any[]>([]);
+  const [filteredJourneyTypes, setFilteredJourneyTypes] = useState<any[]>([]);
 
   // Form states
   const [journeyEditForm, setJourneyEditForm] = useState({
@@ -244,6 +245,16 @@ const ClientDashboard: React.FC = () => {
       localStorage.getItem("journeyTypes") || "[]",
     );
     setAvailableJourneyTypes(savedJourneyTypes);
+
+    // Filter journey types based on user's tenant and active status
+    const filtered = savedJourneyTypes.filter((journey: any) => {
+      return (
+        journey.isActive &&
+        journey.assignedTenants &&
+        journey.assignedTenants.includes(user?.tenantId || "")
+      );
+    });
+    setFilteredJourneyTypes(filtered);
   };
 
   const loadClientData = async () => {
@@ -542,7 +553,7 @@ const ClientDashboard: React.FC = () => {
 
   const handleSaveJourneyType = async () => {
     try {
-      const selectedJourneyType = availableJourneyTypes.find(
+      const selectedJourneyType = filteredJourneyTypes.find(
         (jt) => jt.id === journeyTypeForm.journeyTypeId,
       );
 
@@ -1917,11 +1928,17 @@ const ClientDashboard: React.FC = () => {
                   <SelectValue placeholder="Select journey type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableJourneyTypes.map((journeyType) => (
-                    <SelectItem key={journeyType.id} value={journeyType.id}>
-                      {journeyType.name}
+                  {filteredJourneyTypes.length > 0 ? (
+                    filteredJourneyTypes.map((journeyType) => (
+                      <SelectItem key={journeyType.id} value={journeyType.id}>
+                        {journeyType.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="" disabled>
+                      No journeys available. Please contact your administrator.
                     </SelectItem>
-                  ))}
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -1944,7 +1961,10 @@ const ClientDashboard: React.FC = () => {
             </Button>
             <Button
               onClick={handleSaveJourneyType}
-              disabled={!journeyTypeForm.journeyTypeId}
+              disabled={
+                !journeyTypeForm.journeyTypeId ||
+                filteredJourneyTypes.length === 0
+              }
             >
               <Save className="mr-2 h-4 w-4" />
               Change Journey Type
