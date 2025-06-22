@@ -30,6 +30,7 @@ import BackButton from "@/components/BackButton";
 import { generateAssessmentPDF } from "@/utils/pdfGenerator";
 import { Progress } from "@/components/ui/progress";
 import Logo from "./Logo";
+import { useUser } from "@/context/UserContext";
 
 interface Assessment {
   id: string;
@@ -43,6 +44,7 @@ interface Assessment {
 }
 
 const AssessmentsPage: React.FC = () => {
+  const { user } = useUser();
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
 
