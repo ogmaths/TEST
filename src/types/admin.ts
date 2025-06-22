@@ -136,3 +136,18 @@ export interface Sector {
   defaultTemplates: string[];
   additionalTemplates: string[];
 }
+
+export interface JourneyProgress {
+  id: string;
+  clientId: string;
+  currentStage: number;
+  stages: string[];
+  completedStages: number[];
+  updatedAt: string;
+  journeyTypeId?: string;
+  journeyTypeName?: string;
+  journeyStatus?: "active" | "completed" | "completed_early";
+  completionReason?: string;
+  completionDate?: string;
+  completedBy?: string;
+}

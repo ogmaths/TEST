@@ -163,6 +163,50 @@ const OrganizationMetrics: React.FC<OrganizationMetricsProps> = ({
       (a: any) => a.type === "Exit" || a.type === "exit",
     ).length;
 
+    // Count journey completions
+    let naturalCompletions = 0;
+    let earlyCompletions = 0;
+    let totalJourneyDuration = 0;
+    let completedJourneys = 0;
+
+    filteredClients.forEach((client: any) => {
+      const journeyProgress = JSON.parse(
+        localStorage.getItem(`journey_progress_${client.id}`) || "null",
+      );
+      if (journeyProgress) {
+        if (journeyProgress.journeyStatus === "completed_early") {
+          earlyCompletions++;
+          completedJourneys++;
+          // Calculate duration from client join date to completion date
+          if (journeyProgress.completionDate && client.joinDate) {
+            const duration =
+              new Date(journeyProgress.completionDate).getTime() -
+              new Date(client.joinDate).getTime();
+            totalJourneyDuration += duration / (1000 * 60 * 60 * 24); // Convert to days
+          }
+        } else if (journeyProgress.journeyStatus === "completed") {
+          naturalCompletions++;
+          completedJourneys++;
+          // Calculate duration for natural completions
+          if (journeyProgress.updatedAt && client.joinDate) {
+            const duration =
+              new Date(journeyProgress.updatedAt).getTime() -
+              new Date(client.joinDate).getTime();
+            totalJourneyDuration += duration / (1000 * 60 * 60 * 24); // Convert to days
+          }
+        }
+      }
+    });
+
+    const averageJourneyDuration =
+      completedJourneys > 0
+        ? Math.round(totalJourneyDuration / completedJourneys)
+        : 0;
+    const completionRate =
+      filteredClients.length > 0
+        ? Math.round((completedJourneys / filteredClients.length) * 100)
+        : 0;
+
     return {
       phoneCalls,
       textMessages,
@@ -179,6 +223,10 @@ const OrganizationMetrics: React.FC<OrganizationMetricsProps> = ({
       peerSupportGroups: facilitatedGroups,
       impactScore: 78, // Placeholder for now
       exitAssessments,
+      naturalCompletions,
+      earlyCompletions,
+      averageJourneyDuration,
+      completionRate,
     };
   }, [filterArea, dateRange]);
 
@@ -305,20 +353,46 @@ const OrganizationMetrics: React.FC<OrganizationMetricsProps> = ({
 
         <Card>
           <CardHeader>
-            <CardTitle>Overall Impact</CardTitle>
+            <CardTitle>Journey Completion Metrics</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center p-3 bg-green-50 rounded-lg">
+                <div className="text-2xl font-bold text-green-600">
+                  {metrics.naturalCompletions}
+                </div>
+                <div className="text-xs text-green-700">
+                  Natural Completions
+                </div>
+              </div>
+              <div className="text-center p-3 bg-blue-50 rounded-lg">
+                <div className="text-2xl font-bold text-blue-600">
+                  {metrics.earlyCompletions}
+                </div>
+                <div className="text-xs text-blue-700">Early Completions</div>
+              </div>
+            </div>
+
             <div>
               <div className="flex justify-between mb-1">
-                <span className="text-sm font-medium">Impact Score</span>
+                <span className="text-sm font-medium">Completion Rate</span>
                 <span className="text-sm font-medium">
-                  {metrics.impactScore}%
+                  {metrics.completionRate}%
                 </span>
               </div>
-              <Progress value={metrics.impactScore} className="h-2" />
+              <Progress value={metrics.completionRate} className="h-2" />
               <p className="text-xs text-muted-foreground mt-1">
-                Calculated from client outcomes and feedback
+                Percentage of clients who have completed their journey
               </p>
+            </div>
+
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+              <span className="text-sm font-medium">
+                Average Journey Duration
+              </span>
+              <span className="text-lg font-bold text-gray-700">
+                {metrics.averageJourneyDuration} days
+              </span>
             </div>
           </CardContent>
         </Card>

@@ -163,6 +163,9 @@ const ClientDashboard: React.FC = () => {
   const [showJourneyTypeDialog, setShowJourneyTypeDialog] = useState(false);
   const [availableJourneyTypes, setAvailableJourneyTypes] = useState<any[]>([]);
   const [filteredJourneyTypes, setFilteredJourneyTypes] = useState<any[]>([]);
+  const [showCompleteJourneyDialog, setShowCompleteJourneyDialog] =
+    useState(false);
+  const [completionReason, setCompletionReason] = useState("");
 
   // Form states
   const [journeyEditForm, setJourneyEditForm] = useState({
@@ -314,6 +317,7 @@ const ClientDashboard: React.FC = () => {
           updatedAt: new Date().toISOString(),
           journeyTypeId: "postnatal",
           journeyTypeName: "Postnatal",
+          journeyStatus: "active",
         };
         setJourneyProgress(mockProgress);
         localStorage.setItem(
@@ -551,21 +555,21 @@ const ClientDashboard: React.FC = () => {
     setShowJourneyTypeDialog(true);
   };
 
-  const handleSaveJourneyType = async () => {
-    try {
-      const selectedJourneyType = filteredJourneyTypes.find(
-        (jt) => jt.id === journeyTypeForm.journeyTypeId,
-      );
+  const handleCompleteJourney = () => {
+    setCompletionReason("");
+    setShowCompleteJourneyDialog(true);
+  };
 
-      if (!selectedJourneyType) return;
+  const handleConfirmCompleteJourney = async () => {
+    try {
+      if (!journeyProgress) return;
 
       const updatedProgress = {
-        ...journeyProgress!,
-        journeyTypeId: selectedJourneyType.id,
-        journeyTypeName: selectedJourneyType.name,
-        stages: selectedJourneyType.stages.map((stage: any) => stage.name),
-        currentStage: 0,
-        completedStages: [],
+        ...journeyProgress,
+        journeyStatus: "completed_early" as const,
+        completionReason: completionReason.trim() || undefined,
+        completionDate: new Date().toISOString(),
+        completedBy: user?.id || "unknown",
         updatedAt: new Date().toISOString(),
       };
 
@@ -580,9 +584,13 @@ const ClientDashboard: React.FC = () => {
         id: `timeline_${Date.now()}`,
         clientId,
         type: "Milestone",
-        summary: `Journey Type Changed: ${selectedJourneyType.name}`,
-        description: `Client journey type updated to ${selectedJourneyType.name}`,
+        summary: "Journey Marked as Complete",
+        description: `Journey marked as completed early by ${user?.name || "Support Worker"}${completionReason.trim() ? `. Reason: ${completionReason.trim()}` : ""}`,
         date: new Date().toISOString(),
+        staffMember: user?.name || "Support Worker",
+        outcome:
+          "Journey completed early - client no longer requires ongoing support",
+        priority: "high",
       };
 
       const updatedTimeline = [newTimelineEvent, ...timelineEvents];
@@ -592,17 +600,17 @@ const ClientDashboard: React.FC = () => {
         JSON.stringify(updatedTimeline),
       );
 
-      setShowJourneyTypeDialog(false);
+      setShowCompleteJourneyDialog(false);
       addNotification({
         type: "success",
-        title: "Journey Type Updated",
-        message: `Client journey type has been changed to ${selectedJourneyType.name}`,
+        title: "Journey Completed",
+        message: "Client journey has been marked as completed successfully",
       });
     } catch (error) {
       addNotification({
         type: "system",
         title: "Error",
-        message: "Failed to update journey type",
+        message: "Failed to complete journey",
       });
     }
   };
@@ -1082,63 +1090,103 @@ const ClientDashboard: React.FC = () => {
                 </div>
                 {canEdit && (
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleChangeJourneyType}
-                      className="flex items-center gap-2"
-                    >
-                      <TrendingUp className="h-4 w-4" />
-                      Change Journey Type
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleEditJourney}
-                      className="flex items-center gap-2"
-                    >
-                      <Edit className="h-4 w-4" />
-                      Edit Journey
-                    </Button>
+                    {journeyProgress?.journeyStatus !== "completed_early" && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleChangeJourneyType}
+                          className="flex items-center gap-2"
+                        >
+                          <TrendingUp className="h-4 w-4" />
+                          Change Journey Type
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleEditJourney}
+                          className="flex items-center gap-2"
+                        >
+                          <Edit className="h-4 w-4" />
+                          Edit Journey
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCompleteJourney}
+                          className="flex items-center gap-2 text-green-600 hover:text-green-700 hover:bg-green-50"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                          Mark as Complete
+                        </Button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <Progress
-                  value={getProgressPercentage(
-                    journeyProgress?.currentStage || 0,
-                    journeyProgress?.stages.length || 6,
-                  )}
-                  className="h-2"
-                />
-                <div className="flex justify-between items-center">
-                  {journeyProgress?.stages.map((stage, index) => (
-                    <div
-                      key={index}
-                      className="flex flex-col items-center space-y-2 flex-1"
-                    >
-                      {getStageIcon(
-                        index,
-                        journeyProgress.currentStage,
-                        journeyProgress.completedStages,
+              {journeyProgress?.journeyStatus === "completed_early" ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-center p-6 bg-green-50 rounded-lg border border-green-200">
+                    <div className="text-center">
+                      <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-3" />
+                      <h3 className="text-lg font-semibold text-green-800 mb-2">
+                        Journey Completed
+                      </h3>
+                      <p className="text-sm text-green-700 mb-2">
+                        Marked as completed on{" "}
+                        {journeyProgress.completionDate
+                          ? formatDate(journeyProgress.completionDate)
+                          : "Unknown date"}
+                      </p>
+                      {journeyProgress.completionReason && (
+                        <div className="mt-3 p-3 bg-white rounded border border-green-200">
+                          <p className="text-sm text-gray-700">
+                            <span className="font-medium">Reason:</span>{" "}
+                            {journeyProgress.completionReason}
+                          </p>
+                        </div>
                       )}
-                      <span
-                        className={`text-xs text-center px-2 ${
-                          journeyProgress.completedStages.includes(index)
-                            ? "text-green-600 font-medium"
-                            : index === journeyProgress.currentStage
-                              ? "text-blue-600 font-medium"
-                              : "text-gray-400"
-                        }`}
-                      >
-                        {stage}
-                      </span>
                     </div>
-                  ))}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="space-y-4">
+                  <Progress
+                    value={getProgressPercentage(
+                      journeyProgress?.currentStage || 0,
+                      journeyProgress?.stages.length || 6,
+                    )}
+                    className="h-2"
+                  />
+                  <div className="flex justify-between items-center">
+                    {journeyProgress?.stages.map((stage, index) => (
+                      <div
+                        key={index}
+                        className="flex flex-col items-center space-y-2 flex-1"
+                      >
+                        {getStageIcon(
+                          index,
+                          journeyProgress.currentStage,
+                          journeyProgress.completedStages,
+                        )}
+                        <span
+                          className={`text-xs text-center px-2 ${
+                            journeyProgress.completedStages.includes(index)
+                              ? "text-green-600 font-medium"
+                              : index === journeyProgress.currentStage
+                                ? "text-blue-600 font-medium"
+                                : "text-gray-400"
+                          }`}
+                        >
+                          {stage}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -1203,17 +1251,18 @@ const ClientDashboard: React.FC = () => {
                     Overview of completed and upcoming assessments
                   </CardDescription>
                 </div>
-                {canEdit && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleScheduleAssessment}
-                    className="flex items-center gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Schedule Assessment
-                  </Button>
-                )}
+                {canEdit &&
+                  journeyProgress?.journeyStatus !== "completed_early" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleScheduleAssessment}
+                      className="flex items-center gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Schedule Assessment
+                    </Button>
+                  )}
               </div>
             </CardHeader>
             <CardContent>
@@ -1296,17 +1345,18 @@ const ClientDashboard: React.FC = () => {
                     Chronological log of all key events and interactions
                   </CardDescription>
                 </div>
-                {canEdit && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleAddTimelineEvent}
-                    className="flex items-center gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Timeline Event
-                  </Button>
-                )}
+                {canEdit &&
+                  journeyProgress?.journeyStatus !== "completed_early" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAddTimelineEvent}
+                      className="flex items-center gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Timeline Event
+                    </Button>
+                  )}
               </div>
             </CardHeader>
             <CardContent>
@@ -1401,26 +1451,30 @@ const ClientDashboard: React.FC = () => {
                               </div>
                             )}
                           </div>
-                          {canEdit && (
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 ml-4">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEditTimelineEvent(event)}
-                                className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteTimelineEvent(event)}
-                                className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          )}
+                          {canEdit &&
+                            journeyProgress?.journeyStatus !==
+                              "completed_early" && (
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 ml-4">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEditTimelineEvent(event)}
+                                  className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleDeleteTimelineEvent(event)
+                                  }
+                                  className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            )}
                         </div>
                       </div>
                     </div>
@@ -1968,6 +2022,58 @@ const ClientDashboard: React.FC = () => {
             >
               <Save className="mr-2 h-4 w-4" />
               Change Journey Type
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Complete Journey Dialog */}
+      <Dialog
+        open={showCompleteJourneyDialog}
+        onOpenChange={setShowCompleteJourneyDialog}
+      >
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirm Early Completion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to mark this journey as completed? This will
+              prevent further stage updates.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="completionReason">
+                Reason for Early Completion (Optional)
+              </Label>
+              <Textarea
+                id="completionReason"
+                value={completionReason}
+                onChange={(e) => setCompletionReason(e.target.value)}
+                placeholder="e.g., Client no longer requires support, moved out of area, achieved goals early..."
+                rows={3}
+              />
+            </div>
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+              <p className="text-sm text-yellow-800">
+                <strong>Note:</strong> Once marked as complete, you will not be
+                able to add new assessments, edit journey stages, or add
+                timeline events for this client.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowCompleteJourneyDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmCompleteJourney}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <CheckCircle className="mr-2 h-4 w-4" />
+              Confirm Completion
             </Button>
           </DialogFooter>
         </DialogContent>
