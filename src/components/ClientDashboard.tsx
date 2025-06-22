@@ -68,8 +68,10 @@ import {
   X,
   CalendarIcon,
 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import BackButton from "@/components/BackButton";
+import JourneyTimeline from "@/components/JourneyTimeline";
 
 interface Client {
   id: string;
@@ -564,6 +566,66 @@ const ClientDashboard: React.FC = () => {
     setShowCompleteJourneyDialog(true);
   };
 
+  const handleSaveJourneyTypeChange = async () => {
+    try {
+      if (!journeyTypeForm.journeyTypeId) return;
+
+      const selectedJourneyType = filteredJourneyTypes.find(
+        (jt) => jt.id === journeyTypeForm.journeyTypeId,
+      );
+      if (!selectedJourneyType) return;
+
+      const updatedProgress = {
+        ...journeyProgress!,
+        journeyTypeId: selectedJourneyType.id,
+        journeyTypeName: selectedJourneyType.name,
+        stages: selectedJourneyType.stages || defaultStages,
+        currentStage: 0,
+        completedStages: [],
+        updatedAt: new Date().toISOString(),
+      };
+
+      setJourneyProgress(updatedProgress);
+      localStorage.setItem(
+        `journey_progress_${clientId}`,
+        JSON.stringify(updatedProgress),
+      );
+
+      // Add timeline event
+      const newTimelineEvent: TimelineEvent = {
+        id: `timeline_${Date.now()}`,
+        clientId,
+        type: "Milestone",
+        summary: `Journey Type Changed to ${selectedJourneyType.name}`,
+        description: `Journey type changed from ${journeyProgress?.journeyTypeName || "Default"} to ${selectedJourneyType.name}. Progress has been reset.`,
+        date: new Date().toISOString(),
+        staffMember: user?.name || "Support Worker",
+        outcome: "Journey type updated - client progress reset to beginning",
+        priority: "medium",
+      };
+
+      const updatedTimeline = [newTimelineEvent, ...timelineEvents];
+      setTimelineEvents(updatedTimeline);
+      localStorage.setItem(
+        `timeline_events_${clientId}`,
+        JSON.stringify(updatedTimeline),
+      );
+
+      setShowJourneyTypeDialog(false);
+      addNotification({
+        type: "success",
+        title: "Journey Type Changed",
+        message: `Journey type has been changed to ${selectedJourneyType.name}`,
+      });
+    } catch (error) {
+      addNotification({
+        type: "system",
+        title: "Error",
+        message: "Failed to change journey type",
+      });
+    }
+  };
+
   const handleConfirmCompleteJourney = async () => {
     try {
       if (!journeyProgress) return;
@@ -1001,493 +1063,526 @@ const ClientDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto py-6 px-4 max-w-7xl">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <BackButton />
-            <h1 className="text-3xl font-bold text-gray-900">
-              Client Dashboard
-            </h1>
+      <ScrollArea className="h-screen">
+        <div className="container mx-auto py-6 px-4 max-w-7xl">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <BackButton />
+              <h1 className="text-3xl font-bold text-gray-900">
+                Client Dashboard
+              </h1>
+            </div>
           </div>
-        </div>
 
-        <div className="space-y-6">
-          {/* 1. Client Profile Header */}
-          <Card className="bg-white">
-            <CardContent className="pt-6">
-              <div className="flex items-center space-x-6">
-                <Avatar className="h-20 w-20">
-                  <AvatarImage
-                    src={`https://api.dicebear.com/7.x/initials/svg?seed=${client.name}`}
-                  />
-                  <AvatarFallback className="bg-primary/10 text-primary text-xl font-semibold">
-                    {client.name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                    {client.name}
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600">
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4" />
-                      <span>{client.email}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4" />
-                      <span>{client.phone}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4" />
-                      <span>{client.address}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      <span>Case Worker: {client.caseWorker}</span>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex items-center gap-4">
-                    <Badge
-                      variant={
-                        client.status === "active" ? "default" : "secondary"
-                      }
-                    >
-                      {client.status.charAt(0).toUpperCase() +
-                        client.status.slice(1)}
-                    </Badge>
-                    <span className="text-sm text-gray-500">
-                      Program: {client.supportProgram}
-                    </span>
-                    <span className="text-sm text-gray-500">
-                      Joined: {formatDate(client.joinDate)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 2. Journey Progress Bar */}
-          <Card className="bg-white">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
-                    Journey Progress
-                  </CardTitle>
-                  <CardDescription>
-                    Journey Type:{" "}
-                    {journeyProgress?.journeyTypeName || "Default"} • Current
-                    stage:{" "}
-                    {journeyProgress?.stages[journeyProgress.currentStage]}(
-                    {getProgressPercentage(
-                      journeyProgress?.currentStage || 0,
-                      journeyProgress?.stages.length || 6,
-                    )}
-                    % complete)
-                  </CardDescription>
-                </div>
-                {canEdit && (
-                  <div className="flex items-center gap-2">
-                    {journeyProgress?.journeyStatus !== "completed_early" && (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleChangeJourneyType}
-                          className="flex items-center gap-2"
-                        >
-                          <TrendingUp className="h-4 w-4" />
-                          Change Journey Type
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleEditJourney}
-                          className="flex items-center gap-2"
-                        >
-                          <Edit className="h-4 w-4" />
-                          Edit Journey
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleCompleteJourney}
-                          className="flex items-center gap-2 text-green-600 hover:text-green-700 hover:bg-green-50"
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                          Mark as Complete
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              {journeyProgress?.journeyStatus === "completed_early" ? (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-center p-6 bg-green-50 rounded-lg border border-green-200">
-                    <div className="text-center">
-                      <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-3" />
-                      <h3 className="text-lg font-semibold text-green-800 mb-2">
-                        Journey Completed
-                      </h3>
-                      <p className="text-sm text-green-700 mb-2">
-                        Marked as completed on{" "}
-                        {journeyProgress.completionDate
-                          ? formatDate(journeyProgress.completionDate)
-                          : "Unknown date"}
-                      </p>
-                      {journeyProgress.completionReason && (
-                        <div className="mt-3 p-3 bg-white rounded border border-green-200">
-                          <p className="text-sm text-gray-700">
-                            <span className="font-medium">Reason:</span>{" "}
-                            {journeyProgress.completionReason}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <Progress
-                    value={getProgressPercentage(
-                      journeyProgress?.currentStage || 0,
-                      journeyProgress?.stages.length || 6,
-                    )}
-                    className="h-2"
-                  />
-                  <div className="flex justify-between items-center">
-                    {journeyProgress?.stages.map((stage, index) => (
-                      <div
-                        key={index}
-                        className="flex flex-col items-center space-y-2 flex-1"
-                      >
-                        {getStageIcon(
-                          index,
-                          journeyProgress.currentStage,
-                          journeyProgress.completedStages,
-                        )}
-                        <span
-                          className={`text-xs text-center px-2 ${
-                            journeyProgress.completedStages.includes(index)
-                              ? "text-green-600 font-medium"
-                              : index === journeyProgress.currentStage
-                                ? "text-blue-600 font-medium"
-                                : "text-gray-400"
-                          }`}
-                        >
-                          {stage}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* 3. Recommendations Section */}
-          {recommendations.length > 0 && (
+          <div className="space-y-6 pb-6">
+            {/* 1. Client Profile Header */}
             <Card className="bg-white">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5" />
-                  Recommendations
-                </CardTitle>
-                <CardDescription>
-                  AI-generated suggestions based on recent assessments
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {recommendations.map((rec) => (
-                    <div
-                      key={rec.id}
-                      className={`p-4 rounded-lg border-l-4 ${
-                        rec.priority === "high"
-                          ? "border-red-500 bg-red-50"
-                          : rec.priority === "medium"
-                            ? "border-yellow-500 bg-yellow-50"
-                            : "border-blue-500 bg-blue-50"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-900">
-                            {rec.message}
-                          </p>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Triggered by: {rec.triggeredBy}
-                          </p>
-                        </div>
-                        <Badge
-                          variant="outline"
-                          className={getPriorityColor(rec.priority)}
-                        >
-                          {rec.priority} priority
-                        </Badge>
+              <CardContent className="pt-6">
+                <div className="flex items-center space-x-6">
+                  <Avatar className="h-20 w-20">
+                    <AvatarImage
+                      src={`https://api.dicebear.com/7.x/initials/svg?seed=${client.name}`}
+                    />
+                    <AvatarFallback className="bg-primary/10 text-primary text-xl font-semibold">
+                      {client.name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                      {client.name}
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600">
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4" />
+                        <span>{client.email}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4" />
+                        <span>{client.phone}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        <span>{client.address}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        <span>Case Worker: {client.caseWorker}</span>
                       </div>
                     </div>
-                  ))}
+                    <div className="mt-3 flex items-center gap-4">
+                      <Badge
+                        variant={
+                          client.status === "active" ? "default" : "secondary"
+                        }
+                      >
+                        {client.status.charAt(0).toUpperCase() +
+                          client.status.slice(1)}
+                      </Badge>
+                      <span className="text-sm text-gray-500">
+                        Program: {client.supportProgram}
+                      </span>
+                      <span className="text-sm text-gray-500">
+                        Joined: {formatDate(client.joinDate)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
-          )}
 
-          {/* 4. Assessments Snapshot */}
-          <Card className="bg-white">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    Assessments Snapshot
-                  </CardTitle>
-                  <CardDescription>
-                    Overview of completed and upcoming assessments
-                  </CardDescription>
-                </div>
-                {canEdit &&
-                  journeyProgress?.journeyStatus !== "completed_early" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleScheduleAssessment}
-                      className="flex items-center gap-2"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Schedule Assessment
-                    </Button>
-                  )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-4">
-                {assessmentResults.map((assessment) => (
-                  <div
-                    key={assessment.id}
-                    className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg group relative"
-                  >
-                    {assessment.status === "completed" ? (
-                      <CheckCircle className="h-5 w-5 text-green-500" />
-                    ) : assessment.status === "cancelled" ? (
-                      <X className="h-5 w-5 text-red-500" />
-                    ) : (
-                      <Clock className="h-5 w-5 text-yellow-500" />
-                    )}
-                    <div className="flex-1">
-                      <span className="font-medium">{assessment.type}</span>
-                      {assessment.status === "completed" && (
+            {/* 2. Journey Progress Bar */}
+            <Card className="bg-white">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5" />
+                      Journey Progress
+                    </CardTitle>
+                    <CardDescription>
+                      Journey Type:{" "}
+                      {journeyProgress?.journeyTypeName || "Default"} • Current
+                      stage:{" "}
+                      {journeyProgress?.stages[journeyProgress.currentStage]}(
+                      {getProgressPercentage(
+                        journeyProgress?.currentStage || 0,
+                        journeyProgress?.stages.length || 6,
+                      )}
+                      % complete)
+                    </CardDescription>
+                  </div>
+                  {canEdit && (
+                    <div className="flex items-center gap-2">
+                      {journeyProgress?.journeyStatus !== "completed_early" && (
                         <>
-                          <span className="mx-2">•</span>
-                          <Badge
-                            variant={getRiskBadgeVariant(assessment.riskLevel)}
-                            className="text-xs"
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleChangeJourneyType}
+                            className="flex items-center gap-2"
                           >
-                            {assessment.riskLevel}
-                          </Badge>
-                          {assessment.score > 0 && (
-                            <span className="ml-2 text-sm text-gray-600">
-                              Score: {assessment.score}
-                            </span>
-                          )}
+                            <TrendingUp className="h-4 w-4" />
+                            Change Journey Type
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleEditJourney}
+                            className="flex items-center gap-2"
+                          >
+                            <Edit className="h-4 w-4" />
+                            Edit Journey
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleCompleteJourney}
+                            className="flex items-center gap-2 text-green-600 hover:text-green-700 hover:bg-green-50"
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                            Mark as Complete
+                          </Button>
                         </>
                       )}
-                      {assessment.status === "scheduled" && (
-                        <span className="ml-2 text-sm text-gray-600">
-                          ⏳ Scheduled
-                        </span>
-                      )}
-                      {assessment.status === "cancelled" && (
-                        <span className="ml-2 text-sm text-red-600">
-                          ❌ Cancelled
-                        </span>
-                      )}
                     </div>
-                    {canEdit && assessment.status === "scheduled" && (
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleCancelAssessment(assessment.id)}
-                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg border-2 border-dashed border-blue-200">
-                  <Calendar className="h-5 w-5 text-blue-500" />
-                  <span className="text-blue-700 font-medium">
-                    Next: Apr 10
-                  </span>
+                  )}
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent>
+                {journeyProgress?.journeyStatus === "completed_early" ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-center p-6 bg-green-50 rounded-lg border border-green-200">
+                      <div className="text-center">
+                        <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-3" />
+                        <h3 className="text-lg font-semibold text-green-800 mb-2">
+                          Journey Completed
+                        </h3>
+                        <p className="text-sm text-green-700 mb-2">
+                          Marked as completed on{" "}
+                          {journeyProgress.completionDate
+                            ? formatDate(journeyProgress.completionDate)
+                            : "Unknown date"}
+                        </p>
+                        {journeyProgress.completionReason && (
+                          <div className="mt-3 p-3 bg-white rounded border border-green-200">
+                            <p className="text-sm text-gray-700">
+                              <span className="font-medium">Reason:</span>{" "}
+                              {journeyProgress.completionReason}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <Progress
+                      value={getProgressPercentage(
+                        journeyProgress?.currentStage || 0,
+                        journeyProgress?.stages.length || 6,
+                      )}
+                      className="h-2"
+                    />
+                    <div className="flex justify-between items-center">
+                      {journeyProgress?.stages.map((stage, index) => (
+                        <div
+                          key={index}
+                          className="flex flex-col items-center space-y-2 flex-1"
+                        >
+                          {getStageIcon(
+                            index,
+                            journeyProgress.currentStage,
+                            journeyProgress.completedStages,
+                          )}
+                          <span
+                            className={`text-xs text-center px-2 ${
+                              journeyProgress.completedStages.includes(index)
+                                ? "text-green-600 font-medium"
+                                : index === journeyProgress.currentStage
+                                  ? "text-blue-600 font-medium"
+                                  : "text-gray-400"
+                            }`}
+                          >
+                            {stage}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-          {/* 5. Client Timeline Table */}
-          <Card className="bg-white">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
+            {/* 3. Recommendations Section */}
+            {recommendations.length > 0 && (
+              <Card className="bg-white">
+                <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5" />
-                    Client Timeline
+                    <AlertTriangle className="h-5 w-5" />
+                    Recommendations
                   </CardTitle>
                   <CardDescription>
-                    Chronological log of all key events and interactions
+                    AI-generated suggestions based on recent assessments
                   </CardDescription>
-                </div>
-                {canEdit &&
-                  journeyProgress?.journeyStatus !== "completed_early" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleAddTimelineEvent}
-                      className="flex items-center gap-2"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Add Timeline Event
-                    </Button>
-                  )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {timelineEvents
-                  .sort(
-                    (a, b) =>
-                      new Date(b.date).getTime() - new Date(a.date).getTime(),
-                  )
-                  .map((event) => (
-                    <div
-                      key={event.id}
-                      className="flex items-start gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors group"
-                    >
-                      <div className="flex-shrink-0 mt-1">
-                        <div className="p-2 bg-primary/10 rounded-full text-primary">
-                          {getEventIcon(event.type)}
-                        </div>
-                      </div>
-                      <div className="flex-1 min-w-0">
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {recommendations.map((rec) => (
+                      <div
+                        key={rec.id}
+                        className={`p-4 rounded-lg border-l-4 ${
+                          rec.priority === "high"
+                            ? "border-red-500 bg-red-50"
+                            : rec.priority === "medium"
+                              ? "border-yellow-500 bg-yellow-50"
+                              : "border-blue-500 bg-blue-50"
+                        }`}
+                      >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <h4 className="font-medium text-gray-900">
-                              {event.summary}
-                            </h4>
-                            <p className="text-sm text-gray-600 mt-1">
-                              {event.description}
+                            <p className="font-medium text-gray-900">
+                              {rec.message}
                             </p>
-                            <div className="flex flex-wrap items-center gap-2 mt-2">
-                              <span className="text-sm text-gray-500">
-                                {formatDate(event.date)}
-                              </span>
-                              <Badge variant="outline" className="text-xs">
-                                {event.type}
-                              </Badge>
-                              {event.score && (
-                                <span className="text-sm font-medium">
-                                  Score: {event.score}
-                                </span>
-                              )}
-                              {event.riskLevel && (
-                                <Badge
-                                  variant={getRiskBadgeVariant(event.riskLevel)}
-                                  className="text-xs"
-                                >
-                                  {event.riskLevel === "moderate"
-                                    ? "⚠️ Moderate Risk"
-                                    : event.riskLevel === "high"
-                                      ? "🚨 High Risk"
-                                      : event.riskLevel === "mild"
-                                        ? "✅ Mild Risk"
-                                        : event.riskLevel}
-                                </Badge>
-                              )}
-                              {event.duration && (
-                                <span className="text-xs text-gray-500">
-                                  Duration: {event.duration}
-                                </span>
-                              )}
-                              {event.staffMember && (
-                                <span className="text-xs text-gray-500">
-                                  Staff: {event.staffMember}
-                                </span>
-                              )}
-                              {event.followUpRequired && (
-                                <Badge variant="secondary" className="text-xs">
-                                  Follow-up Required
-                                </Badge>
-                              )}
-                              {event.priority &&
-                                event.priority !== "medium" && (
-                                  <Badge
-                                    variant={
-                                      event.priority === "high"
-                                        ? "destructive"
-                                        : "outline"
-                                    }
-                                    className="text-xs"
-                                  >
-                                    {event.priority} priority
-                                  </Badge>
-                                )}
-                            </div>
-                            {event.outcome && (
-                              <div className="mt-2 p-2 bg-gray-50 rounded text-sm">
-                                <span className="font-medium text-gray-700">
-                                  Outcome:{" "}
-                                </span>
-                                <span className="text-gray-600">
-                                  {event.outcome}
-                                </span>
-                              </div>
-                            )}
+                            <p className="text-sm text-gray-600 mt-1">
+                              Triggered by: {rec.triggeredBy}
+                            </p>
                           </div>
-                          {canEdit &&
-                            journeyProgress?.journeyStatus !==
-                              "completed_early" && (
-                              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 ml-4">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEditTimelineEvent(event)}
-                                  className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() =>
-                                    handleDeleteTimelineEvent(event)
-                                  }
-                                  className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            )}
+                          <Badge
+                            variant="outline"
+                            className={getPriorityColor(rec.priority)}
+                          >
+                            {rec.priority} priority
+                          </Badge>
                         </div>
                       </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 4. Assessments Snapshot */}
+            <Card className="bg-white">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <FileText className="h-5 w-5" />
+                      Assessments Snapshot
+                    </CardTitle>
+                    <CardDescription>
+                      Overview of completed and upcoming assessments
+                    </CardDescription>
+                  </div>
+                  {canEdit &&
+                    journeyProgress?.journeyStatus !== "completed_early" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleScheduleAssessment}
+                        className="flex items-center gap-2"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Schedule Assessment
+                      </Button>
+                    )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-4">
+                  {assessmentResults.map((assessment) => (
+                    <div
+                      key={assessment.id}
+                      className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg group relative"
+                    >
+                      {assessment.status === "completed" ? (
+                        <CheckCircle className="h-5 w-5 text-green-500" />
+                      ) : assessment.status === "cancelled" ? (
+                        <X className="h-5 w-5 text-red-500" />
+                      ) : (
+                        <Clock className="h-5 w-5 text-yellow-500" />
+                      )}
+                      <div className="flex-1">
+                        <span className="font-medium">{assessment.type}</span>
+                        {assessment.status === "completed" && (
+                          <>
+                            <span className="mx-2">•</span>
+                            <Badge
+                              variant={getRiskBadgeVariant(
+                                assessment.riskLevel,
+                              )}
+                              className="text-xs"
+                            >
+                              {assessment.riskLevel}
+                            </Badge>
+                            {assessment.score > 0 && (
+                              <span className="ml-2 text-sm text-gray-600">
+                                Score: {assessment.score}
+                              </span>
+                            )}
+                          </>
+                        )}
+                        {assessment.status === "scheduled" && (
+                          <span className="ml-2 text-sm text-gray-600">
+                            ⏳ Scheduled
+                          </span>
+                        )}
+                        {assessment.status === "cancelled" && (
+                          <span className="ml-2 text-sm text-red-600">
+                            ❌ Cancelled
+                          </span>
+                        )}
+                      </div>
+                      {canEdit && assessment.status === "scheduled" && (
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              handleCancelAssessment(assessment.id)
+                            }
+                            className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   ))}
-              </div>
-            </CardContent>
-          </Card>
+                  <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg border-2 border-dashed border-blue-200">
+                    <Calendar className="h-5 w-5 text-blue-500" />
+                    <span className="text-blue-700 font-medium">
+                      Next: Apr 10
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 5. Client Journey Timeline */}
+            <Card className="bg-white">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Client Journey Timeline
+                </CardTitle>
+                <CardDescription>
+                  Interactive timeline showing client interactions and progress
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <JourneyTimeline
+                  clientId={clientId}
+                  showDetails={true}
+                  compact={false}
+                />
+              </CardContent>
+            </Card>
+
+            {/* 6. Client Timeline Table */}
+            <Card className="bg-white">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Calendar className="h-5 w-5" />
+                      Client Timeline
+                    </CardTitle>
+                    <CardDescription>
+                      Chronological log of all key events and interactions
+                    </CardDescription>
+                  </div>
+                  {canEdit &&
+                    journeyProgress?.journeyStatus !== "completed_early" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAddTimelineEvent}
+                        className="flex items-center gap-2"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add Timeline Event
+                      </Button>
+                    )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {timelineEvents
+                    .sort(
+                      (a, b) =>
+                        new Date(b.date).getTime() - new Date(a.date).getTime(),
+                    )
+                    .map((event) => (
+                      <div
+                        key={event.id}
+                        className="flex items-start gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors group"
+                      >
+                        <div className="flex-shrink-0 mt-1">
+                          <div className="p-2 bg-primary/10 rounded-full text-primary">
+                            {getEventIcon(event.type)}
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-gray-900">
+                                {event.summary}
+                              </h4>
+                              <p className="text-sm text-gray-600 mt-1">
+                                {event.description}
+                              </p>
+                              <div className="flex flex-wrap items-center gap-2 mt-2">
+                                <span className="text-sm text-gray-500">
+                                  {formatDate(event.date)}
+                                </span>
+                                <Badge variant="outline" className="text-xs">
+                                  {event.type}
+                                </Badge>
+                                {event.score && (
+                                  <span className="text-sm font-medium">
+                                    Score: {event.score}
+                                  </span>
+                                )}
+                                {event.riskLevel && (
+                                  <Badge
+                                    variant={getRiskBadgeVariant(
+                                      event.riskLevel,
+                                    )}
+                                    className="text-xs"
+                                  >
+                                    {event.riskLevel === "moderate"
+                                      ? "⚠️ Moderate Risk"
+                                      : event.riskLevel === "high"
+                                        ? "🚨 High Risk"
+                                        : event.riskLevel === "mild"
+                                          ? "✅ Mild Risk"
+                                          : event.riskLevel}
+                                  </Badge>
+                                )}
+                                {event.duration && (
+                                  <span className="text-xs text-gray-500">
+                                    Duration: {event.duration}
+                                  </span>
+                                )}
+                                {event.staffMember && (
+                                  <span className="text-xs text-gray-500">
+                                    Staff: {event.staffMember}
+                                  </span>
+                                )}
+                                {event.followUpRequired && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-xs"
+                                  >
+                                    Follow-up Required
+                                  </Badge>
+                                )}
+                                {event.priority &&
+                                  event.priority !== "medium" && (
+                                    <Badge
+                                      variant={
+                                        event.priority === "high"
+                                          ? "destructive"
+                                          : "outline"
+                                      }
+                                      className="text-xs"
+                                    >
+                                      {event.priority} priority
+                                    </Badge>
+                                  )}
+                              </div>
+                              {event.outcome && (
+                                <div className="mt-2 p-2 bg-gray-50 rounded text-sm">
+                                  <span className="font-medium text-gray-700">
+                                    Outcome:{" "}
+                                  </span>
+                                  <span className="text-gray-600">
+                                    {event.outcome}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            {canEdit &&
+                              journeyProgress?.journeyStatus !==
+                                "completed_early" && (
+                                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 ml-4">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() =>
+                                      handleEditTimelineEvent(event)
+                                    }
+                                    className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() =>
+                                      handleDeleteTimelineEvent(event)
+                                    }
+                                    className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
+      </ScrollArea>
 
       {/* Edit Journey Stage Dialog */}
       <Dialog
@@ -2018,7 +2113,7 @@ const ClientDashboard: React.FC = () => {
               Cancel
             </Button>
             <Button
-              onClick={handleSaveJourneyType}
+              onClick={handleSaveJourneyTypeChange}
               disabled={
                 !journeyTypeForm.journeyTypeId ||
                 filteredJourneyTypes.length === 0

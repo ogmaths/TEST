@@ -32,6 +32,7 @@ import {
 import { CalendarIcon, Plus, Trash2 } from "lucide-react";
 import BackButton from "./BackButton";
 import SuccessMessage from "./SuccessMessage";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Add error boundary to catch any rendering errors
 class ErrorBoundary extends React.Component<
@@ -443,355 +444,362 @@ const NewClientForm = () => {
         </header>
 
         <main className="container mx-auto p-4 md:p-6">
-          <Card className="max-w-2xl mx-auto">
-            <CardHeader>
-              <CardTitle>Client Information</CardTitle>
-              <CardDescription>
-                Enter the details for the new client record.
-              </CardDescription>
-            </CardHeader>
-            <form onSubmit={handleSubmit}>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
-                    <Input
-                      id="firstName"
-                      placeholder="First name"
-                      value={formData.firstName}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name</Label>
-                    <Input
-                      id="lastName"
-                      placeholder="Last name"
-                      value={formData.lastName}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="client@example.com"
-                    value={formData.email}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input
-                    id="phone"
-                    placeholder="+44 7700 900000"
-                    value={formData.phone}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="address">Address</Label>
-                  <Input
-                    id="address"
-                    placeholder="123 High Street, London, SW1A 1AA"
-                    value={formData.address}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="area">Area</Label>
-                  <Select
-                    id="area"
-                    value={formData.area}
-                    onValueChange={(value) =>
-                      setFormData((prev) => ({ ...prev, area: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select area" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableAreas.map((area) => {
-                        const value = area.name
-                          .toLowerCase()
-                          .replace(/\s+/g, "-");
-                        return value ? (
-                          <SelectItem key={area.id} value={value}>
-                            {area.name}
-                          </SelectItem>
-                        ) : null;
-                      })}
-                      {availableAreas.length === 0 && (
-                        <SelectItem value="no-areas" disabled>
-                          No areas available
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="caseWorker">Case Worker</Label>
-                  <Select
-                    id="caseWorker"
-                    value={formData.caseWorker}
-                    onValueChange={(value) =>
-                      setFormData((prev) => ({ ...prev, caseWorker: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue
-                        placeholder={
-                          user?.name
-                            ? `Assign to ${user.name}`
-                            : "Select case worker"
-                        }
+          <ScrollArea className="h-[calc(100vh-4rem)]">
+            <Card className="max-w-2xl mx-auto">
+              <CardHeader>
+                <CardTitle>Client Information</CardTitle>
+                <CardDescription>
+                  Enter the details for the new client record.
+                </CardDescription>
+              </CardHeader>
+              <form onSubmit={handleSubmit}>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName">First Name</Label>
+                      <Input
+                        id="firstName"
+                        placeholder="First name"
+                        value={formData.firstName}
+                        onChange={handleChange}
+                        required
                       />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {user && (
-                        <SelectItem value={user.name}>
-                          {user.name} (You)
-                        </SelectItem>
-                      )}
-                      <SelectItem value="Michael Johnson">
-                        Michael Johnson
-                      </SelectItem>
-                      <SelectItem value="Sarah Williams">
-                        Sarah Williams
-                      </SelectItem>
-                      <SelectItem value="Lisa Chen">Lisa Chen</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">Last Name</Label>
+                      <Input
+                        id="lastName"
+                        placeholder="Last name"
+                        value={formData.lastName}
+                        onChange={handleChange}
+                        required
+                      />
+                    </div>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="status">Status</Label>
-                  <Select
-                    id="status"
-                    value={formData.status}
-                    onValueChange={(value) =>
-                      setFormData((prev) => ({ ...prev, status: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="new">New</SelectItem>
-                      <SelectItem value="in-progress">In Progress</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="client@example.com"
+                      value={formData.email}
+                      onChange={handleChange}
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="journeyType">Journey Type *</Label>
-                  <Select
-                    value={formData.journeyType}
-                    onValueChange={(value) =>
-                      setFormData((prev) => ({ ...prev, journeyType: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select journey type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableJourneyTypes.length > 0 ? (
-                        availableJourneyTypes.map((journey) =>
-                          journey.id ? (
-                            <SelectItem key={journey.id} value={journey.id}>
-                              {journey.name}
-                            </SelectItem>
-                          ) : null,
-                        )
-                      ) : (
-                        <SelectItem value="no-journeys" disabled>
-                          No journeys available. Please contact your
-                          administrator.
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input
+                      id="phone"
+                      placeholder="+44 7700 900000"
+                      value={formData.phone}
+                      onChange={handleChange}
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea
-                    id="notes"
-                    placeholder="Enter any additional information about the client"
-                    rows={4}
-                    value={formData.notes}
-                    onChange={handleChange}
-                  />
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Address</Label>
+                    <Input
+                      id="address"
+                      placeholder="123 High Street, London, SW1A 1AA"
+                      value={formData.address}
+                      onChange={handleChange}
+                    />
+                  </div>
 
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-base font-medium">
-                      Assigned Assessments
-                    </Label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={addAssessment}
-                      className="flex items-center gap-1"
+                  <div className="space-y-2">
+                    <Label htmlFor="area">Area</Label>
+                    <Select
+                      id="area"
+                      value={formData.area}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, area: value }))
+                      }
                     >
-                      <Plus className="h-4 w-4" /> Add Assessment
-                    </Button>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select area" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableAreas.map((area) => {
+                          const value = area.name
+                            .toLowerCase()
+                            .replace(/\s+/g, "-");
+                          return value ? (
+                            <SelectItem key={area.id} value={value}>
+                              {area.name}
+                            </SelectItem>
+                          ) : null;
+                        })}
+                        {availableAreas.length === 0 && (
+                          <SelectItem value="no-areas" disabled>
+                            No areas available
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="caseWorker">Case Worker</Label>
+                    <Select
+                      id="caseWorker"
+                      value={formData.caseWorker}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, caseWorker: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={
+                            user?.name
+                              ? `Assign to ${user.name}`
+                              : "Select case worker"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {user && (
+                          <SelectItem value={user.name}>
+                            {user.name} (You)
+                          </SelectItem>
+                        )}
+                        <SelectItem value="Michael Johnson">
+                          Michael Johnson
+                        </SelectItem>
+                        <SelectItem value="Sarah Williams">
+                          Sarah Williams
+                        </SelectItem>
+                        <SelectItem value="Lisa Chen">Lisa Chen</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="status">Status</Label>
+                    <Select
+                      id="status"
+                      value={formData.status}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, status: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="new">New</SelectItem>
+                        <SelectItem value="in-progress">In Progress</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="journeyType">Journey Type *</Label>
+                    <Select
+                      value={formData.journeyType}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, journeyType: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select journey type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableJourneyTypes.length > 0 ? (
+                          availableJourneyTypes.map((journey) =>
+                            journey.id ? (
+                              <SelectItem key={journey.id} value={journey.id}>
+                                {journey.name}
+                              </SelectItem>
+                            ) : null,
+                          )
+                        ) : (
+                          <SelectItem value="no-journeys" disabled>
+                            No journeys available. Please contact your
+                            administrator.
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="notes">Notes</Label>
+                    <Textarea
+                      id="notes"
+                      placeholder="Enter any additional information about the client"
+                      rows={4}
+                      value={formData.notes}
+                      onChange={handleChange}
+                    />
                   </div>
 
                   <div className="space-y-4">
-                    {assignedAssessments.map((assessment, index) => (
-                      <div
-                        key={index}
-                        className="flex flex-col space-y-3 p-4 border rounded-md bg-muted/20"
+                    <div className="flex items-center justify-between">
+                      <Label className="text-base font-medium">
+                        Assigned Assessments
+                      </Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={addAssessment}
+                        className="flex items-center gap-1"
                       >
-                        <div className="flex justify-between items-center">
-                          <h4 className="font-medium">
-                            Assessment #{index + 1}
-                          </h4>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeAssessment(index)}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
+                        <Plus className="h-4 w-4" /> Add Assessment
+                      </Button>
+                    </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor={`assessment-type-${index}`}>
-                              Assessment Type
-                            </Label>
-                            <Select
-                              value={assessment.type}
-                              onValueChange={(value) =>
-                                updateAssessmentType(
-                                  index,
-                                  value as
-                                    | "introduction"
-                                    | "progress"
-                                    | "exit"
-                                    | "custom",
-                                )
-                              }
+                    <div className="space-y-4">
+                      {assignedAssessments.map((assessment, index) => (
+                        <div
+                          key={index}
+                          className="flex flex-col space-y-3 p-4 border rounded-md bg-muted/20"
+                        >
+                          <div className="flex justify-between items-center">
+                            <h4 className="font-medium">
+                              Assessment #{index + 1}
+                            </h4>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeAssessment(index)}
+                              className="h-8 w-8 p-0"
                             >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select assessment type" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {assessmentTemplates.length > 0 ? (
-                                  assessmentTemplates.map((template, i) =>
-                                    template.type ? (
-                                      <SelectItem key={i} value={template.type}>
-                                        {template.name}
-                                      </SelectItem>
-                                    ) : null,
-                                  )
-                                ) : (
-                                  <>
-                                    <SelectItem value="introduction">
-                                      Introduction
-                                    </SelectItem>
-                                    <SelectItem value="progress">
-                                      Progress
-                                    </SelectItem>
-                                    <SelectItem value="exit">Exit</SelectItem>
-                                    <SelectItem value="custom">
-                                      Custom
-                                    </SelectItem>
-                                  </>
-                                )}
-                              </SelectContent>
-                            </Select>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
                           </div>
 
-                          {assessment.type === "custom" && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                              <Label htmlFor={`custom-name-${index}`}>
-                                Custom Assessment Name
+                              <Label htmlFor={`assessment-type-${index}`}>
+                                Assessment Type
                               </Label>
-                              <Input
-                                id={`custom-name-${index}`}
-                                placeholder="Enter custom assessment name"
-                                value={assessment.customName || ""}
-                                onChange={(e) =>
-                                  updateCustomName(index, e.target.value)
+                              <Select
+                                value={assessment.type}
+                                onValueChange={(value) =>
+                                  updateAssessmentType(
+                                    index,
+                                    value as
+                                      | "introduction"
+                                      | "progress"
+                                      | "exit"
+                                      | "custom",
+                                  )
                                 }
-                              />
-                            </div>
-                          )}
-
-                          <div className="space-y-2">
-                            <Label htmlFor={`due-date-${index}`}>
-                              Due Date
-                            </Label>
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button
-                                  id={`due-date-${index}`}
-                                  variant="outline"
-                                  className="w-full justify-start text-left font-normal"
-                                >
-                                  <CalendarIcon className="mr-2 h-4 w-4" />
-                                  {assessment.dueDate
-                                    ? format(assessment.dueDate, "PPP")
-                                    : "Select date"}
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent
-                                className="w-auto p-0"
-                                align="start"
                               >
-                                <Calendar
-                                  mode="single"
-                                  selected={assessment.dueDate}
-                                  onSelect={(date) =>
-                                    date && updateAssessmentDueDate(index, date)
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select assessment type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {assessmentTemplates.length > 0 ? (
+                                    assessmentTemplates.map((template, i) =>
+                                      template.type ? (
+                                        <SelectItem
+                                          key={i}
+                                          value={template.type}
+                                        >
+                                          {template.name}
+                                        </SelectItem>
+                                      ) : null,
+                                    )
+                                  ) : (
+                                    <>
+                                      <SelectItem value="introduction">
+                                        Introduction
+                                      </SelectItem>
+                                      <SelectItem value="progress">
+                                        Progress
+                                      </SelectItem>
+                                      <SelectItem value="exit">Exit</SelectItem>
+                                      <SelectItem value="custom">
+                                        Custom
+                                      </SelectItem>
+                                    </>
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {assessment.type === "custom" && (
+                              <div className="space-y-2">
+                                <Label htmlFor={`custom-name-${index}`}>
+                                  Custom Assessment Name
+                                </Label>
+                                <Input
+                                  id={`custom-name-${index}`}
+                                  placeholder="Enter custom assessment name"
+                                  value={assessment.customName || ""}
+                                  onChange={(e) =>
+                                    updateCustomName(index, e.target.value)
                                   }
-                                  initialFocus
                                 />
-                              </PopoverContent>
-                            </Popover>
+                              </div>
+                            )}
+
+                            <div className="space-y-2">
+                              <Label htmlFor={`due-date-${index}`}>
+                                Due Date
+                              </Label>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    id={`due-date-${index}`}
+                                    variant="outline"
+                                    className="w-full justify-start text-left font-normal"
+                                  >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {assessment.dueDate
+                                      ? format(assessment.dueDate, "PPP")
+                                      : "Select date"}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                  className="w-auto p-0"
+                                  align="start"
+                                >
+                                  <Calendar
+                                    mode="single"
+                                    selected={assessment.dueDate}
+                                    onSelect={(date) =>
+                                      date &&
+                                      updateAssessmentDueDate(index, date)
+                                    }
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-between">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => navigate("/clients")}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={
-                    !formData.journeyType || availableJourneyTypes.length === 0
-                  }
-                >
-                  Save Client
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
+                </CardContent>
+                <CardFooter className="flex justify-between">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => navigate("/clients")}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={
+                      !formData.journeyType ||
+                      availableJourneyTypes.length === 0
+                    }
+                  >
+                    Save Client
+                  </Button>
+                </CardFooter>
+              </form>
+            </Card>
+          </ScrollArea>
         </main>
       </div>
     </ErrorBoundary>

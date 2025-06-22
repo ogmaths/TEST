@@ -8,6 +8,7 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
+import routes from "tempo-routes";
 import { supabase } from "@/lib/supabase";
 import LoginPage from "./components/LoginPage";
 import LandingPage from "./components/LandingPage";
@@ -24,7 +25,7 @@ import SelfRegistrationPage from "./components/SelfRegistrationPage";
 import AdminDashboard from "./components/AdminDashboard";
 import NewUserForm from "./components/NewUserForm";
 import AddInteractionPage from "./components/AddInteractionPage";
-import routes from "tempo-routes";
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUser } from "./context/UserContext";
 import Logo from "./components/Logo";
@@ -127,7 +128,7 @@ function App() {
     };
   }, [fetchUserRole]);
 
-  // Role-based redirection logic - simplified to avoid redirect loops
+  // Role-based redirection logic - with throttling to prevent excessive redirects
   useEffect(() => {
     if (!isInitializing && !isLoadingRole && isLoggedIn && user?.role) {
       const currentPath = location.pathname;
@@ -164,7 +165,7 @@ function App() {
         return;
       }
 
-      // Only redirect from root dashboard path
+      // Only redirect from root dashboard path - with throttling
       if (currentPath === "/dashboard") {
         let targetPath = "/support-dashboard"; // default for support workers
 
@@ -181,14 +182,21 @@ function App() {
         console.log(
           `🔍 App - Redirecting ${user.role} from ${currentPath} to ${targetPath}`,
         );
-        navigate(targetPath, { replace: true });
+
+        // Use setTimeout to prevent excessive redirects
+        const timeoutId = setTimeout(() => {
+          navigate(targetPath, { replace: true });
+        }, 100);
+
+        return () => clearTimeout(timeoutId);
       }
     }
   }, [
     isInitializing,
     isLoadingRole,
     isLoggedIn,
-    user,
+    user?.role,
+    user?.tenantId,
     location.pathname,
     navigate,
   ]);
@@ -606,9 +614,8 @@ function App() {
 
             {/* Main content */}
             <main className="flex-1">
-              {/* For the tempo routes */}
-              {import.meta.env.VITE_TEMPO === "true" && useRoutes(routes)}
-
+              {/* Tempo routes */}
+              {import.meta.env.VITE_TEMPO && useRoutes(routes)}
               <Routes>
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<LoginPage />} />
@@ -849,11 +856,6 @@ function App() {
                   }
                 />
 
-                {/* Add this before the catchall route */}
-                {import.meta.env.VITE_TEMPO === "true" && (
-                  <Route path="/tempobook/*" />
-                )}
-
                 <Route
                   path="/assessments"
                   element={
@@ -866,6 +868,9 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+
+                {/* Add this before the catchall route */}
+                {import.meta.env.VITE_TEMPO && <Route path="/tempobook/*" />}
 
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
