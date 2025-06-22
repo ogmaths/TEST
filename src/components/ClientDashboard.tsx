@@ -94,6 +94,10 @@ interface JourneyProgress {
   updatedAt: string;
   journeyTypeId?: string;
   journeyTypeName?: string;
+  journeyStatus?: "active" | "completed" | "completed_early";
+  completionReason?: string;
+  completionDate?: string;
+  completedBy?: string;
 }
 
 interface AssessmentResult {

@@ -244,12 +244,15 @@ const ClientsPage: React.FC = () => {
                 </p>
               </div>
             </div>
-            <Link to="/clients/new">
-              <Button className="bg-slate-600 hover:bg-slate-700 text-white shadow-lg hover:shadow-xl transition-all duration-200">
+            <Button
+              className="bg-slate-600 hover:bg-slate-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+              asChild
+            >
+              <Link to="/clients/new" target="_blank" rel="noopener noreferrer">
                 <Plus className="h-4 w-4 mr-2" />
                 Add New Client
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           </div>
         </div>
       </div>
@@ -512,11 +515,12 @@ const ClientsPage: React.FC = () => {
                   </div>
 
                   <div className="mt-4 pt-4 border-t border-slate-100">
-                    <Link to={`/client/${client.id}`}>
-                      <Button className="w-full bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200">
-                        View Profile
-                      </Button>
-                    </Link>
+                    <Button
+                      className="w-full bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200"
+                      asChild
+                    >
+                      <Link to={`/client/${client.id}`}>View Profile</Link>
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -671,12 +675,16 @@ const ClientsPage: React.FC = () => {
               {!searchQuery &&
                 statusFilter === "all" &&
                 workerFilter === "all" && (
-                  <Link to="/clients/new">
-                    <Button className="bg-blue-600 hover:bg-blue-700">
+                  <Button className="bg-blue-600 hover:bg-blue-700" asChild>
+                    <Link
+                      to="/clients/new"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
                       <Plus className="h-4 w-4 mr-2" />
                       Add New Client
-                    </Button>
-                  </Link>
+                    </Link>
+                  </Button>
                 )}
             </CardContent>
           </Card>
