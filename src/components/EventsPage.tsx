@@ -16,10 +16,7 @@ import {
   Move,
 } from "lucide-react";
 import { useNotifications } from "@/context/NotificationContext";
-import {
-  fetchEventbriteEvents,
-  importEventbriteEvents,
-} from "@/utils/eventbriteService";
+
 import {
   Dialog,
   DialogContent,
@@ -96,10 +93,7 @@ const EventsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [events, setEvents] = useState<Event[]>([]);
   const { addNotification } = useNotifications();
-  const [eventbriteDialogOpen, setEventbriteDialogOpen] = useState(false);
-  const [eventbriteOrgId, setEventbriteOrgId] = useState("");
-  const [eventbriteToken, setEventbriteToken] = useState("");
-  const [isImporting, setIsImporting] = useState(false);
+
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [clientEmail, setClientEmail] = useState("");
@@ -294,76 +288,6 @@ const EventsPage: React.FC = () => {
             {type}
           </Badge>
         );
-    }
-  };
-
-  const handleImportEventbrite = async () => {
-    if (!eventbriteOrgId || !eventbriteToken) {
-      addNotification({
-        type: "error",
-        title: "Missing Information",
-        message: "Please enter both Organization ID and API Token",
-        priority: "high",
-      });
-      return;
-    }
-
-    setIsImporting(true);
-
-    try {
-      // Fetch events from Eventbrite
-      const fetchResult = await fetchEventbriteEvents(
-        eventbriteOrgId,
-        eventbriteToken,
-      );
-
-      if (!fetchResult.success || !fetchResult.events) {
-        addNotification({
-          type: "error",
-          title: "Import Failed",
-          message:
-            fetchResult.message || "Failed to fetch events from Eventbrite",
-          priority: "high",
-        });
-        return;
-      }
-
-      // Import events into the application
-      const importResult = await importEventbriteEvents(fetchResult.events);
-
-      if (importResult.success) {
-        addNotification({
-          type: "success",
-          title: "Events Imported",
-          message: importResult.message,
-          priority: "high",
-        });
-
-        // Refresh events list
-        const savedEvents = localStorage.getItem("events");
-        if (savedEvents) {
-          setEvents(JSON.parse(savedEvents));
-        }
-
-        setEventbriteDialogOpen(false);
-      } else {
-        addNotification({
-          type: "error",
-          title: "Import Failed",
-          message: importResult.message,
-          priority: "high",
-        });
-      }
-    } catch (error) {
-      console.error("Error importing events:", error);
-      addNotification({
-        type: "error",
-        title: "Import Failed",
-        message: "An unexpected error occurred",
-        priority: "high",
-      });
-    } finally {
-      setIsImporting(false);
     }
   };
 
@@ -684,63 +608,11 @@ const EventsPage: React.FC = () => {
             {filteredEvents.length !== 1 ? "s" : ""} found
           </p>
         </div>
-        <div className="flex gap-2">
-          <Dialog
-            open={eventbriteDialogOpen}
-            onOpenChange={setEventbriteDialogOpen}
-          >
-            <DialogTrigger asChild>
-              <Button variant="outline" className="flex items-center gap-2">
-                <Download className="h-4 w-4" /> Import from Eventbrite
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Import Eventbrite Events</DialogTitle>
-                <DialogDescription>
-                  Enter your Eventbrite credentials to import events.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="org-id">Organization ID</Label>
-                  <Input
-                    id="org-id"
-                    placeholder="123456789"
-                    value={eventbriteOrgId}
-                    onChange={(e) => setEventbriteOrgId(e.target.value)}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="api-token">API Token</Label>
-                  <Input
-                    id="api-token"
-                    type="password"
-                    placeholder="XXXXXXXXXXXXXXXX"
-                    value={eventbriteToken}
-                    onChange={(e) => setEventbriteToken(e.target.value)}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setEventbriteDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button onClick={handleImportEventbrite} disabled={isImporting}>
-                  {isImporting ? "Importing..." : "Import Events"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          <Link to="/events/new">
-            <Button className="flex items-center gap-2">
-              <Plus className="h-4 w-4" /> Create Event
-            </Button>
-          </Link>
-        </div>
+        <Link to="/events/new">
+          <Button className="flex items-center gap-2">
+            <Plus className="h-4 w-4" /> Create Event
+          </Button>
+        </Link>
       </div>
 
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-8 p-4 bg-muted/30 rounded-lg border">
@@ -891,65 +763,16 @@ const EventsPage: React.FC = () => {
               </div>
 
               <div className="border-t pt-4">
-                <div className="flex flex-col gap-3">
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      variant={event.feedbackForm ? "default" : "outline"}
-                      onClick={() => handleCreateFeedbackForm(event)}
-                      className="flex items-center gap-2 flex-1 min-w-0"
-                    >
-                      <FormInput className="h-3 w-3" />
-                      <span className="truncate">
-                        {event.feedbackForm ? "Edit Form" : "Create Form"}
-                      </span>
-                    </Button>
-
-                    {event.feedbackForm && (
-                      <div className="flex gap-2 flex-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openClientSelectionDialog(event)}
-                          className="flex items-center gap-1 flex-1"
-                        >
-                          <Users className="h-3 w-3" />
-                          <span className="hidden sm:inline">
-                            Send to Clients
-                          </span>
-                          <span className="sm:hidden">Clients</span>
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            setSelectedEvent(event);
-                            setFeedbackDialogOpen(true);
-                          }}
-                          className="flex items-center gap-1"
-                          title="Send Manual"
-                        >
-                          <FormInput className="h-3 w-3" />
-                          <span className="hidden sm:inline">Manual</span>
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-
-                  <Link
-                    to={`/events/attendance/${event.id}`}
-                    className="w-full"
+                <Link to={`/events/attendance/${event.id}`} className="w-full">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="w-full flex items-center gap-2"
                   >
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="w-full flex items-center gap-2"
-                    >
-                      <Users className="h-3 w-3" />
-                      Manage Attendees
-                    </Button>
-                  </Link>
-                </div>
+                    <Users className="h-3 w-3" />
+                    Manage Attendees
+                  </Button>
+                </Link>
               </div>
             </CardContent>
           </Card>
