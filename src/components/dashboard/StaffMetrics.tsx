@@ -169,29 +169,21 @@ const StaffMetrics: React.FC<StaffMetricsProps> = ({
   };
 
   const getMetricColor = (value: number, key: string): string => {
-    // Different metrics have different scales
-    if (key === "impactScore" || key === "clientSatisfaction") {
-      if (value >= 85) return "bg-green-500";
-      if (value >= 70) return "bg-green-400";
-      if (value >= 50) return "bg-yellow-400";
-      return "bg-red-400";
-    }
-
-    if (key === "phq9Improvement" || key === "gad7Improvement") {
-      if (value >= 30) return "bg-green-500";
-      if (value >= 20) return "bg-green-400";
-      if (value >= 10) return "bg-yellow-400";
-      return "bg-red-400";
-    }
-
-    // For count-based metrics, compare to the max value
+    // Use consistent primary brand colors matching home page
     const max = getMaxMetric(key);
-    const ratio = value / max;
+    const ratio =
+      key === "impactScore" ||
+      key === "clientSatisfaction" ||
+      key === "phq9Improvement" ||
+      key === "gad7Improvement"
+        ? value / 100
+        : value / max;
 
-    if (ratio >= 0.8) return "bg-green-500";
-    if (ratio >= 0.6) return "bg-green-400";
-    if (ratio >= 0.4) return "bg-yellow-400";
-    return "bg-red-400";
+    // Use primary color variations for consistent branding
+    if (ratio >= 0.8) return "bg-primary";
+    if (ratio >= 0.6) return "bg-primary/80";
+    if (ratio >= 0.4) return "bg-primary/60";
+    return "bg-primary/40";
   };
 
   return (
@@ -264,7 +256,9 @@ const StaffMetrics: React.FC<StaffMetricsProps> = ({
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                {getMetricIcon(selectedMetric)}
+                <span className="text-primary">
+                  {getMetricIcon(selectedMetric)}
+                </span>
                 {getMetricName(selectedMetric)} Comparison
               </CardTitle>
             </CardHeader>
@@ -297,8 +291,10 @@ const StaffMetrics: React.FC<StaffMetricsProps> = ({
                 {selectedStaff === "all" && (
                   <div className="pt-4 border-t">
                     <div className="flex justify-between">
-                      <span className="text-sm font-medium">Team Average</span>
-                      <span className="text-sm font-medium">
+                      <span className="text-sm font-medium text-primary">
+                        Team Average
+                      </span>
+                      <span className="text-sm font-medium text-primary">
                         {getAverageMetric(selectedMetric)}
                         {selectedMetric.includes("Improvement") ||
                         selectedMetric === "clientSatisfaction" ||
@@ -309,7 +305,7 @@ const StaffMetrics: React.FC<StaffMetricsProps> = ({
                     </div>
                     <div className="h-2 w-full overflow-hidden rounded-full bg-muted mt-1">
                       <div
-                        className="h-full bg-blue-500"
+                        className="h-full bg-primary"
                         style={{
                           width: `${(getAverageMetric(selectedMetric) / getMaxMetric(selectedMetric)) * 100}%`,
                         }}
@@ -325,7 +321,10 @@ const StaffMetrics: React.FC<StaffMetricsProps> = ({
         <TabsContent value="details" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Staff Detailed Metrics</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" />
+                Staff Detailed Metrics
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="rounded-md border">
@@ -348,9 +347,9 @@ const StaffMetrics: React.FC<StaffMetricsProps> = ({
                         <td className="p-2 pl-4 font-medium">{staff.name}</td>
                         <td className="p-2">
                           <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${staff.role === "admin" ? "bg-purple-100 text-purple-800" : staff.role === "support_worker" ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"}`}
+                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-primary/10 text-primary`}
                           >
-                            {staff.role}
+                            {staff.role.replace("_", " ")}
                           </span>
                         </td>
                         <td className="p-2">{staff.clientsSupported}</td>

@@ -457,7 +457,10 @@ function App() {
                             <Menu className="h-5 w-5" />
                           </Button>
                         </SheetTrigger>
-                        <SheetContent side="left" className="w-64 p-0">
+                        <SheetContent
+                          side="left"
+                          className="w-64 p-0 bg-white dark:bg-gray-900 border-r border-border shadow-lg"
+                        >
                           <div className="flex flex-col h-full">
                             <div className="p-4 border-b">
                               <div className="text-lg font-semibold">

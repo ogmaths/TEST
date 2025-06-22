@@ -245,7 +245,7 @@ const ClientsPage: React.FC = () => {
               </div>
             </div>
             <Link to="/clients/new">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200">
+              <Button className="bg-slate-600 hover:bg-slate-700 text-white shadow-lg hover:shadow-xl transition-all duration-200">
                 <Plus className="h-4 w-4 mr-2" />
                 Add New Client
               </Button>
@@ -258,41 +258,41 @@ const ClientsPage: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0 shadow-lg">
+          <Card className="bg-gradient-to-r from-teal-500 to-teal-600 text-white border-0 shadow-lg">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-blue-100 text-sm font-medium">
+                  <p className="text-teal-100 text-sm font-medium">
                     Total Clients
                   </p>
                   <p className="text-3xl font-bold">{metricsClients.length}</p>
                 </div>
-                <Users className="h-8 w-8 text-blue-200" />
+                <Users className="h-8 w-8 text-teal-200" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white border-0 shadow-lg">
+          <Card className="bg-gradient-to-r from-teal-400 to-teal-500 text-white border-0 shadow-lg">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-green-100 text-sm font-medium">
+                  <p className="text-teal-100 text-sm font-medium">
                     Active Clients
                   </p>
                   <p className="text-3xl font-bold">
                     {metricsClients.filter((c) => c.status === "Active").length}
                   </p>
                 </div>
-                <Activity className="h-8 w-8 text-green-200" />
+                <Activity className="h-8 w-8 text-teal-200" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-r from-orange-500 to-orange-600 text-white border-0 shadow-lg">
+          <Card className="bg-gradient-to-r from-teal-600 to-teal-700 text-white border-0 shadow-lg">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-orange-100 text-sm font-medium">
+                  <p className="text-teal-100 text-sm font-medium">
                     New This Month
                   </p>
                   <p className="text-3xl font-bold">
@@ -308,16 +308,16 @@ const ClientsPage: React.FC = () => {
                     }
                   </p>
                 </div>
-                <Calendar className="h-8 w-8 text-orange-200" />
+                <Calendar className="h-8 w-8 text-teal-200" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white border-0 shadow-lg">
+          <Card className="bg-gradient-to-r from-teal-300 to-teal-400 text-white border-0 shadow-lg">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-purple-100 text-sm font-medium">
+                  <p className="text-teal-100 text-sm font-medium">
                     Inactive Clients
                   </p>
                   <p className="text-3xl font-bold">
@@ -327,7 +327,7 @@ const ClientsPage: React.FC = () => {
                     }
                   </p>
                 </div>
-                <Users className="h-8 w-8 text-purple-200" />
+                <Users className="h-8 w-8 text-teal-200" />
               </div>
             </CardContent>
           </Card>
