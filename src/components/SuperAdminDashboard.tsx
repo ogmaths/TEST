@@ -1355,6 +1355,161 @@ const SuperAdminDashboard = () => {
     });
   };
 
+  // Journey Type functions
+  const handleAddJourney = () => {
+    setEditingJourney(null);
+    setJourneyForm({
+      name: "",
+      description: "",
+      stages: [
+        {
+          id: `stage-${Date.now()}`,
+          name: "Initial Stage",
+          description: "",
+          order: 1,
+          dueInDays: 0,
+          isRequired: true,
+          requiresAssessment: false,
+          type: "milestone",
+        },
+      ],
+      defaultAssessments: [],
+      assignedTenants: [],
+      isActive: true,
+    });
+    setShowJourneyDialog(true);
+  };
+
+  const handleEditJourney = (journey: JourneyType) => {
+    setEditingJourney(journey);
+    setJourneyForm({
+      name: journey.name,
+      description: journey.description,
+      stages: journey.stages,
+      defaultAssessments: journey.stages
+        .filter(
+          (stage) => stage.requiresAssessment && stage.assessmentTemplateId,
+        )
+        .map((stage) => stage.assessmentTemplateId!),
+      assignedTenants: [],
+      isActive: journey.isActive,
+    });
+    setShowJourneyDialog(true);
+  };
+
+  const handleDeleteJourney = (journeyId: string) => {
+    const updatedJourneys = journeyTypes.filter((j) => j.id !== journeyId);
+    setJourneyTypes(updatedJourneys);
+    localStorage.setItem("journeyTypes", JSON.stringify(updatedJourneys));
+
+    addNotification({
+      type: "success",
+      title: "Journey Type Deleted",
+      message: "The journey type has been deleted successfully",
+      priority: "medium",
+    });
+  };
+
+  const handleSaveJourney = () => {
+    const journey: JourneyType = {
+      id: editingJourney ? editingJourney.id : `journey-${Date.now()}`,
+      name: journeyForm.name,
+      description: journeyForm.description,
+      stages: journeyForm.stages.map((stage, index) => ({
+        ...stage,
+        order: index + 1,
+      })),
+      isActive: journeyForm.isActive,
+      createdAt: editingJourney
+        ? editingJourney.createdAt
+        : new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      organizationId: "default",
+    };
+
+    let updatedJourneys;
+    if (editingJourney) {
+      updatedJourneys = journeyTypes.map((j) =>
+        j.id === editingJourney.id ? journey : j,
+      );
+      addNotification({
+        type: "success",
+        title: "Journey Type Updated",
+        message: `${journey.name} has been updated successfully`,
+        priority: "high",
+      });
+    } else {
+      updatedJourneys = [...journeyTypes, journey];
+      addNotification({
+        type: "success",
+        title: "Journey Type Created",
+        message: `${journey.name} has been created successfully`,
+        priority: "high",
+      });
+    }
+
+    setJourneyTypes(updatedJourneys);
+    localStorage.setItem("journeyTypes", JSON.stringify(updatedJourneys));
+
+    setShowJourneyDialog(false);
+    setEditingJourney(null);
+    setJourneyForm({
+      name: "",
+      description: "",
+      stages: [],
+      defaultAssessments: [],
+      assignedTenants: [],
+      isActive: true,
+    });
+  };
+
+  const addStageToJourney = () => {
+    const newStage: JourneyStage = {
+      id: `stage-${Date.now()}`,
+      name: `Stage ${journeyForm.stages.length + 1}`,
+      description: "",
+      order: journeyForm.stages.length + 1,
+      dueInDays: 0,
+      isRequired: false,
+      requiresAssessment: false,
+      type: "milestone",
+    };
+
+    setJourneyForm((prev) => ({
+      ...prev,
+      stages: [...prev.stages, newStage],
+    }));
+  };
+
+  const removeStageFromJourney = (stageId: string) => {
+    if (journeyForm.stages.length <= 1) {
+      addNotification({
+        type: "system",
+        title: "Cannot Remove Stage",
+        message: "Journey must have at least one stage",
+        priority: "medium",
+      });
+      return;
+    }
+
+    setJourneyForm((prev) => ({
+      ...prev,
+      stages: prev.stages.filter((stage) => stage.id !== stageId),
+    }));
+  };
+
+  const updateJourneyStage = (
+    stageId: string,
+    updates: Partial<JourneyStage>,
+  ) => {
+    setJourneyForm((prev) => ({
+      ...prev,
+      stages: prev.stages.map((stage) =>
+        stage.id === stageId ? { ...stage, ...updates } : stage,
+      ),
+    }));
+  };
+
   const getTypeBadge = (type: string) => {
     switch (type) {
       case "introduction":
