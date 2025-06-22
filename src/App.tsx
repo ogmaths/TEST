@@ -38,6 +38,7 @@ import SuperAdminDashboard from "./components/SuperAdminDashboard";
 import SalesDashboard from "./components/SalesDashboard";
 import ViewAssessment from "./components/ViewAssessment";
 import AssessmentForm from "./components/AssessmentForm";
+import JourneyTypesPage from "./components/JourneyTypesPage";
 
 import ConfidentialityAgreement from "./components/ConfidentialityAgreement";
 
@@ -808,6 +809,15 @@ function App() {
                   element={
                     <SuperAdminRoute>
                       <SuperAdminDashboard />
+                    </SuperAdminRoute>
+                  }
+                />
+
+                <Route
+                  path="/journey-types"
+                  element={
+                    <SuperAdminRoute>
+                      <JourneyTypesPage />
                     </SuperAdminRoute>
                   }
                 />

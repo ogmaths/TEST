@@ -186,10 +186,27 @@ const SuperAdminDashboard = () => {
 
   // Check if user is super admin
   useEffect(() => {
-    if (tenantId === "0") {
+    console.log("🔍 SuperAdminDashboard - tenantId check:", tenantId);
+    console.log("🔍 SuperAdminDashboard - user:", user);
+
+    if (
+      tenantId === "0" ||
+      tenantId === null ||
+      tenantId === "null" ||
+      user?.role === "super_admin"
+    ) {
+      console.log("🔍 SuperAdminDashboard - Setting authenticated to true");
       setIsAuthenticated(true);
+    } else {
+      console.log(
+        "🔍 SuperAdminDashboard - Not super admin, tenantId:",
+        tenantId,
+        "user role:",
+        user?.role,
+      );
+      setIsAuthenticated(false);
     }
-  }, [tenantId]);
+  }, [tenantId, user]);
 
   // Initialize sectors and assessment data
   useEffect(() => {
@@ -1267,6 +1284,23 @@ const SuperAdminDashboard = () => {
         template.sector.toLowerCase().includes(searchQuery.toLowerCase())),
   );
 
+  // Show loading while checking authentication
+  if (tenantId === undefined || user === null) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <div className="space-y-2">
+            <p className="text-lg font-medium">Loading...</p>
+            <p className="text-sm text-muted-foreground">
+              Checking authentication
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-background">
@@ -1390,12 +1424,11 @@ const SuperAdminDashboard = () => {
           onValueChange={setActiveTab}
           className="w-full"
         >
-          <TabsList className="grid w-full max-w-5xl grid-cols-5">
+          <TabsList className="grid w-full max-w-4xl grid-cols-4">
             <TabsTrigger value="tenants">Active Tenants</TabsTrigger>
             <TabsTrigger value="users">All Users</TabsTrigger>
             <TabsTrigger value="archived">Archived Tenants</TabsTrigger>
             <TabsTrigger value="templates">Templates</TabsTrigger>
-            <TabsTrigger value="triggers">Assessment Triggers</TabsTrigger>
           </TabsList>
 
           <TabsContent value="tenants" className="mt-6">

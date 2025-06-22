@@ -424,7 +424,9 @@ const JourneyTypesPage = () => {
                                       key={index}
                                       className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800"
                                     >
-                                      {stage}
+                                      {typeof stage === "string"
+                                        ? stage
+                                        : stage.name || "Unnamed Stage"}
                                     </span>
                                   ))}
                                 {journey.stages?.length > 3 && (
@@ -444,7 +446,9 @@ const JourneyTypesPage = () => {
                                         key={index}
                                         className="text-muted-foreground"
                                       >
-                                        {name}
+                                        {typeof name === "string"
+                                          ? name
+                                          : String(name)}
                                       </div>
                                     ))
                                 ) : (
@@ -468,7 +472,9 @@ const JourneyTypesPage = () => {
                                       key={index}
                                       className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800"
                                     >
-                                      {name}
+                                      {typeof name === "string"
+                                        ? name
+                                        : String(name)}
                                     </span>
                                   ))}
                                 {assignedTenantNames.length > 2 && (
