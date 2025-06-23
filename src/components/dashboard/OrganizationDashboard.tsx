@@ -48,9 +48,20 @@ const OrganizationDashboard: React.FC = () => {
     }, 1500);
   };
 
-  const handleExportData = () => {
-    // In a real implementation, this would trigger an API call to export data
-    alert("Data export functionality would be implemented here.");
+  const handleExportData = async () => {
+    try {
+      const { generateOrganizationDashboardPDF } = await import(
+        "@/utils/pdfGenerator"
+      );
+      await generateOrganizationDashboardPDF({
+        dateRange,
+        filterArea,
+        organizationName: "Your Organization",
+      });
+    } catch (error) {
+      console.error("Failed to generate PDF:", error);
+      alert("Failed to generate PDF. Please try again.");
+    }
   };
 
   return (

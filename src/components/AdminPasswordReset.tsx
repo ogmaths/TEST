@@ -76,6 +76,7 @@ const AdminPasswordReset: React.FC<AdminPasswordResetProps> = ({
       return;
     }
 
+    // Enhanced password validation
     if (newPassword.length < 8) {
       addNotification({
         type: "error",
@@ -86,17 +87,46 @@ const AdminPasswordReset: React.FC<AdminPasswordResetProps> = ({
       return;
     }
 
+    // Check for at least one number
+    if (!/\d/.test(newPassword)) {
+      addNotification({
+        type: "error",
+        title: "Password Requirements",
+        message: "Password must contain at least one number",
+        priority: "high",
+      });
+      return;
+    }
+
+    // Check for at least one letter
+    if (!/[a-zA-Z]/.test(newPassword)) {
+      addNotification({
+        type: "error",
+        title: "Password Requirements",
+        message: "Password must contain at least one letter",
+        priority: "high",
+      });
+      return;
+    }
+
     setIsProcessing(true);
 
-    // Simulate API call to reset password
+    // Simulate API call to reset password directly in the system
     setTimeout(() => {
       setIsProcessing(false);
       setIsComplete(true);
 
+      // In a real implementation, this would:
+      // 1. Hash the new password
+      // 2. Update the user's password in the database
+      // 3. Invalidate any existing sessions for the user
+      // 4. Log the password reset action for audit purposes
+      // 5. Optionally send a notification to the user about the password change
+
       addNotification({
         type: "success",
-        title: "Password Reset",
-        message: `Password has been reset for ${userName}`,
+        title: "Password Reset Successfully",
+        message: `Password has been reset for ${userName}. The user can now login with the new password immediately.`,
         priority: "medium",
       });
     }, 1500);
@@ -211,9 +241,18 @@ const AdminPasswordReset: React.FC<AdminPasswordResetProps> = ({
                     placeholder="Confirm new password"
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Password must be at least 8 characters long.
-                </p>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p>Password requirements:</p>
+                  <ul className="list-disc pl-4 space-y-1">
+                    <li>At least 8 characters long</li>
+                    <li>Contains at least one letter</li>
+                    <li>Contains at least one number</li>
+                  </ul>
+                  <p className="text-amber-600 font-medium mt-2">
+                    ⚠️ No email will be sent - password changes immediately in
+                    the system
+                  </p>
+                </div>
               </div>
             )}
 

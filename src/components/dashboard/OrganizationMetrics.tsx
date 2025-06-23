@@ -58,7 +58,14 @@ const OrganizationMetrics: React.FC<OrganizationMetricsProps> = ({
   dateRange,
   filterArea,
 }) => {
-  // Fetch real data from localStorage
+  // Helper function to check if a date is within the selected range
+  const isWithinDateRange = (dateStr: string) => {
+    if (!dateRange || !dateStr) return true;
+    const date = new Date(dateStr);
+    return date >= dateRange.from && date <= dateRange.to;
+  };
+
+  // Fetch real data from localStorage with date filtering
   const metrics = React.useMemo(() => {
     // Get raw data from localStorage
     const clientsData = JSON.parse(localStorage.getItem("clients") || "[]");
@@ -67,33 +74,76 @@ const OrganizationMetrics: React.FC<OrganizationMetricsProps> = ({
     );
     const eventsData = JSON.parse(localStorage.getItem("events") || "[]");
 
-    // Get all interactions across all clients
+    // Filter data by date range
+    const filteredClientsData = clientsData.filter((client: any) => {
+      const matchesDate = client.joinDate
+        ? isWithinDateRange(client.joinDate)
+        : true;
+      return matchesDate;
+    });
+
+    const filteredAssessmentsData = assessmentsData.filter(
+      (assessment: any) => {
+        const matchesDate = assessment.date
+          ? isWithinDateRange(assessment.date)
+          : true;
+        return matchesDate;
+      },
+    );
+
+    const filteredEventsData = eventsData.filter((event: any) => {
+      const matchesDate = event.date ? isWithinDateRange(event.date) : true;
+      return matchesDate;
+    });
+
+    // Get all interactions across all clients with date filtering
     let allInteractions: any[] = [];
-    clientsData.forEach((client: any) => {
+    filteredClientsData.forEach((client: any) => {
       const clientInteractions = JSON.parse(
         localStorage.getItem(`interactions_${client.id}`) || "[]",
       );
-      allInteractions = [...allInteractions, ...clientInteractions];
+      const filteredInteractions = clientInteractions.filter(
+        (interaction: any) => {
+          const matchesDate = interaction.date
+            ? isWithinDateRange(interaction.date)
+            : true;
+          return matchesDate;
+        },
+      );
+      allInteractions = [...allInteractions, ...filteredInteractions];
     });
 
-    // Filter by organization if filter is applied
+    // Filter by area if filter is applied (after date filtering)
     const filteredClients =
       filterArea !== "all"
-        ? clientsData.filter((c: any) => c.area === filterArea)
-        : clientsData;
+        ? filteredClientsData.filter((c: any) => c.area === filterArea)
+        : filteredClientsData;
 
     const filteredEvents =
       filterArea !== "all"
-        ? eventsData.filter((e: any) => e.area === filterArea)
-        : eventsData;
+        ? filteredEventsData.filter((e: any) => e.area === filterArea)
+        : filteredEventsData;
 
     const filteredInteractions =
       filterArea !== "all"
         ? allInteractions.filter((i: any) => {
-            const client = clientsData.find((c: any) => c.id === i.clientId);
+            const client = filteredClientsData.find(
+              (c: any) => c.id === i.clientId,
+            );
             return client && client.area === filterArea;
           })
         : allInteractions;
+
+    // Also filter assessments by area through client association
+    const filteredAssessments =
+      filterArea !== "all"
+        ? filteredAssessmentsData.filter((a: any) => {
+            const client = filteredClientsData.find(
+              (c: any) => c.id === a.clientId,
+            );
+            return client && client.area === filterArea;
+          })
+        : filteredAssessmentsData;
 
     // Count interactions by type
     const phoneCalls = filteredInteractions.filter(
@@ -154,12 +204,12 @@ const OrganizationMetrics: React.FC<OrganizationMetricsProps> = ({
       (e: any) => e.type === "group_session",
     ).length;
 
-    // Count assessments
-    const assessmentsCompleted = assessmentsData.filter(
+    // Count assessments (using filtered data)
+    const assessmentsCompleted = filteredAssessments.filter(
       (a: any) => a.status === "completed",
     ).length;
 
-    const exitAssessments = assessmentsData.filter(
+    const exitAssessments = filteredAssessments.filter(
       (a: any) => a.type === "Exit" || a.type === "exit",
     ).length;
 

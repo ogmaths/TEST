@@ -28,6 +28,13 @@ const FeedbackMetrics: React.FC<FeedbackMetricsProps> = ({
   const [feedbackData, setFeedbackData] = useState<FeedbackData[]>([]);
   const [activeTab, setActiveTab] = useState("overall");
 
+  // Helper function to check if a date is within the selected range
+  const isWithinDateRange = (dateStr: string) => {
+    if (!dateRange || !dateStr) return true;
+    const date = new Date(dateStr);
+    return date >= dateRange.from && date <= dateRange.to;
+  };
+
   // Load feedback data from localStorage
   useEffect(() => {
     const savedFeedback = localStorage.getItem("feedback");
@@ -86,31 +93,46 @@ const FeedbackMetrics: React.FC<FeedbackMetricsProps> = ({
     }
   }, []);
 
-  // Calculate average metrics
+  // Filter feedback data by date range and area
+  const filteredFeedbackData = React.useMemo(() => {
+    return feedbackData.filter((feedback) => {
+      const matchesDate = isWithinDateRange(feedback.date);
+      // Note: We don't have area info in feedback data directly,
+      // so we'll just filter by date for now
+      return matchesDate;
+    });
+  }, [feedbackData, dateRange]);
+
+  // Calculate average metrics using filtered data
   const calculateAverage = (metric: keyof FeedbackData): number => {
-    if (feedbackData.length === 0) return 0;
-    const sum = feedbackData.reduce(
+    if (filteredFeedbackData.length === 0) return 0;
+    const sum = filteredFeedbackData.reduce(
       (acc, feedback) => acc + (feedback[metric] as number),
       0,
     );
-    return parseFloat((sum / feedbackData.length).toFixed(1));
+    return parseFloat((sum / filteredFeedbackData.length).toFixed(1));
   };
 
   const averageOverallSatisfaction = calculateAverage("overallSatisfaction");
   const averageStaffHelpfulness = calculateAverage("staffHelpfulness");
   const averageServiceQuality = calculateAverage("serviceQuality");
 
-  // Calculate satisfaction distribution
+  // Calculate satisfaction distribution using filtered data
   const satisfactionDistribution = {
-    excellent: feedbackData.filter((f) => f.overallSatisfaction === 5).length,
-    good: feedbackData.filter((f) => f.overallSatisfaction === 4).length,
-    average: feedbackData.filter((f) => f.overallSatisfaction === 3).length,
-    poor: feedbackData.filter((f) => f.overallSatisfaction === 2).length,
-    veryPoor: feedbackData.filter((f) => f.overallSatisfaction === 1).length,
+    excellent: filteredFeedbackData.filter((f) => f.overallSatisfaction === 5)
+      .length,
+    good: filteredFeedbackData.filter((f) => f.overallSatisfaction === 4)
+      .length,
+    average: filteredFeedbackData.filter((f) => f.overallSatisfaction === 3)
+      .length,
+    poor: filteredFeedbackData.filter((f) => f.overallSatisfaction === 2)
+      .length,
+    veryPoor: filteredFeedbackData.filter((f) => f.overallSatisfaction === 1)
+      .length,
   };
 
   // Calculate percentages
-  const totalFeedback = feedbackData.length;
+  const totalFeedback = filteredFeedbackData.length;
   const excellentPercentage =
     (satisfactionDistribution.excellent / totalFeedback) * 100;
   const goodPercentage = (satisfactionDistribution.good / totalFeedback) * 100;
@@ -260,7 +282,7 @@ const FeedbackMetrics: React.FC<FeedbackMetricsProps> = ({
 
           <TabsContent value="comments" className="pt-4">
             <div className="space-y-4">
-              {feedbackData
+              {filteredFeedbackData
                 .sort(
                   (a, b) =>
                     new Date(b.date).getTime() - new Date(a.date).getTime(),

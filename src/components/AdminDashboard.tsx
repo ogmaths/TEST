@@ -61,6 +61,8 @@ import {
   Download,
   TrendingUp,
   Save,
+  Eye,
+  LogIn,
 } from "lucide-react";
 import { useUser } from "@/context/UserContext";
 import { User, Organization, JourneyType, JourneyStage } from "@/types/admin";
@@ -75,6 +77,16 @@ import AreaBreakdown from "./dashboard/AreaBreakdown";
 import StaffMetrics from "./dashboard/StaffMetrics";
 import FeedbackMetrics from "./dashboard/FeedbackMetrics";
 import DatePickerWithRange from "@/components/ui/date-picker-with-range";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import JourneyStageManager from "@/components/JourneyStageManager";
 
 interface Event {
   id: string;
@@ -88,6 +100,342 @@ interface Event {
   attendees: any[];
   createdAt: string;
 }
+
+interface ClientWithJourney {
+  id: string;
+  name: string;
+  email: string;
+  status: string;
+  caseWorker?: string;
+  organizationId?: string;
+  tenantId?: string;
+  journeyTypeId?: string;
+  journeyTypeName?: string;
+  currentStage?: number;
+  journeyStatus?: "active" | "completed" | "completed_early";
+  stages?: string[];
+  completedStages?: number[];
+  lastActivity?: string;
+}
+
+// Client Management Table Component
+const ClientManagementTable: React.FC = () => {
+  const { user } = useUser();
+  const { addNotification } = useNotifications();
+  const navigate = useNavigate();
+
+  const [clientSearchQuery, setClientSearchQuery] = useState("");
+  const [journeyTypeFilter, setJourneyTypeFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [clientsWithJourney, setClientsWithJourney] = useState<
+    ClientWithJourney[]
+  >([]);
+  const [availableJourneyTypes, setAvailableJourneyTypes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Load clients and journey data
+  useEffect(() => {
+    loadClientsWithJourneyData();
+    loadJourneyTypes();
+  }, [user]);
+
+  const loadJourneyTypes = () => {
+    const savedJourneyTypes = JSON.parse(
+      localStorage.getItem("journeyTypes") || "[]",
+    );
+    setAvailableJourneyTypes(savedJourneyTypes);
+  };
+
+  const loadClientsWithJourneyData = async () => {
+    try {
+      setLoading(true);
+
+      // Load clients from localStorage
+      const storedClients = JSON.parse(localStorage.getItem("clients") || "[]");
+
+      // Filter clients based on user's permissions
+      let filteredClients = storedClients;
+      if (user?.role !== "super_admin" && user?.tenantId !== "0") {
+        filteredClients = storedClients.filter((client: any) => {
+          return (
+            client.tenantId === user?.tenantId ||
+            client.organizationId === user?.organizationId
+          );
+        });
+      }
+
+      // Enhance clients with journey progress data
+      const clientsWithJourneyData = await Promise.all(
+        filteredClients.map(async (client: any) => {
+          // Load journey progress for each client
+          const journeyProgressKey = `journey_progress_${client.id}`;
+          const storedProgress = JSON.parse(
+            localStorage.getItem(journeyProgressKey) || "null",
+          );
+
+          let journeyData = {
+            journeyTypeId: undefined,
+            journeyTypeName: "Not Assigned",
+            currentStage: 0,
+            journeyStatus: "active" as const,
+            stages: [],
+            completedStages: [],
+          };
+
+          if (storedProgress) {
+            journeyData = {
+              journeyTypeId: storedProgress.journeyTypeId,
+              journeyTypeName: storedProgress.journeyTypeName || "Default",
+              currentStage: storedProgress.currentStage || 0,
+              journeyStatus: storedProgress.journeyStatus || "active",
+              stages: storedProgress.stages || [],
+              completedStages: storedProgress.completedStages || [],
+            };
+          }
+
+          return {
+            id: client.id,
+            name: client.name,
+            email: client.email,
+            status: client.status || "active",
+            caseWorker: client.caseWorker,
+            organizationId: client.organizationId,
+            tenantId: client.tenantId,
+            lastActivity: client.lastActivity || new Date().toISOString(),
+            ...journeyData,
+          };
+        }),
+      );
+
+      setClientsWithJourney(clientsWithJourneyData);
+    } catch (error) {
+      console.error("Error loading clients with journey data:", error);
+      addNotification({
+        type: "system",
+        title: "Error",
+        message: "Failed to load client data",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filter clients based on search and filters
+  const filteredClients = clientsWithJourney.filter((client) => {
+    const matchesSearch = client.name
+      .toLowerCase()
+      .includes(clientSearchQuery.toLowerCase());
+
+    const matchesJourneyType =
+      journeyTypeFilter === "all" ||
+      client.journeyTypeId === journeyTypeFilter ||
+      (journeyTypeFilter === "unassigned" && !client.journeyTypeId);
+
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "active" && client.journeyStatus === "active") ||
+      (statusFilter === "completed" &&
+        (client.journeyStatus === "completed" ||
+          client.journeyStatus === "completed_early"));
+
+    return matchesSearch && matchesJourneyType && matchesStatus;
+  });
+
+  const getCurrentStageName = (client: ClientWithJourney) => {
+    if (!client.stages || client.stages.length === 0) {
+      return "No stages defined";
+    }
+
+    if (
+      client.journeyStatus === "completed" ||
+      client.journeyStatus === "completed_early"
+    ) {
+      return "Journey Completed";
+    }
+
+    const currentStageIndex = client.currentStage || 0;
+    return client.stages[currentStageIndex] || "Unknown Stage";
+  };
+
+  const getStatusBadge = (client: ClientWithJourney) => {
+    if (
+      client.journeyStatus === "completed" ||
+      client.journeyStatus === "completed_early"
+    ) {
+      return (
+        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800">
+          Completed
+        </span>
+      );
+    }
+
+    return (
+      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800">
+        Active
+      </span>
+    );
+  };
+
+  const handleViewClient = (clientId: string) => {
+    navigate(`/client/${clientId}`);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <span className="ml-2 text-gray-600">Loading clients...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Search and Filters */}
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input
+            placeholder="Search clients by name..."
+            className="pl-10"
+            value={clientSearchQuery}
+            onChange={(e) => setClientSearchQuery(e.target.value)}
+          />
+        </div>
+
+        <Select value={journeyTypeFilter} onValueChange={setJourneyTypeFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Filter by Journey Type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Journey Types</SelectItem>
+            <SelectItem value="unassigned">Unassigned</SelectItem>
+            {availableJourneyTypes.map((journeyType) => (
+              <SelectItem key={journeyType.id} value={journeyType.id}>
+                {journeyType.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Filter by Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Results count */}
+      <div className="flex items-center justify-between text-sm text-gray-600">
+        <span>
+          Showing {filteredClients.length} of {clientsWithJourney.length}{" "}
+          clients
+          {clientSearchQuery && ` for "${clientSearchQuery}"`}
+        </span>
+        {(clientSearchQuery ||
+          journeyTypeFilter !== "all" ||
+          statusFilter !== "all") && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setClientSearchQuery("");
+              setJourneyTypeFilter("all");
+              setStatusFilter("all");
+            }}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            Clear filters
+          </Button>
+        )}
+      </div>
+
+      {/* Client Table */}
+      {filteredClients.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <p className="text-lg font-medium mb-2">
+            {clientSearchQuery ||
+            journeyTypeFilter !== "all" ||
+            statusFilter !== "all"
+              ? "No clients found"
+              : "No clients available"}
+          </p>
+          <p className="text-sm">
+            {clientSearchQuery ||
+            journeyTypeFilter !== "all" ||
+            statusFilter !== "all"
+              ? "Try adjusting your search or filter criteria"
+              : "Clients will appear here once they are added to the system"}
+          </p>
+        </div>
+      ) : (
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Client Name</TableHead>
+                <TableHead>Assigned Worker</TableHead>
+                <TableHead>Journey Type</TableHead>
+                <TableHead>Current Stage</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredClients.map((client) => (
+                <TableRow key={client.id} className="hover:bg-gray-50">
+                  <TableCell>
+                    <div className="font-medium">{client.name}</div>
+                    <div className="text-sm text-gray-500">{client.email}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm">
+                      {client.caseWorker || "Not assigned"}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm">
+                      {client.journeyTypeName || "Not assigned"}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm">{getCurrentStageName(client)}</div>
+                    {client.stages &&
+                      client.stages.length > 0 &&
+                      client.journeyStatus === "active" && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          Stage {(client.currentStage || 0) + 1} of{" "}
+                          {client.stages.length}
+                        </div>
+                      )}
+                  </TableCell>
+                  <TableCell>{getStatusBadge(client)}</TableCell>
+                  <TableCell>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewClient(client.id)}
+                      className="flex items-center gap-2"
+                    >
+                      <Eye className="h-4 w-4" />
+                      View
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -155,6 +503,9 @@ const AdminDashboard = () => {
   const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [organizationFilter, setOrganizationFilter] = useState<string>("all");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<any>(null);
   const [showDeleteUserDialog, setShowDeleteUserDialog] = useState(false);
@@ -846,108 +1197,119 @@ const AdminDashboard = () => {
   const handleStaffFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation
-    if (!staffFormData.name.trim()) {
-      addNotification({
-        type: "error",
-        title: "Validation Error",
-        message: "Name is required",
-        priority: "high",
-      });
-      return;
-    }
+    try {
+      // Validation
+      if (!staffFormData.name.trim()) {
+        addNotification({
+          type: "error",
+          title: "Validation Error",
+          message: "Name is required",
+          priority: "high",
+        });
+        return;
+      }
 
-    if (!staffFormData.email.trim()) {
-      addNotification({
-        type: "error",
-        title: "Validation Error",
-        message: "Email is required",
-        priority: "high",
-      });
-      return;
-    }
+      if (!staffFormData.email.trim()) {
+        addNotification({
+          type: "error",
+          title: "Validation Error",
+          message: "Email is required",
+          priority: "high",
+        });
+        return;
+      }
 
-    // Email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(staffFormData.email)) {
-      addNotification({
-        type: "error",
-        title: "Validation Error",
-        message: "Please enter a valid email address",
-        priority: "high",
-      });
-      return;
-    }
+      // Email format validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(staffFormData.email)) {
+        addNotification({
+          type: "error",
+          title: "Validation Error",
+          message: "Please enter a valid email address",
+          priority: "high",
+        });
+        return;
+      }
 
-    // Check for duplicate email (excluding current user if editing)
-    const existingUser = users.find(
-      (u) =>
-        u.email.toLowerCase() === staffFormData.email.toLowerCase() &&
-        u.id !== selectedUser?.id,
-    );
-
-    if (existingUser) {
-      addNotification({
-        type: "error",
-        title: "Validation Error",
-        message: "A user with this email already exists",
-        priority: "high",
-      });
-      return;
-    }
-
-    if (selectedUser) {
-      // Update existing staff
-      const updatedUsers = users.map((u) =>
-        u.id === selectedUser.id
-          ? {
-              ...u,
-              name: staffFormData.name.trim(),
-              email: staffFormData.email.trim().toLowerCase(),
-              role: staffFormData.role,
-              area: staffFormData.area,
-            }
-          : u,
+      // Check for duplicate email (excluding current user if editing)
+      const existingUser = users.find(
+        (u) =>
+          u.email.toLowerCase() === staffFormData.email.toLowerCase() &&
+          u.id !== selectedUser?.id,
       );
-      setUsers(updatedUsers);
 
-      addNotification({
-        type: "success",
-        title: "User Updated",
-        message: `${staffFormData.name} has been updated successfully`,
-        priority: "high",
+      if (existingUser) {
+        addNotification({
+          type: "error",
+          title: "Validation Error",
+          message: "A user with this email already exists",
+          priority: "high",
+        });
+        return;
+      }
+
+      if (selectedUser) {
+        // Update existing staff
+        const updatedUsers = users.map((u) =>
+          u.id === selectedUser.id
+            ? {
+                ...u,
+                name: staffFormData.name.trim(),
+                email: staffFormData.email.trim().toLowerCase(),
+                role: staffFormData.role,
+                area: staffFormData.area,
+              }
+            : u,
+        );
+        setUsers(updatedUsers);
+
+        addNotification({
+          type: "success",
+          title: "User Updated",
+          message: `${staffFormData.name} has been updated successfully`,
+          priority: "high",
+        });
+      } else {
+        // Add new staff
+        const newStaff: User = {
+          id: Date.now().toString(),
+          name: staffFormData.name.trim(),
+          email: staffFormData.email.trim().toLowerCase(),
+          role: staffFormData.role,
+          lastLogin: new Date().toISOString(),
+          status: "active",
+          organizationId: user?.organizationId || "1",
+          area: staffFormData.area,
+        };
+
+        setUsers([...users, newStaff]);
+
+        addNotification({
+          type: "success",
+          title: "User Added",
+          message: `${newStaff.name} has been added successfully`,
+          priority: "high",
+        });
+      }
+
+      setShowStaffDialog(false);
+      setSelectedUser(null);
+      setStaffFormData({
+        name: "",
+        email: "",
+        role: "support_worker",
+        area: "",
       });
-    } else {
-      // Add new staff
-      const newStaff: User = {
-        id: Date.now().toString(),
-        name: staffFormData.name.trim(),
-        email: staffFormData.email.trim().toLowerCase(),
-        role: staffFormData.role,
-        lastLogin: new Date().toISOString(),
-        status: "active",
-        organizationId: user?.organizationId || "1",
-        area: staffFormData.area,
-      };
-
-      setUsers([...users, newStaff]);
-
+    } catch (error) {
+      console.error("Error in handleStaffFormSubmit:", error);
       addNotification({
-        type: "success",
-        title: "User Added",
-        message: `${newStaff.name} has been added successfully`,
+        type: "error",
+        title: "Error",
+        message:
+          "An error occurred while processing the form. Please try again.",
         priority: "high",
       });
     }
-
-    setShowStaffDialog(false);
-    setSelectedUser(null);
-    setStaffFormData({
-      name: "",
-      email: "",
-      role: "support_worker",
-      area: "",
-    });
   };
 
   const handleAreaAssignment = () => {
@@ -988,6 +1350,95 @@ const AdminDashboard = () => {
       type: "client",
     });
     setShowPasswordReset(true);
+  };
+
+  const handleLoginAsUser = (userItem: User) => {
+    // Check if current user has permission to login as other users
+    if (user?.role !== "super_admin") {
+      addNotification({
+        type: "error",
+        title: "Access Denied",
+        message: "Only super administrators can login as other users",
+        priority: "high",
+      });
+      return;
+    }
+
+    // Simulate login as user functionality
+    addNotification({
+      type: "info",
+      title: "Login as User",
+      message: `Logging in as ${userItem.name}. This feature would redirect to their dashboard.`,
+      priority: "medium",
+    });
+
+    // In a real implementation, this would:
+    // 1. Create a temporary session for the target user
+    // 2. Store the original admin session for later restoration
+    // 3. Redirect to the user's appropriate dashboard
+    // 4. Show a banner indicating admin impersonation mode
+  };
+
+  const canResetPassword = (targetUser: User) => {
+    // Super admin can reset anyone's password
+    if (user?.role === "super_admin") return true;
+
+    // Admin can reset passwords within their organization, but not other admins/super admins
+    if (user?.role === "admin" || user?.role === "org_admin") {
+      if (targetUser.organizationId !== user?.organizationId) return false;
+      if (targetUser.role === "admin" || targetUser.role === "super_admin")
+        return false;
+      return true;
+    }
+
+    // Managers can only reset support worker passwords in their organization
+    if (user?.role === "manager") {
+      if (targetUser.organizationId !== user?.organizationId) return false;
+      if (targetUser.role !== "support_worker") return false;
+      return true;
+    }
+
+    return false;
+  };
+
+  const canEditUser = (targetUser: User) => {
+    // Super admin can edit anyone
+    if (user?.role === "super_admin") return true;
+
+    // Admin can edit users within their organization, but not other admins/super admins
+    if (user?.role === "admin" || user?.role === "org_admin") {
+      if (targetUser.organizationId !== user?.organizationId) return false;
+      if (targetUser.role === "admin" || targetUser.role === "super_admin")
+        return false;
+      return true;
+    }
+
+    // Managers can only edit support workers in their organization
+    if (user?.role === "manager") {
+      if (targetUser.organizationId !== user?.organizationId) return false;
+      if (targetUser.role !== "support_worker") return false;
+      return true;
+    }
+
+    return false;
+  };
+
+  const canDeleteUser = (targetUser: User) => {
+    // Super admin can delete anyone except themselves
+    if (user?.role === "super_admin") {
+      return targetUser.id !== user.id;
+    }
+
+    // Admin can delete users within their organization, but not other admins/super admins
+    if (user?.role === "admin" || user?.role === "org_admin") {
+      if (targetUser.organizationId !== user?.organizationId) return false;
+      if (targetUser.role === "admin" || targetUser.role === "super_admin")
+        return false;
+      if (targetUser.id === user.id) return false; // Can't delete themselves
+      return true;
+    }
+
+    return false;
   };
 
   const handleSignOut = () => {
@@ -1189,11 +1640,45 @@ const AdminDashboard = () => {
     });
   };
 
-  const filteredUsers = users.filter(
-    (user) =>
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  const filteredUsers = users.filter((userItem) => {
+    const matchesSearch =
+      userItem.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      userItem.email.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesRole = roleFilter === "all" || userItem.role === roleFilter;
+
+    const matchesStatus =
+      statusFilter === "all" || userItem.status === statusFilter;
+
+    const matchesOrganization =
+      organizationFilter === "all" ||
+      userItem.organizationId === organizationFilter;
+
+    return matchesSearch && matchesRole && matchesStatus && matchesOrganization;
+  });
+
+  // Get unique organizations for filter
+  const availableOrganizations = Array.from(
+    new Set(users.map((u) => u.organizationId).filter(Boolean)),
+  ).map((orgId) => {
+    // Mock organization names - in real app this would come from organizations table
+    const orgNames: { [key: string]: string } = {
+      "1": "B3 Living",
+      "2": "Parents1st",
+      "3": "Demo Organization",
+    };
+    return { id: orgId, name: orgNames[orgId] || `Organization ${orgId}` };
+  });
+
+  const getOrganizationName = (organizationId?: string) => {
+    if (!organizationId) return "No Organization";
+    const orgNames: { [key: string]: string } = {
+      "1": "B3 Living",
+      "2": "Parents1st",
+      "3": "Demo Organization",
+    };
+    return orgNames[organizationId] || `Organization ${organizationId}`;
+  };
 
   const filteredClients = clients.filter(
     (client) =>
@@ -1333,609 +1818,719 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="container mx-auto p-4 md:p-6">
-        <div className="flex justify-end mb-4">
-          <Button
-            variant="outline"
-            onClick={handleSignOut}
-            className="flex items-center gap-2"
-          >
-            <LogOut className="h-4 w-4" />
-            Sign Out
-          </Button>
-        </div>
-        <div className="flex gap-6">
-          {/* Left sidebar with vertical tabs */}
-          <div className="w-64 shrink-0">
-            <div className="bg-card rounded-lg border shadow-sm">
-              <div className="p-2">
-                {/* Settings/Manage Section */}
-                <div className="mt-4 mb-2 px-3">
-                  <button
-                    onClick={() => setManageSectionOpen(!manageSectionOpen)}
-                    className="flex items-center gap-2 w-full text-left"
-                  >
-                    <Settings className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium text-muted-foreground">
-                      Manage
-                    </span>
-                    <ChevronDown
-                      className={`h-4 w-4 ml-auto transition-transform ${manageSectionOpen ? "rotate-180" : ""}`}
-                    />
-                  </button>
-                </div>
-
-                {manageSectionOpen && (
-                  <div className="space-y-1 pl-2">
-                    <div
-                      className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "organization" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                      onClick={() => setActiveTab("organization")}
+      <ScrollArea className="h-screen">
+        <main className="container mx-auto p-4 md:p-6">
+          <div className="flex justify-end mb-4">
+            <Button
+              variant="outline"
+              onClick={handleSignOut}
+              className="flex items-center gap-2"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign Out
+            </Button>
+          </div>
+          <div className="flex gap-6">
+            {/* Left sidebar with vertical tabs */}
+            <div className="w-64 shrink-0">
+              <div className="bg-card rounded-lg border shadow-sm">
+                <div className="p-2">
+                  {/* Settings/Manage Section */}
+                  <div className="mt-4 mb-2 px-3">
+                    <button
+                      onClick={() => setManageSectionOpen(!manageSectionOpen)}
+                      className="flex items-center gap-2 w-full text-left"
                     >
-                      <Award className="h-4 w-4" />
-                      <span className="font-medium">Organization</span>
-                    </div>
-
-                    <div
-                      className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "areas" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                      onClick={() => setActiveTab("areas")}
-                    >
-                      <BarChart2 className="h-4 w-4" />
-                      <span className="font-medium">Area</span>
-                    </div>
-
-                    <div
-                      className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "users" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                      onClick={() => setActiveTab("users")}
-                    >
-                      <Users className="h-4 w-4" />
-                      <span className="font-medium">Users</span>
-                    </div>
-                    <div
-                      className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "clients" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                      onClick={() => setActiveTab("clients")}
-                    >
-                      <UserPlus className="h-4 w-4" />
-                      <span className="font-medium">Clients</span>
-                    </div>
-                    <div
-                      className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "journey-types" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                      onClick={() => setActiveTab("journey-types")}
-                    >
-                      <TrendingUp className="h-4 w-4" />
-                      <span className="font-medium">Journey Types</span>
-                    </div>
-                    <div
-                      className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "events" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                      onClick={() => setActiveTab("events")}
-                    >
-                      <Calendar className="h-4 w-4" />
-                      <span className="font-medium">Events</span>
-                    </div>
-                    <div
-                      className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "assessments" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                      onClick={() => setActiveTab("assessments")}
-                    >
-                      <Edit className="h-4 w-4" />
-                      <span className="font-medium">Assessments</span>
-                    </div>
+                      <Settings className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium text-muted-foreground">
+                        Manage
+                      </span>
+                      <ChevronDown
+                        className={`h-4 w-4 ml-auto transition-transform ${manageSectionOpen ? "rotate-180" : ""}`}
+                      />
+                    </button>
                   </div>
-                )}
+
+                  {manageSectionOpen && (
+                    <div className="space-y-1 pl-2">
+                      <div
+                        className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "organization" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                        onClick={() => setActiveTab("organization")}
+                      >
+                        <Award className="h-4 w-4" />
+                        <span className="font-medium">Organization</span>
+                      </div>
+
+                      <div
+                        className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "areas" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                        onClick={() => setActiveTab("areas")}
+                      >
+                        <BarChart2 className="h-4 w-4" />
+                        <span className="font-medium">Area</span>
+                      </div>
+
+                      <div
+                        className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "users" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                        onClick={() => setActiveTab("users")}
+                      >
+                        <Users className="h-4 w-4" />
+                        <span className="font-medium">Users</span>
+                      </div>
+                      <div
+                        className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "clients" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                        onClick={() => setActiveTab("clients")}
+                      >
+                        <UserPlus className="h-4 w-4" />
+                        <span className="font-medium">Clients</span>
+                      </div>
+                      <div
+                        className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "journey-types" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                        onClick={() => setActiveTab("journey-types")}
+                      >
+                        <TrendingUp className="h-4 w-4" />
+                        <span className="font-medium">Journey Types</span>
+                      </div>
+                      <div
+                        className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "events" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                        onClick={() => setActiveTab("events")}
+                      >
+                        <Calendar className="h-4 w-4" />
+                        <span className="font-medium">Events</span>
+                      </div>
+                      <div
+                        className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer mb-1 ${activeTab === "assessments" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                        onClick={() => setActiveTab("assessments")}
+                      >
+                        <Edit className="h-4 w-4" />
+                        <span className="font-medium">Assessments</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Main content area */}
-          <div className="flex-1">
-            {activeTab === "organization" && (
-              <div className="space-y-6">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <div>
-                    <h1 className="text-3xl font-bold">
-                      {user?.role === "manager"
-                        ? "Management Dashboard"
-                        : "Organization Dashboard"}
-                    </h1>
-                    <p className="text-muted-foreground">
-                      {user?.role === "manager"
-                        ? `Managing ${user?.organizationName || "your organization"}'s activities and data`
-                        : "Comprehensive overview of your organization's activities and impact"}
-                    </p>
+            {/* Main content area */}
+            <div className="flex-1">
+              {activeTab === "organization" && (
+                <div className="space-y-6">
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                      <h1 className="text-3xl font-bold">
+                        {user?.role === "manager"
+                          ? "Management Dashboard"
+                          : "Organization Dashboard"}
+                      </h1>
+                      <p className="text-muted-foreground">
+                        {user?.role === "manager"
+                          ? `Managing ${user?.organizationName || "your organization"}'s activities and data`
+                          : "Comprehensive overview of your organization's activities and impact"}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col md:flex-row gap-2">
+                      <div className="flex items-center gap-2">
+                        <DatePickerWithRange className="w-auto" />
+                      </div>
+
+                      <Select value={filterArea} onValueChange={setFilterArea}>
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue placeholder="Filter by area" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Areas</SelectItem>
+                          <SelectItem value="north">North District</SelectItem>
+                          <SelectItem value="south">South District</SelectItem>
+                          <SelectItem value="east">East District</SelectItem>
+                          <SelectItem value="west">West District</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={handleRefreshData}
+                          disabled={isRefreshing}
+                        >
+                          <RefreshCw
+                            className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+                          />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={handleExportData}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="flex flex-col md:flex-row gap-2">
-                    <div className="flex items-center gap-2">
-                      <DatePickerWithRange className="w-auto" />
-                    </div>
+                  <Tabs value={orgActiveTab} onValueChange={setOrgActiveTab}>
+                    <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 lg:w-auto">
+                      <TabsTrigger value="overview">Overview</TabsTrigger>
+                      <TabsTrigger value="areas">Areas</TabsTrigger>
+                      <TabsTrigger value="staff">Staff</TabsTrigger>
+                    </TabsList>
 
-                    <Select value={filterArea} onValueChange={setFilterArea}>
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Filter by area" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Areas</SelectItem>
-                        <SelectItem value="north">North District</SelectItem>
-                        <SelectItem value="south">South District</SelectItem>
-                        <SelectItem value="east">East District</SelectItem>
-                        <SelectItem value="west">West District</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <TabsContent value="overview" className="space-y-6 mt-6">
+                      {/* Key Performance Indicators */}
+                      <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+                        <Card>
+                          <CardContent className="pt-6">
+                            <div className="flex flex-col items-center justify-center text-center space-y-2">
+                              <Users className="h-8 w-8 text-primary" />
+                              <h3 className="text-2xl font-bold">
+                                {
+                                  JSON.parse(
+                                    localStorage.getItem("clients") || "[]",
+                                  ).filter((c: any) => c.status === "active")
+                                    .length
+                                }
+                              </h3>
+                              <p className="text-sm text-muted-foreground">
+                                Total Active Clients
+                              </p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
 
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={handleRefreshData}
-                        disabled={isRefreshing}
-                      >
-                        <RefreshCw
-                          className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
-                        />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={handleExportData}
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                <Tabs value={orgActiveTab} onValueChange={setOrgActiveTab}>
-                  <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 lg:w-auto">
-                    <TabsTrigger value="overview">Overview</TabsTrigger>
-                    <TabsTrigger value="areas">Areas</TabsTrigger>
-                    <TabsTrigger value="staff">Staff</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="overview" className="space-y-6 mt-6">
-                    {/* Key Performance Indicators */}
-                    <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-                      <Card>
-                        <CardContent className="pt-6">
-                          <div className="flex flex-col items-center justify-center text-center space-y-2">
-                            <Users className="h-8 w-8 text-primary" />
-                            <h3 className="text-2xl font-bold">
-                              {
-                                JSON.parse(
-                                  localStorage.getItem("clients") || "[]",
-                                ).filter((c: any) => c.status === "active")
-                                  .length
-                              }
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                              Total Active Clients
-                            </p>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-
-                    <OrganizationMetrics
-                      dateRange={dateRange}
-                      filterArea={filterArea}
-                    />
-
-                    <div className="mt-6">
-                      <FeedbackMetrics
+                      <OrganizationMetrics
                         dateRange={dateRange}
                         filterArea={filterArea}
                       />
-                    </div>
-                  </TabsContent>
 
-                  <TabsContent value="areas" className="space-y-6 mt-6">
-                    <AreaBreakdown />
-                  </TabsContent>
-
-                  <TabsContent value="staff" className="space-y-6 mt-6">
-                    <StaffMetrics
-                      dateRange={dateRange}
-                      filterArea={filterArea}
-                    />
-                  </TabsContent>
-                </Tabs>
-              </div>
-            )}
-
-            {activeTab === "areas" && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Area</CardTitle>
-                  <CardDescription>
-                    Manage geographical areas for your organization
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <AreaBreakdown
-                    isManagementView={true}
-                    hidePerformanceMetrics={true}
-                  />
-                </CardContent>
-              </Card>
-            )}
-
-            {activeTab === "users" && (
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>User Management</CardTitle>
-                    <CardDescription>
-                      Manage user accounts and permissions
-                    </CardDescription>
-                  </div>
-                  <Button
-                    onClick={() => {
-                      setSelectedUser(null);
-                      setStaffFormData({
-                        name: "",
-                        email: "",
-                        role: "support_worker",
-                        area: "",
-                      });
-                      setShowStaffDialog(true);
-                    }}
-                    className="flex items-center gap-2"
-                  >
-                    <UserPlus className="h-4 w-4" /> Add User
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  <div className="mb-4">
-                    <div className="relative">
-                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search users by name or email..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-8"
-                      />
-                    </div>
-                  </div>
-
-                  {filteredUsers.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p className="text-lg font-medium mb-2">No users found</p>
-                      <p className="text-sm">
-                        {searchQuery
-                          ? "Try adjusting your search terms"
-                          : "Get started by adding your first user"}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="rounded-md border">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b bg-muted/50 text-left">
-                            <th className="p-3 pl-4 font-medium">Name</th>
-                            <th className="p-3 font-medium">Email</th>
-                            <th className="p-3 font-medium">Role</th>
-                            <th className="p-3 font-medium">Area</th>
-                            <th className="p-3 font-medium">Status</th>
-                            <th className="p-3 font-medium">Last Login</th>
-                            <th className="p-3 text-right pr-4 font-medium">
-                              Actions
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredUsers.map((userItem) => (
-                            <tr
-                              key={userItem.id}
-                              className="border-b hover:bg-muted/25 transition-colors"
-                            >
-                              <td className="p-3 pl-4">
-                                <div className="font-medium">
-                                  {userItem.name}
-                                </div>
-                              </td>
-                              <td className="p-3">
-                                <div className="text-muted-foreground">
-                                  {userItem.email}
-                                </div>
-                              </td>
-                              <td className="p-3">
-                                <span
-                                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                                    userItem.role === "admin"
-                                      ? "bg-purple-100 text-purple-800"
-                                      : userItem.role === "org_admin"
-                                        ? "bg-indigo-100 text-indigo-800"
-                                        : userItem.role === "support_worker"
-                                          ? "bg-blue-100 text-blue-800"
-                                          : userItem.role === "manager"
-                                            ? "bg-green-100 text-green-800"
-                                            : "bg-gray-100 text-gray-800"
-                                  }`}
-                                >
-                                  {userItem.role
-                                    .replace("_", " ")
-                                    .replace(/\b\w/g, (l) => l.toUpperCase())}
-                                </span>
-                              </td>
-                              <td className="p-3">
-                                <span className="text-sm text-muted-foreground">
-                                  {userItem.area || "Not assigned"}
-                                </span>
-                              </td>
-                              <td className="p-3">
-                                <span
-                                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                                    userItem.status === "active"
-                                      ? "bg-green-100 text-green-800"
-                                      : userItem.status === "inactive"
-                                        ? "bg-red-100 text-red-800"
-                                        : "bg-yellow-100 text-yellow-800"
-                                  }`}
-                                >
-                                  {userItem.status.charAt(0).toUpperCase() +
-                                    userItem.status.slice(1)}
-                                </span>
-                              </td>
-                              <td className="p-3">
-                                <div className="text-sm text-muted-foreground">
-                                  {new Date(
-                                    userItem.lastLogin,
-                                  ).toLocaleDateString("en-US", {
-                                    year: "numeric",
-                                    month: "short",
-                                    day: "numeric",
-                                  })}
-                                </div>
-                              </td>
-                              <td className="p-3 text-right">
-                                <div className="flex justify-end gap-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      handleEditStaff(userItem);
-                                    }}
-                                    className="h-8 px-2"
-                                  >
-                                    <Edit className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      handleChangeRole(userItem);
-                                    }}
-                                    className="h-8 px-2"
-                                  >
-                                    <Settings className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      handleResetPassword(
-                                        userItem.id,
-                                        userItem.email,
-                                        userItem.name,
-                                      );
-                                    }}
-                                    className="h-8 px-2"
-                                  >
-                                    <KeyRound className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 px-2"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      handleDeleteUser(userItem);
-                                    }}
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {activeTab === "clients" && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Client Management</CardTitle>
-                  <CardDescription>
-                    Manage client accounts and data
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex justify-center py-8">
-                    <Link to="/clients">
-                      <Button
-                        variant="outline"
-                        className="flex items-center gap-2"
-                      >
-                        <Users className="h-4 w-4" /> View All Clients
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {activeTab === "journey-types" && (
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Journey Progress Tracker Types</CardTitle>
-                    <CardDescription>
-                      Manage journey types and their stages for client progress
-                      tracking
-                    </CardDescription>
-                  </div>
-                  <Button
-                    onClick={openNewJourneyTypeForm}
-                    className="flex items-center gap-2"
-                  >
-                    <Plus className="h-4 w-4" /> Add Journey Type
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {journeyTypes.map((journeyType) => (
-                      <div
-                        key={journeyType.id}
-                        className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-lg">
-                              {journeyType.name}
-                            </h3>
-                            <p className="text-gray-600 mt-1">
-                              {journeyType.description}
-                            </p>
-                            <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                              <span>{journeyType.stages.length} stages</span>
-                              <span>
-                                Status:{" "}
-                                {journeyType.isActive ? "Active" : "Inactive"}
-                              </span>
-                              <span>
-                                Updated:{" "}
-                                {new Date(
-                                  journeyType.updatedAt,
-                                ).toLocaleDateString()}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                handleManageJourneyStages(journeyType)
-                              }
-                              className="flex items-center gap-2"
-                            >
-                              <Edit className="h-4 w-4" />
-                              Manage Stages
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEditJourneyType(journeyType)}
-                              className="flex items-center gap-2"
-                            >
-                              <Edit className="h-4 w-4" />
-                              Edit
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                handleDeleteJourneyType(journeyType)
-                              }
-                              className="flex items-center gap-2 text-red-500 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              Delete
-                            </Button>
-                          </div>
-                        </div>
+                      <div className="mt-6">
+                        <FeedbackMetrics
+                          dateRange={dateRange}
+                          filterArea={filterArea}
+                        />
                       </div>
-                    ))}
-                    {journeyTypes.length === 0 && (
-                      <div className="text-center py-8 text-gray-500">
-                        <p>
-                          No journey types found. Create your first journey type
-                          to get started.
+                    </TabsContent>
+
+                    <TabsContent value="areas" className="space-y-6 mt-6">
+                      <AreaBreakdown />
+                    </TabsContent>
+
+                    <TabsContent value="staff" className="space-y-6 mt-6">
+                      <StaffMetrics
+                        dateRange={dateRange}
+                        filterArea={filterArea}
+                      />
+                    </TabsContent>
+                  </Tabs>
+                </div>
+              )}
+
+              {activeTab === "areas" && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Area</CardTitle>
+                    <CardDescription>
+                      Manage geographical areas for your organization
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <AreaBreakdown
+                      isManagementView={true}
+                      hidePerformanceMetrics={true}
+                    />
+                  </CardContent>
+                </Card>
+              )}
+
+              {activeTab === "users" && (
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle>User Management</CardTitle>
+                      <CardDescription>
+                        Manage user accounts and permissions
+                      </CardDescription>
+                    </div>
+                    <Button
+                      onClick={() => {
+                        setSelectedUser(null);
+                        setStaffFormData({
+                          name: "",
+                          email: "",
+                          role: "support_worker",
+                          area: "",
+                        });
+                        setShowStaffDialog(true);
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <UserPlus className="h-4 w-4" /> Add User
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="mb-4 space-y-4">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search users by name or email..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-8"
+                        />
+                      </div>
+
+                      {/* Filters */}
+                      <div className="flex flex-col md:flex-row gap-4">
+                        <Select
+                          value={roleFilter}
+                          onValueChange={setRoleFilter}
+                        >
+                          <SelectTrigger className="w-full md:w-48">
+                            <SelectValue placeholder="Filter by Role" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Roles</SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="org_admin">
+                              Organization Admin
+                            </SelectItem>
+                            <SelectItem value="support_worker">
+                              Support Worker
+                            </SelectItem>
+                            <SelectItem value="manager">Manager</SelectItem>
+                            <SelectItem value="readonly">Read Only</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <Select
+                          value={statusFilter}
+                          onValueChange={setStatusFilter}
+                        >
+                          <SelectTrigger className="w-full md:w-48">
+                            <SelectValue placeholder="Filter by Status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Status</SelectItem>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="inactive">Inactive</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        {user?.role === "super_admin" && (
+                          <Select
+                            value={organizationFilter}
+                            onValueChange={setOrganizationFilter}
+                          >
+                            <SelectTrigger className="w-full md:w-48">
+                              <SelectValue placeholder="Filter by Organization" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">
+                                All Organizations
+                              </SelectItem>
+                              {availableOrganizations.map((org) => (
+                                <SelectItem key={org.id} value={org.id}>
+                                  {org.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+
+                        {(searchQuery ||
+                          roleFilter !== "all" ||
+                          statusFilter !== "all" ||
+                          organizationFilter !== "all") && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSearchQuery("");
+                              setRoleFilter("all");
+                              setStatusFilter("all");
+                              setOrganizationFilter("all");
+                            }}
+                            className="text-gray-500 hover:text-gray-700"
+                          >
+                            Clear filters
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Results count */}
+                      <div className="text-sm text-gray-600">
+                        Showing {filteredUsers.length} of {users.length} users
+                        {searchQuery && ` for "${searchQuery}"`}
+                      </div>
+                    </div>
+
+                    {filteredUsers.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p className="text-lg font-medium mb-2">
+                          No users found
+                        </p>
+                        <p className="text-sm">
+                          {searchQuery
+                            ? "Try adjusting your search terms"
+                            : "Get started by adding your first user"}
                         </p>
                       </div>
+                    ) : (
+                      <div className="rounded-md border">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b bg-muted/50 text-left">
+                              <th className="p-3 pl-4 font-medium">
+                                Full Name
+                              </th>
+                              <th className="p-3 font-medium">Email Address</th>
+                              <th className="p-3 font-medium">Role</th>
+                              {user?.role === "super_admin" && (
+                                <th className="p-3 font-medium">
+                                  Organisation
+                                </th>
+                              )}
+                              <th className="p-3 font-medium">Area</th>
+                              <th className="p-3 font-medium">Status</th>
+                              <th className="p-3 font-medium">Last Login</th>
+                              <th className="p-3 text-right pr-4 font-medium">
+                                Actions
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredUsers.map((userItem) => (
+                              <tr
+                                key={userItem.id}
+                                className="border-b hover:bg-muted/25 transition-colors"
+                              >
+                                <td className="p-3 pl-4">
+                                  <div className="font-medium">
+                                    {userItem.name}
+                                  </div>
+                                </td>
+                                <td className="p-3">
+                                  <div className="text-muted-foreground">
+                                    {userItem.email}
+                                  </div>
+                                </td>
+                                <td className="p-3">
+                                  <span
+                                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                                      userItem.role === "admin"
+                                        ? "bg-purple-100 text-purple-800"
+                                        : userItem.role === "org_admin"
+                                          ? "bg-indigo-100 text-indigo-800"
+                                          : userItem.role === "support_worker"
+                                            ? "bg-blue-100 text-blue-800"
+                                            : userItem.role === "manager"
+                                              ? "bg-green-100 text-green-800"
+                                              : "bg-gray-100 text-gray-800"
+                                    }`}
+                                  >
+                                    {userItem.role
+                                      .replace("_", " ")
+                                      .replace(/\b\w/g, (l) => l.toUpperCase())}
+                                  </span>
+                                </td>
+                                {user?.role === "super_admin" && (
+                                  <td className="p-3">
+                                    <span className="text-sm text-muted-foreground">
+                                      {getOrganizationName(
+                                        userItem.organizationId,
+                                      )}
+                                    </span>
+                                  </td>
+                                )}
+                                <td className="p-3">
+                                  <span className="text-sm text-muted-foreground">
+                                    {userItem.area || "Not assigned"}
+                                  </span>
+                                </td>
+                                <td className="p-3">
+                                  <span
+                                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                                      userItem.status === "active"
+                                        ? "bg-green-100 text-green-800"
+                                        : userItem.status === "inactive"
+                                          ? "bg-red-100 text-red-800"
+                                          : "bg-yellow-100 text-yellow-800"
+                                    }`}
+                                  >
+                                    {userItem.status.charAt(0).toUpperCase() +
+                                      userItem.status.slice(1)}
+                                  </span>
+                                </td>
+                                <td className="p-3">
+                                  <div className="text-sm text-muted-foreground">
+                                    {new Date(
+                                      userItem.lastLogin,
+                                    ).toLocaleDateString("en-US", {
+                                      year: "numeric",
+                                      month: "short",
+                                      day: "numeric",
+                                    })}
+                                  </div>
+                                </td>
+                                <td className="p-3 text-right">
+                                  <div className="flex justify-end gap-1">
+                                    {canEditUser(userItem) && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          handleEditStaff(userItem);
+                                        }}
+                                        className="h-8 px-2"
+                                        title="Edit User"
+                                      >
+                                        <Edit className="h-3 w-3" />
+                                      </Button>
+                                    )}
+                                    {canResetPassword(userItem) && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          handleResetPassword(
+                                            userItem.id,
+                                            userItem.email,
+                                            userItem.name,
+                                          );
+                                        }}
+                                        className="h-8 px-2"
+                                        title="Reset Password"
+                                      >
+                                        <KeyRound className="h-3 w-3" />
+                                      </Button>
+                                    )}
+                                    {user?.role === "super_admin" &&
+                                      userItem.id !== user.id && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            handleLoginAsUser(userItem);
+                                          }}
+                                          className="h-8 px-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                                          title="Login as User"
+                                        >
+                                          <LogIn className="h-3 w-3" />
+                                        </Button>
+                                      )}
+                                    {canDeleteUser(userItem) && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 px-2"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          handleDeleteUser(userItem);
+                                        }}
+                                        title="Delete User"
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                  </CardContent>
+                </Card>
+              )}
 
-            {activeTab === "events" && (
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Event Management</CardTitle>
+              {activeTab === "clients" && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Client Management</CardTitle>
                     <CardDescription>
-                      Manage organization events and activities
+                      Manage client accounts and journey progress
                     </CardDescription>
-                  </div>
-                  <Button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      openNewEventForm();
-                    }}
-                    className="flex items-center gap-2"
-                  >
-                    <Plus className="h-4 w-4" /> Add Event
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex justify-center py-8">
-                    <Link to="/events">
-                      <Button
-                        variant="outline"
-                        className="flex items-center gap-2"
-                      >
-                        <Calendar className="h-4 w-4" /> View All Events
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                  </CardHeader>
+                  <CardContent>
+                    <ClientManagementTable />
+                  </CardContent>
+                </Card>
+              )}
 
-            {activeTab === "assessments" && (
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Assessment Management</CardTitle>
-                    <CardDescription>
-                      Manage and edit client assessments
-                    </CardDescription>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col items-center gap-4 py-8">
-                    <Link to="/assessments">
-                      <Button
-                        variant="outline"
-                        className="flex items-center gap-2"
-                      >
-                        <FileText className="h-4 w-4" /> View All Assessments
-                      </Button>
-                    </Link>
-                    <p className="text-sm text-muted-foreground text-center max-w-md">
-                      Access all client assessments with full editing
-                      capabilities. You can view, edit, and manage assessment
-                      records from the assessments page.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+              {activeTab === "journey-types" && (
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle>Journey Progress Tracker Types</CardTitle>
+                      <CardDescription>
+                        Manage journey types and their stages for client
+                        progress tracking
+                      </CardDescription>
+                    </div>
+                    <Button
+                      onClick={openNewJourneyTypeForm}
+                      className="flex items-center gap-2"
+                    >
+                      <Plus className="h-4 w-4" /> Add Journey Type
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {journeyTypes.map((journeyType) => (
+                        <div
+                          key={journeyType.id}
+                          className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-lg">
+                                {journeyType.name}
+                              </h3>
+                              <p className="text-gray-600 mt-1">
+                                {journeyType.description}
+                              </p>
+                              <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                                <span>{journeyType.stages.length} stages</span>
+                                <span>
+                                  Status:{" "}
+                                  {journeyType.isActive ? "Active" : "Inactive"}
+                                </span>
+                                <span>
+                                  Updated:{" "}
+                                  {new Date(
+                                    journeyType.updatedAt,
+                                  ).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  handleManageJourneyStages(journeyType)
+                                }
+                                className="flex items-center gap-2"
+                              >
+                                <Edit className="h-4 w-4" />
+                                Manage Stages
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  handleEditJourneyType(journeyType)
+                                }
+                                className="flex items-center gap-2"
+                              >
+                                <Edit className="h-4 w-4" />
+                                Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  handleDeleteJourneyType(journeyType)
+                                }
+                                className="flex items-center gap-2 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Delete
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {journeyTypes.length === 0 && (
+                        <div className="text-center py-8 text-gray-500">
+                          <p>
+                            No journey types found. Create your first journey
+                            type to get started.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {activeTab === "events" && (
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle>Event Management</CardTitle>
+                      <CardDescription>
+                        Manage organization events and activities
+                      </CardDescription>
+                    </div>
+                    <Button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        openNewEventForm();
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <Plus className="h-4 w-4" /> Add Event
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex justify-center py-8">
+                      <Link to="/events">
+                        <Button
+                          variant="outline"
+                          className="flex items-center gap-2"
+                        >
+                          <Calendar className="h-4 w-4" /> View All Events
+                        </Button>
+                      </Link>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {activeTab === "assessments" && (
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle>Assessment Management</CardTitle>
+                      <CardDescription>
+                        Manage and edit client assessments
+                      </CardDescription>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-col items-center gap-4 py-8">
+                      <Link to="/assessments">
+                        <Button
+                          variant="outline"
+                          className="flex items-center gap-2"
+                        >
+                          <FileText className="h-4 w-4" /> View All Assessments
+                        </Button>
+                      </Link>
+                      <p className="text-sm text-muted-foreground text-center max-w-md">
+                        Access all client assessments with full editing
+                        capabilities. You can view, edit, and manage assessment
+                        records from the assessments page.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </div>
-        </div>
-      </main>
+        </main>
+      </ScrollArea>
 
       {/* Change Role Dialog */}
       <Dialog open={showRoleDialog} onOpenChange={setShowRoleDialog}>
@@ -2092,44 +2687,59 @@ const AdminDashboard = () => {
           <form onSubmit={handleStaffFormSubmit}>
             <div className="grid gap-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
+                <Label htmlFor="staff-name">Name</Label>
                 <Input
-                  id="name"
+                  id="staff-name"
                   placeholder="Staff member name"
-                  value={staffFormData.name}
-                  onChange={(e) =>
-                    setStaffFormData({ ...staffFormData, name: e.target.value })
-                  }
+                  value={staffFormData.name || ""}
+                  onChange={(e) => {
+                    try {
+                      setStaffFormData({
+                        ...staffFormData,
+                        name: e.target.value,
+                      });
+                    } catch (error) {
+                      console.error("Error updating name:", error);
+                    }
+                  }}
                   required
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="staff-email">Email</Label>
                 <Input
-                  id="email"
+                  id="staff-email"
                   type="email"
                   placeholder="Email address"
-                  value={staffFormData.email}
-                  onChange={(e) =>
-                    setStaffFormData({
-                      ...staffFormData,
-                      email: e.target.value,
-                    })
-                  }
+                  value={staffFormData.email || ""}
+                  onChange={(e) => {
+                    try {
+                      setStaffFormData({
+                        ...staffFormData,
+                        email: e.target.value,
+                      });
+                    } catch (error) {
+                      console.error("Error updating email:", error);
+                    }
+                  }}
                   required
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
+                <Label htmlFor="staff-role">Role</Label>
                 <Select
-                  value={staffFormData.role}
-                  onValueChange={(value) =>
-                    setStaffFormData({ ...staffFormData, role: value })
-                  }
+                  value={staffFormData.role || "support_worker"}
+                  onValueChange={(value) => {
+                    try {
+                      setStaffFormData({ ...staffFormData, role: value });
+                    } catch (error) {
+                      console.error("Error updating role:", error);
+                    }
+                  }}
                 >
-                  <SelectTrigger id="role">
+                  <SelectTrigger id="staff-role">
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
@@ -2147,23 +2757,28 @@ const AdminDashboard = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="area">Area</Label>
+                <Label htmlFor="staff-area">Area</Label>
                 <Select
-                  value={staffFormData.area}
-                  onValueChange={(value) =>
-                    setStaffFormData({ ...staffFormData, area: value })
-                  }
+                  value={staffFormData.area || ""}
+                  onValueChange={(value) => {
+                    try {
+                      setStaffFormData({ ...staffFormData, area: value });
+                    } catch (error) {
+                      console.error("Error updating area:", error);
+                    }
+                  }}
                 >
-                  <SelectTrigger id="area">
+                  <SelectTrigger id="staff-area">
                     <SelectValue placeholder="Select area" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">Not Assigned</SelectItem>
-                    {areas.map((area) => (
-                      <SelectItem key={area} value={area}>
-                        {area}
-                      </SelectItem>
-                    ))}
+                    {areas &&
+                      areas.map((area) => (
+                        <SelectItem key={area} value={area}>
+                          {area}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -2173,14 +2788,18 @@ const AdminDashboard = () => {
                 type="button"
                 variant="outline"
                 onClick={() => {
-                  setShowStaffDialog(false);
-                  setSelectedUser(null);
-                  setStaffFormData({
-                    name: "",
-                    email: "",
-                    role: "support_worker",
-                    area: "",
-                  });
+                  try {
+                    setShowStaffDialog(false);
+                    setSelectedUser(null);
+                    setStaffFormData({
+                      name: "",
+                      email: "",
+                      role: "support_worker",
+                      area: "",
+                    });
+                  } catch (error) {
+                    console.error("Error closing dialog:", error);
+                  }
                 }}
               >
                 Cancel
